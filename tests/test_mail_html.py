@@ -64,15 +64,20 @@ class TestDaily(MailCase):
                       "AI and crawlers", "Site health"):
             self.assertIn(title, flat)
         # 3 readers against 2 a week before (both whole); leads and returning
-        # are not recorded here, so "—", never 0; no heartbeat, no uptime.
+        # are not recorded here, so "—", never 0; no heartbeat rule, so no
+        # uptime row at all (it was an empty "—" in every mail, SKALD-12).
         self.assertRegex(flat, r"Visitors 3 ▲ 50%")
         self.assertRegex(flat, r"Visitors from AI 1 same")
-        self.assertRegex(flat, r"Uptime \(our 5-minute check\) —")
+        self.assertNotIn("Uptime", flat)
+        self.assertIn("Site health Server errors (5xx), all requests 0", flat)
         self.assertRegex(flat, r"Leads — —")
         self.assertIn("Open the dashboard", html)
         self.assertIn("Skald v1.0.0 · release 70 · Every visit, truly told.", flat)
         self.assertIn("You get this because owner@example.com, second@example.com are on the "
                       "report list", flat)
+        # Not "mail.to", which Gmail turned into a link to an outside website.
+        self.assertIn("(Settings › This site › Mail &amp; reports)", html)
+        self.assertNotIn("mail.to", flat)
         # Email-safe: nothing fetched, no pure white, colour scheme declared.
         self.assertEqual(re.findall(r'src="([^"]*)"', html), ["cid:skald-mark"])
         self.assertNotIn("#ffffff", html.lower())
@@ -80,6 +85,21 @@ class TestDaily(MailCase):
         self.assertIn("max-width:640px", html)
         logo = [p for p in msg.walk() if p.get_content_type() == "image/png"]
         self.assertEqual(logo[0]["Content-ID"], "<skald-mark>")
+
+    def test_without_a_dashboard_the_footer_names_config_yml(self):
+        # An install with no dashboard (no dashboard.url) has no Settings page:
+        # the footer names where its list is, still never "mail.to" (SKALD-12).
+        self.fill(8)
+        config = load_config(self.box.config)
+        (config.get("dashboard") or {}).pop("url", None)
+        with mock.patch.dict(os.environ, SECRETS):
+            msg = mailer.build("daily", config, self.history, UTC, NOW)
+        html = msg.get_body(("html",)).get_content()
+        flat = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
+        self.assertNotIn("Open the dashboard", html)
+        self.assertNotIn("Settings › This site", flat)
+        self.assertIn("(the to list in the mail section of the server's config.yml)", flat)
+        self.assertNotIn("mail.to", flat)
 
     def test_one_recipient_is_on_the_list_several_are(self):
         self.fill(14)
@@ -130,6 +150,20 @@ class TestDaily(MailCase):
         for title in ("Top pages", "Countries", "Where visitors came from"):
             card = html.split(title, 1)[1].split("s-card", 1)[0]
             self.assertLessEqual(card.count('<tr><td class="s-ink s-rule"'), 5, title)
+
+
+class TestUptimeRow(MailCase):
+    def test_a_heartbeat_rule_keeps_the_row_and_says_what_is_not_known(self):
+        """With a heartbeat rule the uptime check exists, so the row stays: a
+        day with the rule and no beat answered is 0% up, never hidden."""
+        self.fill(8)
+        config = load_config(self.box.config)
+        config["ours"] = {"user_agents": [{"agent": "skald-heartbeat", "label": "heartbeat"}]}
+        with mock.patch.dict(os.environ, SECRETS):
+            msg = mailer.build("daily", config, self.history, UTC, NOW)
+        flat = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", msg.get_body(("html",)).get_content()))
+        self.assertIn("Site health Uptime (our 5-minute check) 0.00% Server errors (5xx), "
+                      "all requests 0", flat)
 
 
 class TestWeekly(MailCase):

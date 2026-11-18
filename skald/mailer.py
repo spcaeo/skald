@@ -30,6 +30,7 @@ import os
 import re
 import smtplib
 import ssl
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import format_datetime, formataddr, make_msgid, parseaddr
@@ -268,7 +269,10 @@ def _insights(history: History, site: str, anchor: date, config: dict,
     found = compute(history, site, anchor, config)["insights"][:n]
     if not found:
         return "", ""
-    lines = ["WHAT CHANGED"] + [f"  - {i['title']} [{i['type']}]" for i in found]
+    from .mail_html import windows
+    from .report import _wrap
+    lines = (["WHAT CHANGED"] + [f"  - {i['title']} [{i['type']}]" for i in found]
+             + _wrap(windows(anchor), "  "))
     rows = "".join(
         f'<tr><td style="padding:5px 0;border-bottom:1px solid {RULE};font:400 13px/1.45 '
         f'{FONT};color:{INK}" class="ink hr">{esc(i["title"])} '
@@ -281,7 +285,7 @@ def _insights(history: History, site: str, anchor: date, config: dict,
             f'What changed</div><table role="presentation" width="100%" cellpadding="0" '
             f'cellspacing="0" style="border-collapse:collapse">{rows}</table>'
             f'<div class="mute" style="font:400 12px/1.5 {FONT};color:{FAINT};padding-top:8px">'
-            f'Only whole, verified days are compared.</div></td></tr></table>')
+            f'{esc(windows(anchor))}</div></td></tr></table>')
     return "\n".join(lines) + "\n\n", html
 
 
@@ -319,6 +323,41 @@ def _message(cfg: dict, subject: str, text: str, html: str,
     return msg
 
 
+PAGES_NOTE = ("Summed from each day's top 50 pages: a page read on only a few days "
+              "may be missing or short here. Compare in the dashboard counts every read.")
+
+
+def whole_pages(history: History, site: str, period: Period) -> bool:
+    """Put the period's true reads per page into its people's top pages.
+
+    History keeps each day's top 50 pages in `counts`, so the period's list is
+    a sum of daily top 50s: a page read on several busy days but never in one
+    day's top 50 was missing or short (SKALD-12, #70). Each day's full
+    page counts (day_extras `page_counts`, the list `skald compare` and the
+    dashboard's Compare read; the dashboard's other page lists are summed top
+    50s too; the same views as the `pages` blob audit_extras recounts)
+    have every page. Used only when every summed day has them and they add up
+    to the people's page views; otherwise the summed list stays and this
+    returns False, so the mail can say so."""
+    people = period.totals.groups.get(Group.PEOPLE)
+    days = sorted(period.recorded)
+    if people is None or not days:
+        return True
+    blobs = history.extras(site, days[0], days[-1], ("page_counts",))
+    pages: Counter = Counter()
+    for day in days:
+        blob = (blobs.get(day.isoformat()) or {}).get("page_counts")
+        if blob is None:
+            return False
+        for path, v in blob.items():
+            if v and v[0]:
+                pages[path] += int(v[0])
+    if sum(pages.values()) != people.views:
+        return False
+    people.pages = Counter(dict(pages.most_common()))
+    return True
+
+
 def build(kind: str, config: dict, history: History, tz: ZoneInfo,
           now: datetime | None = None) -> EmailMessage:
     """The daily (yesterday) or weekly (last 7 complete days) mail."""
@@ -335,6 +374,7 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
     if kind == "daily":
         period = history.period(site, last, last, include_partial=True)
         _gate(period, f"daily mail for {last}", allow_partial=True)
+        pages_note = ""            # one day: its top 50 is exact for the rows shown
         when = _long(last)
         partial = partial_words(period, tz)
         title = f"{site}: traffic on {when}" + (f" - {partial}" if partial else "")
@@ -346,6 +386,7 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
         first = last - timedelta(days=6)
         period = history.period(site, first, last)
         _gate(period, f"weekly mail for {first} to {last}")
+        pages_note = "" if whole_pages(history, site, period) else PAGES_NOTE
         previous = history.period(site, first - timedelta(days=7),
                                   first - timedelta(days=1))
         when = f"{_short(first)} to {_short(last)} {last.year}"
@@ -369,7 +410,8 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
     preface_text += update_text
     credit = country_credit(config)
     text = (f"{title}\n{subtitle}\n\n{preface_text}"
-            + as_text(period.totals, cards, credit, tz_name=zone) + link_text)
+            + as_text(period.totals, cards, credit, tz_name=zone)
+            + (f"Top pages: {pages_note}\n" if pages_note else "") + link_text)
     # The HTML part: the branded layout (mail_html.py), from the same period.
     from . import mail_html
     if kind == "daily":
@@ -382,7 +424,8 @@ def build(kind: str, config: dict, history: History, tz: ZoneInfo,
     logo = _logo()
     html = mail_html.render(kind, config, history, tz, site, first, last, period, before,
                             found, partial_text, setting(config, "dashboard", "url"),
-                            cfg["to"], credit, logo is not None, extra=ai_html + update_html)
+                            cfg["to"], credit, logo is not None, extra=ai_html + update_html,
+                            pages_note=pages_note)
     msg = _message(cfg, subject, text, html, now)
     if logo is not None:
         body = msg.get_body(("html",))

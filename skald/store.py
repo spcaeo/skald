@@ -643,8 +643,10 @@ class History:
 
         Visits are summed per day, so a session that runs across midnight is
         two visits. Top lists are sums of each day's top 50, so a page that
-        never made a day's top 50 is missing from a month's list - the long
-        tail undercounts, the head does not.
+        missed a day's top 50 loses that day's reads: it is short or missing
+        over a week or a month, and that can reach the head (a page read once
+        on each of several busy days). For people's pages, whole counts per
+        day are in day_extras `page_counts`; mailer.whole_pages uses them.
         """
         period = self._span(first, last, self._states(site, first, last))
         summed = period.recorded + (period.partial if include_partial else [])

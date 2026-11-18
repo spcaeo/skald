@@ -497,7 +497,7 @@ never up.
 ### H6. Top lists and crossed breakdowns over periods
 - **Wrong:** a month's top pages are sums of daily top 50s (the tail undercounts); breakdowns are stored one at a time, so "Canada x mobile x LinkedIn" over 30 days is not in history. Interactive filters can only cross what was stored.
 - **Count:** label summed tails; for filters across dimensions, read the 7-day journeys (each has all labels) and say "last 7 days only".
-- **Status:** documented; the filter limits must be stated in the app (This release).
+- **Status:** documented; the filter limits must be stated in the app (This release). The weekly mail lists Top pages from each day's whole page counts (a daily mail's own top 50 is exact for the rows shown) (`day_extras` `page_counts`), not the summed top 50s, and say so when a day has none (#70).
 
 ### H7. Schema upgrades
 - **Count:** in place, with a backup copy first (Handled). A new column is NULL for old days, never zero (Handled).

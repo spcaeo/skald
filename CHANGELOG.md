@@ -4,6 +4,48 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.52.0 (2026-11-18)
+
+The weekly mail's Top pages count every read of a page, "What changed" says which window
+each line covers, and the uptime row is left out when no uptime check is set up.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount.
+
+### Changes
+
+- **The traffic mails: a true weekly Top pages, "What changed" says its window, no empty
+  uptime row, two wording fixes (SKALD-12).** Found by checking one site's daily mail (15 Nov 2026)
+  and weekly mail (9-15 Nov) against `skald audit` and `skald compare`: every other figure
+  matched.
+  - **Top pages in the weekly mail undercounted.** The list was the sum of each day's top 50
+    pages, so a page read on busy days outside the day's top 50 lost those reads: one page
+    showed 6 reads instead of 8, and in a test week a page read every day showed 4 instead of
+    7. The weekly mail now lists each page by every read, from each day's full page
+    counts, the same list Compare in the dashboard and `skald compare` read
+    (`mailer.whole_pages`). The dashboard's other page lists are still summed from each day's
+    top 50. A week with a day collected by older code keeps the summed list, and the card says
+    it may miss pages and that Compare counts every read.
+  - **"What changed" names its window.** The daily mail shows the same lines as the weekly:
+    week-on-week changes and ideas from the last 30 days. The idea lines now say "in the last
+    30 days". The card's note says which window each kind of line covers: comparisons say
+    theirs (week on week, 30 days on the 30 before, the last 30 days), while a spike, a drop
+    or a "New" line is about the mail's last day alone, named in the note. A page where no
+    visit went on says "none went on" instead of "almost none went on (0 more pages)".
+  - **No uptime row without an uptime check.** "Uptime (our 5-minute check)" showed "—" in
+    every mail of a site with no heartbeat rule. It is left out until a heartbeat rule is set.
+  - **Wording:** "Server errors (5xx), all requests" (it counts bots and scanners too, not
+    visitors), and the footer points to Settings › This site › Mail & reports instead of
+    "mail.to", which Gmail turned into a link to an outside website. An install without the
+    dashboard names the to list in the mail section of config.yml.
+  - **Who it affects:** everyone who gets the daily or weekly mail. **What to do:** nothing; no
+    stored figure changes and nothing needs a recount. **How it was checked:** new tests
+    (`test_mail_top_pages.py`, `test_mail_windows.py`, uptime and wording in
+    `test_mail_html.py`), each failing before the fix; a week's page list adds up to its pages
+    read, and holds the same views as the per-page list the audit recounts.
+
 ## 2.51.0 (2026-11-18)
 
 The site switcher scrolls inside the window however many sites you have, and with seven or
