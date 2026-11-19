@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-18-2.53.0",
+  id: "2026-11-19-2.53.1",
   items: [
+    ["Recorded journeys in the drawer again", "an owner or admin opening a visit sees its Recorded journeys again (or the note that none is linked); since 2.49.0 the section was left out.", "recorded-journeys"],
     ["A new Back trail from the menu", "a section or page picked in the left menu starts a new trail, so \"Back to\" never points at an unrelated screen from before; links inside a page keep it.", "getting-started"],
     ["\"(all others)\" stays last", "the row that adds up what a day's list cut off stays the last row of every table, whatever the sort.", "search"],
     ["AI answers in plainer words", "an empty \"From an answer to a lead\" says it starts from Skald's own sample of answers, and the New profile form opens only when you ask for it.", "ai-answers"],
