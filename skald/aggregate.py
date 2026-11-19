@@ -39,6 +39,7 @@ from .visits import Journeys
 from .classify import Classifier, Group, Tier
 from .countries import UNKNOWN
 from .parse import Hit
+from .rendering import rejoined
 
 # Breakdowns of people's readers, each counted once per reader at the
 # visit's first page view, so each one adds up to `readers` exactly.
@@ -466,8 +467,11 @@ def summarise_views(
         t.extras.ai_status = None
         t.extras.security = None
     whole.extras.security.verifier = getattr(classifier, "verifier", None)
+    proxied = getattr(classifier, "proxied", None)
     for hit in hits:
         whole.quality.add(hit)
+        # A prefetch-proxy page a browser drew is that browser's (SKALD-41).
+        hit = rejoined(hit, proxied)
         chosen = [t for test, t in tallies.values() if test(hit)]
         if wanted and hit.host and hit.host.lower() not in wanted:
             whole.excluded(hit)

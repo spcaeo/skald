@@ -4,6 +4,77 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.54.0 (2026-11-19)
+
+Add a site says at its first step why an address can't be added and what to do; a person
+invited to some sites only lands on one of them, and a site they may not see shows Skald's
+page, not nginx's; and a visitor from Google Search on Android Chrome is counted again when
+Chrome's prefetch proxy fetched the page.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting. No recount needed: from the day you upgrade, a visit from
+  Google through Chrome's prefetch proxy counts as a visitor; past days stay as they were
+  unless you recount them. The proxy list arrives with the next daily run, or at once with
+  `docker exec skald skald verify-bots`.
+- A self-hosted nginx copied from DEPLOY.md: add the new `error_page 403 = @skald_no_access;`
+  line and the `location @skald_no_access` block (the image's own nginx has them).
+
+### Changes
+
+- **Add a site says why an address can't be added, and what to do, at the first step
+  (SKALD-38).** Seen on 18 Nov 2026: adding a site whose name was removed in another
+  organisation failed only after the whole form was filled in, with just "<name> is already a
+  site of this install": no why, no where, no next step. Now the first step asks while the
+  address is typed (a new `POST sites/name`, which makes nothing) and says one of: **already
+  one of your sites** (pick it in the site menu); **removed on <date>, its data is kept**
+  (an owner of its organisation gets **Restore** right there; anyone else is told to ask an
+  owner, and where); **already in use on this install** (another organisation's site, never
+  named; someone who is an admin of both can move it, or the install's admin can free it);
+  **set up in the server's config**; or the name **held after its data was deleted**, as
+  before. **Next** stays on the step. `sites/add` and the MCP's `add_site` refuse with the same
+  words. **Who it affects:** owners and admins adding sites, and AI agents with the add-sites
+  scope. **What to do:** nothing. **How it was checked:** `tests/test_site_name_taken.py`
+  (every case, its words, that the other organisation is never named, who gets Restore, the
+  route) and `tests/js/add-site.mjs` (the words under the address, Next refused, Restore,
+  nothing sent to `sites/add`); each failed before the change.
+
+- **A visitor from Google Search on Android Chrome is counted again** (SKALD-41). Google Search
+  on Android Chrome often fetches a result's page through Chrome's private prefetch proxy, from
+  Google's network, while the phone fetches the page's own files from its own address. Skald
+  checks that a browser drew the page by joining a page and its files on one address, so neither
+  half passed, and the visitor went to Bots ("browser-like, never rendered"). Seen on a live site
+  on 18 Nov: a phone visit from Google showed "No visitor has read a page yet today". Now Skald
+  fetches Google's published list of proxy addresses each day with the crawler lists (in
+  `bots.ranges_dir`). A page line from a proxy address counts as the browser's when the same
+  browser fetched that page's own files from its own address within the render window, with
+  the page as their referrer: one visit, with the person's own country. A page the proxy fetched
+  and nobody opened stays a bot. The audit recounts it its own way. Affects every site with
+  visitors from Google on Android; past days change only on a recount. Nothing to do: the list
+  is fetched by the next daily run (or `skald verify-bots`). Checked with tests (the 18 Nov
+  pattern, a prefetch never opened, a person who fetched the page itself, another browser, files
+  too late, both counting roads agree) and on copies of every live site's 18 Nov log: 5 of 18
+  sites gain readers that day (1 to 23 each, desktop Chrome too, which uses the same proxy for
+  Google Search), the 18 Nov phone visit counts, and the audit recounts all three busiest of them
+  with every figure matching.
+
+- **A person invited to some sites only now lands on one of them, and a site they may not see
+  shows Skald's page, not nginx's (SKALD-39).** A member invited to one site of an
+  organisation with several sites saw a bare nginx "403 Forbidden" page right after accepting
+  the invite: the next page was the organisation's first site by name, which their site access
+  left out. The invite now opens the first site the person may see (their own sites, else every
+  site of the organisation). A 403 anywhere under `/traffic/` (a site outside the person's
+  access, or of an organisation they are not in) now shows "You don't have access to this site"
+  with a link to the sites they can open; it is still a 403 for scripts and monitors. Who it
+  affects: members limited to some sites, and anyone following a link to a site they may not
+  see. What to do: nothing; the page comes with the image's nginx (a self-hosted nginx copied
+  from DEPLOY.md needs the new `error_page 403` line and `location @skald_no_access`). Checked:
+  tests for a site-limited invite (new and existing account) and for the page in the nginx
+  config, run against a real nginx 1.22; end to end in a local container (invite limited to one
+  site, landed on it; the organisation's first site and another organisation's data file
+  answered Skald's page).
+
 ## 2.53.1 (2026-11-19)
 
 Two server errors fixed: the visitor drawer's **Recorded journeys** answers again, and a log

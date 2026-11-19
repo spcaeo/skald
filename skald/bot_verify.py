@@ -67,7 +67,13 @@ LISTS = {
     "anthropic": "https://claude.com/crawling/bots.json",
     "duckduckgo": "https://duckduckgo.com/duckduckbot.json",
     "meta": RIPE.format(asn=32934),
+    # Not a crawler: Chrome's private prefetch proxy, which fetches a Google
+    # Search result's HTML from Google's network for Android Chrome. The
+    # browser then fetches the page's files from its own address, and
+    # rendering.py joins the two (SKALD-41). An RFC 8805 geofeed, not JSON.
+    "chrome-prefetch-proxy": "https://www.gstatic.com/chrome/prefetchproxy/prefetch_proxy_geofeed",
 }
+PREFETCH_PROXY = "chrome-prefetch-proxy"
 
 # Lists whose every address is that one crawler, never a fetch a person
 # asked for: a browser user agent from one of them is that crawler in a
@@ -281,6 +287,16 @@ class Verifier:
                  if listed in self.sets and address in self.sets[listed]), "")
         return got
 
+    def prefetch_proxy(self, address: str) -> bool:
+        """Is this one of Chrome's prefetch-proxy addresses (PREFETCH_PROXY)?"""
+        got = self.sets.get(PREFETCH_PROXY)
+        if got is None:
+            return False
+        key = ("proxy", address)
+        if key not in self._memo:
+            self._memo[key] = address in got
+        return bool(self._memo[key])
+
     def hosting(self, address: str) -> bool:
         if self.hosting_set is None:
             return False
@@ -320,8 +336,12 @@ def _get(url: str, timeout: int = FETCH_TIMEOUT) -> bytes:
 
 
 def parse_list(raw: bytes) -> list[str]:
-    """CIDRs from a vendor list or a RIPEstat answer. Raises ValueError."""
-    data = json.loads(raw)
+    """CIDRs from a vendor list, a RIPEstat answer or a geofeed. Raises
+    ValueError."""
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return parse_geofeed(raw)
     if isinstance(data, dict) and isinstance(data.get("prefixes"), list):
         out = [p.get("ipv4Prefix") or p.get("ipv6Prefix") for p in data["prefixes"]
                if isinstance(p, dict)]
@@ -332,6 +352,23 @@ def parse_list(raw: bytes) -> list[str]:
     out = [c for c in out if c]
     for cidr in out:
         ipaddress.ip_network(cidr, strict=False)
+    if not out:
+        raise ValueError("an empty list")
+    return out
+
+
+def parse_geofeed(raw: bytes) -> list[str]:
+    """CIDRs from an RFC 8805 geofeed: "prefix,country,region,city,postal"
+    per line, "#" comments. A line that is no prefix (an error page) makes
+    it no geofeed. Raises ValueError."""
+    out = []
+    for row in raw.decode("utf-8", errors="replace").splitlines():
+        row = row.strip()
+        if not row or row.startswith("#"):
+            continue
+        cidr = row.split(",", 1)[0].strip()
+        ipaddress.ip_network(cidr, strict=False)
+        out.append(cidr)
     if not out:
         raise ValueError("an empty list")
     return out

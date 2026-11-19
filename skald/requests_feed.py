@@ -38,6 +38,7 @@ from .classify import (BROWSER, CRAWLER_PATH, CRAWLER_SESSION, LINK_PREVIEW, OTH
 from .countries import NAMES
 from .files import write_atomic
 from .parse import ASSET, BEACON, OWN_ENDPOINT, RSC_PAYLOAD
+from .rendering import rejoined
 from .visits import assistant_label   # "ChatGPT", not chatgpt.com
 
 VERSION = 1
@@ -415,7 +416,8 @@ def before_midnight(config: dict, feed: Feed, midnight: datetime, now: datetime,
         if wanted and hit.host and hit.host.lower() not in wanted:
             feed.excluded(hit)
         else:
-            feed(hit, classifier(hit))
+            # Judged as counted (a proxy's page a browser drew is its), shown as logged.
+            feed(hit, classifier(rejoined(hit, getattr(classifier, "proxied", None))))
 
 
 def _day_start(config: dict, midnight: datetime) -> datetime:

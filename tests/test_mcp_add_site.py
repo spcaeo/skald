@@ -187,8 +187,8 @@ class AddSite(TenantServer):
         dump = json.dumps(rows)
         for secret in (token, "k1w1", "ana@example.com"):
             self.assertNotIn(secret, dump)
-        # A name already taken is refused as the dashboard refuses it.
-        self.refused(token, "add_site", {"host": NEW}, "already a site of this install")
+        # A name already taken is refused as the dashboard refuses it, saying why (SKALD-38).
+        self.refused(token, "add_site", {"host": NEW}, "is already one of your sites")
 
     def test_the_dashboard_and_the_tool_share_one_code_path(self):
         cookie, csrf = self.session("owner@example.com")

@@ -246,6 +246,25 @@ that a browser drew the page, any one of:
 - **returning**: its 30-day keyed hash (visitors.py) was a counted reader
   on an earlier day, for the same reason.
 
+**A page from Chrome's prefetch proxy** (SKALD-41, 2026-11-19). Google Search
+on Android Chrome fetches a result's HTML through Chrome's private prefetch
+proxy, from Google's network; when the person opens it, the browser fetches
+the page's files from its own address. Joined on one address, neither half
+drew, and a real visitor from Google went to bots (a live site, 18 Nov 2026).
+So a page line from an address in Google's published proxy list
+(`bot_verify.LISTS` `chrome-prefetch-proxy`, an RFC 8805 geofeed fetched with
+the crawler lists) belongs to the browser that drew it: the same agent, from
+an address that is no proxy, fetching an own asset or payload whose referrer
+is that page (a site host, the same path), from 5 seconds before to
+`site.render_seconds` after it, unless that browser asked for the page itself
+in that window (then the files are its own page's: another person with the
+same agent); the nearest in time wins, then the lowest address. Before counting, the page line takes that browser's address and
+country (`rendering.rejoined`; the audit's `Judge.rejoin`), so it is one
+visit, the person's own. The requests feed shows the line as logged, with the
+group it was counted in. A page the proxy fetched and nobody opened joins
+nothing and stays a bot. Without the list (no `bots.ranges_dir`, or never
+fetched) nothing is joined.
+
 A visit counts whole or not at all, and every request of one that never
 rendered is filed under bots, so the groups still partition the log. On the
 audited day (2026-10-10) this moved 704 of 717 browser-like page visitors

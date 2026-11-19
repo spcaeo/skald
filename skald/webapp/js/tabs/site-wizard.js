@@ -135,11 +135,16 @@ function stepSite(w, data) {
   const addr = input({ name: "site-address", autocomplete: "off", inputmode: "url", maxlength: "200", placeholder: "www.example.com" });
   addr.value = st.typed || "";
   const card = detectCard(st, { address: () => siteFrom(addr.value).name || "", onFound });
+  const taken = takenLine(st);
   let timer = null;
+  let nameTimer = null;
   const say = () => {
     st.typed = addr.value;
     const got = siteFrom(addr.value);
     clearTimeout(timer);
+    clearTimeout(nameTimer);
+    if (got.name !== st.taken?.site) taken.set(null);
+    if (got.name) nameTimer = setTimeout(() => taken.ask(got.name), DETECT_WAIT_MS);
     if (!got.name) { show(null); if (addr.value.trim() && got.error) { sum.textContent = got.error; line.hidden = false; } return; }
     if (got.name === st.found?.site) { show(st.found); return; }
     show(null, got.name);
@@ -156,8 +161,38 @@ function stepSite(w, data) {
   change.addEventListener("click", () => { zoneBox.hidden = false; change.hidden = true; zone.focus?.(); });
   const zoneLine = h("p", { class: "sw-zone" }, h("span", null, "Time zone: "), h("b", null, zone.value), " ", change);
   say();
-  return [field("Site address", addr), line, zoneLine, zoneBox, fold("What Skald found", [card]),
+  return [field("Site address", addr), taken.el, line, zoneLine, zoneBox, fold("What Skald found", [card]),
     whoPart(st.who, (p) => w.keep(p)), who.el];
+}
+
+// SKALD-38: is the typed address free? POST sites/name says why not and what to do, at this
+// step (not after "Who will connect it?"); an owner of the site's organisation gets Restore.
+function takenLine(st) {
+  const words = h("span");
+  const acts = h("span", { class: "sw-taken-acts" });
+  const el = h("p", { class: "sw-taken", "aria-live": "polite", hidden: true }, words, acts);
+  const set = (got) => {
+    st.taken = got && !got.free ? got : null;
+    words.textContent = st.taken ? st.taken.words : "";
+    acts.replaceChildren(...(st.taken?.restore ? [restoreButton(st.taken)] : []));
+    el.hidden = !st.taken;
+  };
+  const restoreButton = (got) => {
+    const b = h("button", { type: "button", class: "btn" }, "Restore");
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      const r = await call("sites/restore", { name: got.restore });
+      if (!r.ok) { b.disabled = false; words.textContent = `${got.words} ${why(r, "It was not restored.")}`; return; }
+      set({ site: got.site, free: false, kind: "yours", words: `${got.site} is restored: it collects again. Pick it in the site menu.` });
+    });
+    return b;
+  };
+  const ask = async (name) => {
+    const r = await call("sites/name", { host: name });
+    if (siteFrom(st.typed).name !== name) return;          // typed on since
+    set(r.ok ? r : null);                                   // no answer: sites/add still says why
+  };
+  return { el, set, ask };
 }
 
 function siteCheck(w) {
@@ -165,6 +200,7 @@ function siteCheck(w) {
   if (!st.site) {
     const got = siteFrom(st.typed);
     if (got.error) return got.error;
+    if (st.taken && st.taken.site === got.name) return `${got.name} can't be added: see why under the address.`;
     const org = whoCheck(st.who);
     if (org) return org;
   }

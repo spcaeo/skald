@@ -107,13 +107,64 @@ def _validated(hosts, timezone, views, fmt, name: str) -> tuple[list, str | None
     return hosts, timezone, views, fmt
 
 
+def why_taken(db, name, org_ids=(), taken=()) -> dict | None:
+    """Why `name` can't be added, or None when it is free (SKALD-38). `org_ids`:
+    the organisations of the person asking; `taken`: the config-file site names.
+      {"kind": "config"}                                a config-file site
+      {"kind": "yours", "org_id", "removed_at"}         a site of one of `org_ids`
+      {"kind": "elsewhere"}                             another organisation's (never named)
+      {"kind": "held", "until"}                         held after a purge (site_verify)"""
+    from ..site_verify import reserved_until
+    ensure(db)
+    if name in set(taken):
+        return {"kind": "config"}
+    row = db.execute("SELECT org_id, removed_at FROM site_config WHERE name = ?",
+                     (name,)).fetchone()
+    if row is None:
+        got = db.execute("SELECT org_id FROM sites WHERE name = ?", (name,)).fetchone()
+        row = (got[0], None) if got else None
+    if row is not None:
+        if row[0] in set(org_ids):
+            return {"kind": "yours", "org_id": row[0], "removed_at": row[1]}
+        return {"kind": "elsewhere"}
+    until = reserved_until(db, name)
+    return {"kind": "held", "until": until} if until else None
+
+
+def taken_words(name, got: dict, owner: bool = False, org: str | None = None) -> str:
+    """The plain words for a why_taken answer. `owner`: the person is an owner
+    of the removed site's organisation, so they may restore it; `org`: that
+    organisation's name when it is not the one open now (one of the person's own)."""
+    from datetime import date
+    from ..site_verify import RESERVED_WORDS
+    kind = got["kind"]
+    if kind == "config":
+        return f"{name} is set up in the server's config; it can't be added from the dashboard."
+    if kind == "held":
+        return RESERVED_WORDS.format(name=name, until=got["until"][:10])
+    if kind == "elsewhere":
+        return (f"{name} is already in use on this install. Someone who is an admin of both "
+                "organisations can move it to yours (Settings › Organisation › Organisations, "
+                "Move a site here), or the install's admin can free it.")
+    if not got.get("removed_at"):
+        return f"{name} is already one of your sites: pick it in the site menu."
+    day = date.fromisoformat(got["removed_at"][:10])
+    said = f"{name} was removed on {day.day} {day:%b %Y}; its data is kept."
+    where = "in Settings › Organisation › Sites, under Removed sites."
+    if owner and org:
+        return f"{said} Switch to {org}, then restore it {where}"
+    return f"{said} Restore it to collect again." if owner else \
+        f"{said} Ask an owner to restore it {where}"
+
+
 def create(db, org_id, name, actor, hosts=None, timezone=None, views=None, log_dir=None,
-           log_base="access.log", fmt="auto", taken=(), allow_reuse=False) -> dict:
+           log_base="access.log", fmt="auto", taken=(), allow_reuse=False, mine=()) -> dict:
     """Add a dashboard site owned by `org_id`. `taken`: the install's
     config-file site names, which a new site may not reuse. A name purged
     in the last 30 days is refused unless `allow_reuse` (the install
-    admin's `--allow-reuse`; site_verify.py). Raises ValueError with the
-    reason in plain words."""
+    admin's `--allow-reuse`; site_verify.py). `mine`: the adder's other
+    organisations, so a taken name says whose it is (why_taken). Raises
+    ValueError with the reason in plain words."""
     from ..site_verify import refuse_reserved
     name = clean_name(name)
     hosts, timezone, views, fmt = _validated(hosts, timezone, views, fmt, name)
@@ -121,10 +172,9 @@ def create(db, org_id, name, actor, hosts=None, timezone=None, views=None, log_d
     with base.tx(db):
         if not db.execute("SELECT 1 FROM orgs WHERE id = ?", (org_id,)).fetchone():
             raise ValueError("There is no such organisation.")
-        if name in set(taken) or db.execute("SELECT 1 FROM sites WHERE name = ?",
-                                            (name,)).fetchone() \
-                or db.execute("SELECT 1 FROM site_config WHERE name = ?", (name,)).fetchone():
-            raise ValueError(f"{name} is already a site of this install.")
+        got = why_taken(db, name, [org_id, *mine], taken)
+        if got is not None and got["kind"] != "held":
+            raise ValueError(taken_words(name, got))
         refuse_reserved(db, name, allow_reuse)
         db.execute("INSERT INTO site_config (name, org_id, hosts, views, timezone, log_dir, "
                    "log_base, format, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",

@@ -64,7 +64,7 @@ def add(db, config, org, uid, form, *, live_dir, config_path, allowed, out, orig
     owner or admin (`role`) of `org`. `origin`: this install's address for the
     script tag. The answer of POST sites/add without "ok"; Refused otherwise."""
     from . import settings_store, setup_people
-    from .accounts import apitokens, site_configs, site_setup
+    from .accounts import apitokens, orgs, site_configs, site_setup
     from .accounts import db as base
     from .sites_api import (SHIP_TOKEN_FILE, _base, config_sites, plan_allows, read_only,
                             saas_on, ship_command, tag)
@@ -107,7 +107,8 @@ def add(db, config, org, uid, form, *, live_dir, config_path, allowed, out, orig
                 db, target["id"], name, uid, hosts=form.get("hosts") or None,
                 timezone=text(form, "timezone", 64) or None,
                 fmt=text(form, "format", 40) or "auto", log_dir=str(folder),
-                taken=config_sites(config, config_path))
+                taken=config_sites(config, config_path),
+                mine=[o["id"] for o in orgs.list_orgs(db, uid)])
             token = apitokens.create(db, target["id"], f"Log shipper for {name}"[:60],
                                      sites=[name], scopes=("ingest",), actor=uid) \
                 if form.get("token") is not False else None

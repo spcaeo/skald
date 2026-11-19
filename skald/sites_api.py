@@ -15,6 +15,11 @@ with `access.mode: sessions` (404 otherwise), the way team_api.py is:
                           Settings > Sites > Page assets (the site's
                           site.asset_prefixes setting), both checked as
                           Settings checks them: the site check's suggestions
+  POST sites/name      {host} -> {site, free} or {site, free: false, kind,
+                       words, restore?}: the wizard's first step asks while
+                       the address is typed (SKALD-38; site_configs.why_taken):
+                       why the name is taken and what to do; restore: the
+                       site to restore here, for an owner of this organisation  admin
   POST sites/token     {name}: a new ingest token for a site          admin
   A site's row menu (site_actions_api.py, site_lifecycle.py), for a site made
   here and a config-file site alike; the install's main site can only be paused:
@@ -94,7 +99,7 @@ from .config import site_name
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
 PATH = re.compile(PAGE + r"(?P<act>sites(?:/(?:add|token|remove|verify|status|kit|setup|detect|tagcheck|trylog"
-                         r"|pause|resume|restore|clear|purge"
+                         r"|name|pause|resume|restore|clear|purge"
                          r"|share|shares|unshare|link|pack|packmail"
                          r"|agentlink|agentstatus|agentcancel|agentleft"
                          r"|live|check|sendinvites|whoopts|whofor|arrived))?)$")
@@ -336,6 +341,30 @@ def add(c: Ctx, form):
     return c.ok(**got)
 
 
+def name_check(c: Ctx, form):
+    """POST sites/name: is the typed address free to add, and if not, why and
+    what to do (SKALD-38). Nothing is made or changed."""
+    from .accounts import orgs
+    try:
+        name = site_configs.clean_name(text(form, "host", 200))
+    except ValueError as why:
+        return c.no(400, str(why))
+    mine = {o["id"]: o for o in orgs.list_orgs(c.db, c.uid)}
+    got = site_configs.why_taken(c.db, name, list(mine),
+                                 config_sites(c.config, c.config_path))
+    if got is None:
+        return c.ok(site=name, free=True)
+    home = mine.get(got.get("org_id"))
+    owner = bool(home) and home.get("role") == "owner"
+    here = bool(home) and home["id"] == c.org["id"]
+    out = {"site": name, "free": False, "kind": got["kind"],
+           "words": site_configs.taken_words(name, got, owner=owner,
+                                             org=None if here else (home or {}).get("name"))}
+    if got["kind"] == "yours" and got.get("removed_at") and owner and here:
+        out["restore"] = name
+    return c.ok(**out)
+
+
 def new_token(c: Ctx, form):
     from .accounts import orgs
     name = text(form, "name", 200)
@@ -403,7 +432,8 @@ def _lifecycle():
     return acts
 
 
-ROUTES = {"sites": listing, "sites/add": add, "sites/token": new_token, **_lifecycle(),
+ROUTES = {"sites": listing, "sites/add": add, "sites/name": name_check,
+          "sites/token": new_token, **_lifecycle(),
           "sites/verify": verify, "sites/status": _more("status"), "sites/kit": _more("kit_zip"),
           "sites/setup": _more("setup"), "sites/detect": _more("detect"),
           "sites/tagcheck": _more("tag_check"), "sites/trylog": _more("try_sample"),

@@ -132,7 +132,9 @@ class StubHelper(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/traffic-auth/check"):
-            self.send_response(200)
+            # A site this session may not see: the helper's 403 (SKALD-39).
+            refused = "/traffic/refused.example.com/" in self.headers.get("X-Original-URI", "")
+            self.send_response(403 if refused else 200)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -265,6 +267,20 @@ class RealNginx(unittest.TestCase):
         # a file that is not there is still a plain 404
         self.assertEqual(self.get("/traffic/new.example.com/data/pages.json")[0], 404)
         self.assertEqual(self.get("/traffic/shop.example.com/data/missing.json")[0], 404)
+        self.assertEqual(self.get("/traffic/shop.example.com/")[0], 200)
+
+    def test_a_site_the_person_may_not_see_gets_skalds_page(self):
+        # SKALD-39: a 403 from the session check showed nginx's own "403 Forbidden".
+        for path in ("/traffic/refused.example.com/", "/traffic/refused.example.com/data/pages.json",
+                     "/traffic/refused.example.com/me"):
+            with self.subTest(path=path):
+                code, head, body = self.get(path)
+                self.assertEqual(code, 403)
+                self.assertTrue(head["Content-Type"].startswith("text/html"), head["Content-Type"])
+                self.assertEqual(head["Cache-Control"], "no-store")
+                self.assertIn(b"You don&#39;t have access to this site", body)
+                self.assertIn(b'href="/traffic/"', body)
+                self.assertNotIn(b"nginx", body)
         self.assertEqual(self.get("/traffic/shop.example.com/")[0], 200)
 
     def test_the_shell_is_never_kept(self):

@@ -116,7 +116,7 @@ To let a partner or a client see one site and nothing else, give them site acces
 2. Invite them there with their role, untick **Every site** and tick the site they may see. For someone who is a member already, select **Change** next to them instead.
 3. Select **Save**.
 
-They then see only that site: in the dashboard and its site switcher, in a link typed by hand, in the API and MCP tokens they make, and in the mails. An owner always sees every site. See [Organisations](organisations.md#which-sites-each-person-sees).
+They then see only that site: in the dashboard and its site switcher, in a link typed by hand, in the API and MCP tokens they make, and in the mails. After joining, they land on the first site they may see. A link to any other site shows "You don't have access to this site", with a link to the sites they do have. An owner always sees every site. See [Organisations](organisations.md#which-sites-each-person-sees).
 
 A site can also move to an organisation of its own, when a client should have their own team, settings and privacy class. On the server: `skald org create "Kiwi"`, then `skald site assign kiwi.example --org kiwi`. The site's data, settings and address stay as they were. Make yourself a member of the new organisation too (`skald member invite you@example.com --role owner --org kiwi`, then follow the link and select **Join**), or you stop seeing the site. The site's settings and its set-up progress move with it, and so do the tokens that read only that site, such as its log shipper's. A token for several sites, or for all of the old organisation's, stays where it was and no longer reads the moved site: make a new one in the new organisation if you need it.
 

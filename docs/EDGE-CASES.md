@@ -177,6 +177,7 @@ never up.
   The script tag (skald.js) and recorded journeys (journeys.js) wait for `prerenderingchange` before a page view, so a page loaded ahead and never shown sends nothing, and an opened one is timed from when it was shown.
 - **Test:** tests/test_trail_rule.py (the live visit's pattern, the Back button, both roads agree); tests/js/skald-snippet.mjs and journeys-snippet.mjs (nothing before the page is shown).
 - **Status:** Journeys and the tag handled (#62). Pages loaded ahead and never shown still count as page views in the log's figures: the log cannot tell them apart. Serve `/.well-known/traffic-advice` (or a 404 is fine; it just means no proxy prefetch).
+- **The proxy splits a visit (SKALD-41, 18 Nov 2026):** on a live site, a person opened a page from Google Search on Android Chrome. The page line came from a Chrome prefetch-proxy address (Google's network, `2001:4860:7:805::/64`, listed in Google's geofeed `gstatic.com/chrome/prefetchproxy/prefetch_proxy_geofeed`); the page's 66 files came a second later from the phone's own address. The render test joins on one address, so neither half rendered and the whole visit went to bots. Fixed: a proxy's page line joins the same agent's files from another address whose referrer is that page, within the render window, and counts as that browser's (CLASSIFICATION.md rule 9; tests/test_prefetch_proxy.py).
 
 ### B3. Client-side navigation is invisible
 - **Wrong:** after the first page, moving inside a Next.js site may fetch nothing (cached payload). Page views undercount; journeys miss steps.
