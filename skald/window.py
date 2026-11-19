@@ -166,7 +166,10 @@ def analyse_window_views(config: dict, start: datetime, end: datetime,
     fmt = logs.get("format") or "auto"
     rules = not_pages.from_config(config)
     classifier, hold = ordered_classifier(
-        config, lambda: within(read(paths, fmt, upto=upto, page_rules=rules), start, end),
+        # With the country file, as the counting pass: the prefetch-proxy join keeps the
+        # browser's country, which a log without one gets only from it (SKALD-41, 2.54.1).
+        config, lambda: within(read(paths, fmt, geo=geo_database(config), upto=upto,
+                                    page_rules=rules), start, end),
         start, end)
     stats = ReadStats()
     edges = _Edges()
@@ -252,7 +255,8 @@ def analyse_paths(config: dict, paths: list[Path], top: int = 8,
     paths = oldest_first(paths)
     fmt = fmt or logs.get("format") or "auto"
     rules = not_pages.from_config(config)
-    classifier, hold = ordered_classifier(config, lambda: read(paths, fmt, page_rules=rules))
+    classifier, hold = ordered_classifier(   # the country file too (SKALD-41, 2.54.1)
+        config, lambda: read(paths, fmt, geo=geo_database(config), page_rules=rules))
     stats = ReadStats()
     totals = summarise_views(
         one_click(in_time_order(read(paths, fmt, stats, geo_database(config),

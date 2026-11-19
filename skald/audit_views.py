@@ -80,6 +80,7 @@ def recount(config: dict, day: date, tz, raw_views: list, paths=None) -> dict:
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             continue
+        line = judge.rejoin(line)           # a proxy's page a browser drew is its (SKALD-41)
         mine = [r[0] for r in chosen if takes(r, line.path)]
         if not mine:
             # Judged all the same: the judge's view of the day is the whole day's.
