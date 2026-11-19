@@ -113,7 +113,7 @@ When you are in two or more:
 To let a partner or a client see one site and nothing else, give them site access in the dashboard (accounts only):
 
 1. Open [Settings > Organisation > Organisations](#settings/org/orgs) and select the organisation, then **Members**.
-2. Invite them there with their role, untick **Every site** and tick the site they may see. For someone who is a member already, select **Change** next to them instead.
+2. Invite them there with their role, untick **Every site** and tick the site they may see. For someone who is a member already, select **Change** next to them instead (also on **People**, in their **Sites** column).
 3. Select **Save**.
 
 They then see only that site: in the dashboard and its site switcher, in a link typed by hand, in the API and MCP tokens they make, and in the mails. After joining, they land on the first site they may see. A link to any other site shows "You don't have access to this site", with a link to the sites they do have. An owner always sees every site. See [Organisations](organisations.md#which-sites-each-person-sees).
@@ -140,11 +140,14 @@ Open invites are listed under **Pending invites**, with who sent them and when t
 - **Resend** sends a new link and replaces the old one.
 - **Cancel** stops the link at once.
 
+Inviting the same address again from this page or from Organisations replaces their open invite: the page says so, and the earlier link stops working. Invites from **Add a site** add up instead: someone named on three new sites gets one invite for all three, and the link in each mail works until they use one.
+
 ### Change a role or remove someone
 
-Under **Members**, each person's email, name, role, last seen and two-step sign-in are listed.
+Under **Members**, each person's email, name, role, sites, last seen and two-step sign-in are listed.
 
 - To change a role, pick a new one in the **Role** list. It saves at once.
+- To change the sites someone sees, select **Change** in their **Sites** column, tick **Every site** or the sites they may see, then **Save**. Only an admin or owner who sees every site can do this. An owner always sees every site, and you cannot change your own. If you see only some sites, other people's sites you don't see are shown as **and others**, never by name.
 - To remove someone, select **Remove**, then **Yes, remove**. Their sessions for this organisation end at once.
 
 You cannot change your own role or remove yourself. Viewers see the team list with every control turned off.

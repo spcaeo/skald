@@ -10,6 +10,9 @@ const ERRORS = { 400: "That is not a valid address or range.", 403: "Refused: ch
 
 // With accounts (access.mode: sessions) every POST also carries the session's
 // CSRF value, which the page reads from <page>/me. Without it nothing is sent.
+// SKALD-40: when the helper refuses a request as "out of date" (its words for a missing or
+// wrong value, every *_api.py), call asks <page>/me once more and tries once again.
+export const OUT_OF_DATE = "The page is out of date.";
 let csrf = "";
 export function setCsrf(value) { csrf = typeof value === "string" ? value : ""; }
 export const csrfHeaders = () => (csrf ? { "X-Skald-CSRF": csrf } : {});
@@ -18,6 +21,17 @@ export async function call(path, body) {
   // The demo has no helper: nothing is asked or posted; a list the demo build
   // wrote is read from its file, anything else says why.
   if (DEMO.on) return demoAnswer(path, body);
+  const got = await send(path, body);
+  if (got.ok || got.status !== 403 || !String(got.error || "").startsWith(OUT_OF_DATE)) return got;
+  // The value went stale (signed in again in another tab) or never came: ask once, try once,
+  // and only as the same person: someone else signed in there gets the refusal (reload).
+  const me = await send("me");
+  if (!me.ok || typeof me.csrf !== "string" || !me.csrf || (ME.user && me.user !== ME.user)) return got;
+  setCsrf(me.csrf);
+  return send(path, body);
+}
+
+async function send(path, body) {
   let res;
   try {
     res = await fetch(path, body ? { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json", ...csrfHeaders() }, body: JSON.stringify(body) }

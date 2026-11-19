@@ -25,9 +25,11 @@ arrived (`tick`, from the live run and from sites/live while the wizard is
 open): each new address gets the normal invite (accounts/invites.py) with
 "<site> is live, 1,283 requests so far", a member of another organisation is
 added to this one and told the same; the maker gets one mail, "<site> is
-live. Invites sent to 1 person." When the set-up has not finished after
-LATE_HOURS, the maker gets one mail with what is missing (setup_live.check's
-words) and can send the invites anyway (sites/sendinvites).
+live. Invites sent to 1 person." The same address named by several sites'
+set-ups gets one invite for all of them (invites.invite's `add`), and a member
+here on some sites only gets this one added (SKALD-42). When the set-up has
+not finished after LATE_HOURS, the maker gets one mail with what is missing
+(setup_live.check's words) and can send the invites anyway (sites/sendinvites).
 
 Only rows made by 2.43's wizard (`made_by` set) are ticked: a site set up
 before gets no mail on the first run after an upgrade. Every change writes
@@ -164,13 +166,36 @@ def live_words(site: str, requests: int | None) -> str:
 
 # ------------------------------------------------------------- sending
 
+def _widen(db, org: dict, user: dict, site: str, only, actor) -> bool:
+    """SKALD-42: a member limited to some sites, named by a new site's set-up, gets
+    that site; every site when the set-up said so and its maker sees every site.
+    Their role is not changed; one who sees every site already, is switched off, or
+    is the set-up's maker (never their own access, as in Settings) is left alone.
+    True if changed."""
+    if user.get("disabled_at") or str(user["id"]) == str(actor):
+        return False
+    had = users.site_access(db, org["id"], user["id"])
+    if had is None:
+        return False
+    maker = int(actor) if str(actor).isdigit() else None
+    every = only is None and maker is not None and \
+        users.site_access(db, org["id"], maker) is None
+    if not every and site in had:
+        return False
+    users.set_site_access(db, org["id"], user["id"], None if every else sorted({*had, site}),
+                          actor)
+    return True
+
+
 def send(db, config, site: str, base_url: str | None, actor, requests: int | None = None,
          by_hand: bool = False) -> dict:
     """Invite the set-up's people now, once: {sent, added, skipped, words,
-    already}. A new address gets the normal invite with the live words; a
-    member of another organisation is added to this one; one already in it is
-    skipped. The maker gets one mail. invites_at is set whatever went, so it
-    runs once (sites/sendinvites may run it before the data comes)."""
+    already}. A new address gets the normal invite with the live words, added to
+    any open invite of it (SKALD-42); a member of another organisation is added
+    to this one; one already in it but limited to other sites gets this site
+    (counted as added); anyone else already in it is skipped. The maker gets one
+    mail. invites_at is set whatever went, so it runs once (sites/sendinvites may
+    run it before the data comes)."""
     from .accounts import mails
     row = site_setup.get(db, site)
     if row is None:
@@ -205,17 +230,33 @@ def send(db, config, site: str, base_url: str | None, actor, requests: int | Non
                         config, user["email"], f"{site} is on Skald",
                         [words, f"You were added to {org['name']} as {what}."], page,
                         "Open the dashboard"))
+            elif _widen(db, org, user, site, only, row.get("made_by") or actor):
+                added += 1
+                if mail_on:
+                    _send(config, user["email"], _mail(
+                        config, user["email"], f"{site} is on Skald",
+                        [words, f"You can now see {site} in {org['name']}."], page,
+                        "Open the dashboard"))
             else:
                 skipped += 1
             continue
         email = one.get("email") or ""
         existing = users.find_user(db, email=email)
         if existing and users.role_in(db, existing["id"], org["id"]):
-            skipped += 1
+            if _widen(db, org, existing, site, only, row.get("made_by") or actor):
+                added += 1
+                if mail_on:
+                    _send(config, existing["email"], _mail(
+                        config, existing["email"], f"{site} is on Skald",
+                        [words, f"You can now see {site} in {org['name']}."], page,
+                        "Open the dashboard"))
+            else:
+                skipped += 1
             continue
         try:
+            # SKALD-42: added to an open invite from another site's set-up, never replacing it.
             token = invites.invite(db, org["id"], email, role, row.get("made_by") or actor,
-                                   sites=only)
+                                   sites=only, add=True)
         except ValueError:
             skipped += 1
             continue

@@ -72,7 +72,15 @@ the switcher's `sites.json`, the security and to-do mails (`security_notify.reci
 `todo_api.team`), and API and MCP tokens: a limited person's new token can name only their
 sites ("all sites" becomes theirs), and `apitokens.check` refuses a token on a site its maker no
 longer sees. An invite can carry the limit; it applies when the invite is taken.
-`tests/test_site_access.py` checks each, and that the address cannot dodge it.
+`tests/test_site_access.py` checks each, and that the address cannot dodge it. The People
+page (`team.js`) shows each member's sites and changes them with `POST team/access`
+(`email, sites`; admin, never your own; `team_api.py`), as the Organisations drawer does with
+`orgs/member/sites` (SKALD-42; `tests/test_invites_add_sites.py`). A reader who sees only
+some sites is shown other members' sites cut to their own (`more: true` when there are
+others, never their names) and may not change them (403; `may_sites` is false). The
+Organisations drawer does the same: `orgs/show` cuts members' and invites' sites for a limited
+reader (`users.shown_sites`; an install admin sees all) and `may.sites_access` is false, and
+`orgs/member/sites` refuses such a reader (403).
 
 **Archive and restore.** Archive pauses each active site of the organisation
 (`site_state.pause`, marked `org-archive:<actor>`) and sets `archived_at`; nothing is
@@ -120,7 +128,13 @@ the counts and the refs it named (INTEGRATIONS-LEADS.md).
   sign-in (Settings > Security, `security.session_days`).
   "Sign out everywhere" (Settings > Your account) ends all other sessions.
 - Every change the page makes is a same-origin POST that also carries the
-  session's `X-Skald-CSRF` value.
+  session's `X-Skald-CSRF` value. The page reads it from `<page>/me` on every
+  load (not the demo). A request made through the page's helper call
+  (`tabs/ipmanager.js` `call`) and refused as "The page is out of date." asks
+  `/me` once more and tries once again before it shows the message, only when
+  `/me` gives a value and names the same person (someone else signed in in
+  another tab gets the message: reload). The other few senders of the value
+  (refresh, the report PDF, a set-up file) do not retry (SKALD-40).
 - After 5 failed sign-ins for one email or one address in 15 minutes, each
   further try waits 30 seconds (answer 429). There is never a lock-out:
   nobody can lock the owner out by guessing.
@@ -129,7 +143,13 @@ the counts and the refs it named (INTEGRATIONS-LEADS.md).
 
 An admin enters an email and a role (Settings > Team, or `skald member
 invite`). The link is valid 7 days and works once. A newer invite for the
-same address replaces the older one ("resend"); an admin can cancel it.
+same address replaces the older one ("resend"): its link stops working, and
+the answer says `replaced` so the page tells the admin. An invite from Add a
+site (`invites.invite(..., add=True)`, SKALD-42) adds to the open one
+instead: every open link of that address gets the union of the sites (every
+site when one said so) and the strongest role, and stays valid; accepting one
+uses them all up, and Pending invites lists the address once. An admin can
+cancel it.
 
 - **Mailed link** (SMTP set up): the person picks a name and a password and
   is signed in.
@@ -166,6 +186,13 @@ will use it (`setup_people.py`, `sites_api.py` `sites/add`):
   member of another organisation), `all` every site. The default is `site` in an
   existing organisation and `all` in a new one; an owner always sees every site.
   A row saved before `sees` existed invites to every site, as it did.
+  A person already in the organisation but limited to some sites gets this
+  site added to `members.sites` (every site for `all`; audit `member.sites`;
+  their role is not changed); one who sees every site already is skipped
+  (SKALD-42). `all` widens to every site only when the set-up's maker sees
+  every site, and the maker's own access is never changed here (as in
+  Settings: never your own). The wizard lets such a member be ticked in this
+  organisation.
 - **Sent once the data arrives.** The live run and the page's `sites/live`
   call `setup_people.tick`: when the set-up is done and the first lines
   arrived, members are added and new addresses invited (the usual invite

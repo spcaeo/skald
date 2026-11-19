@@ -231,6 +231,16 @@ def visible_sites(db, org_id, user_id) -> list[str]:
     return names if limit is None else [n for n in names if n in limit]
 
 
+def shown_sites(sites, mine) -> dict:
+    """A member's or an invite's sites as a reader may know them (SKALD-42): a
+    reader on some sites only (`mine`, a set; None: every site) is never told the
+    names of the others, only that there are more ({"sites", "more"?})."""
+    if mine is None or sites is None:
+        return {"sites": sites}
+    shown = [s for s in sites if s in mine]
+    return {"sites": shown, **({"more": True} if len(shown) < len(sites) else {})}
+
+
 def clean_sites(db, org_id, sites) -> list[str] | None:
     """A limit given by a person (a list of site names, or None for every site),
     checked against the organisation's sites. ValueError in plain words."""

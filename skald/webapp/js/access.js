@@ -1,7 +1,9 @@
 // Who is looking, and what they may change. The helper says (GET <page>/me):
 // an admin may change internal addresses and funnels; a viewer reads only, and
-// sees those controls disabled with a reason. A server without /me (before
-// release 3) is never asked, and everyone there keeps today's controls.
+// sees those controls disabled with a reason. A server without /me (no helper, or
+// before release 3) answers 404, and everyone there keeps today's controls.
+// SKALD-40: /me is asked whether or not the site's funnels file exists yet (a new or
+// just-restored site has none before its first build), or no save there carried the value.
 //
 // With accounts (access.mode: sessions) /me also gives the name, the org, the
 // mode and the CSRF value every POST must carry; Settings then shows Team and
@@ -23,7 +25,6 @@ export async function loadMe(model) {
     HIDDEN.add("settings/org/billing");
     return ME;
   }
-  if (!model?.x?.funnels) return ME;
   const r = await call("me");
   if (r.ok && r.role) {
     ME.user = r.user || null; ME.role = r.role;
