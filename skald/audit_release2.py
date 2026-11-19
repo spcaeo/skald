@@ -22,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .bot_policy import match as policy_match
-from .bot_verify import CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE, VENDORS
+from .bot_verify import (CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE, PREFETCH_PROXY,
+                         VENDORS)
 from .classify import LINK_PREVIEWS, OTHER_BOT
 from .path_names import PATH_CHARS
 
@@ -124,6 +125,14 @@ class Checks:
                 if listed in self.nets and self._inside(address, self.nets[listed]):
                     self.memo[key] = name
                     break
+        return self.memo[key]
+
+    def prefetch_proxy(self, address: str) -> bool:
+        """Inside the stored Chrome prefetch-proxy list (SKALD-41)?"""
+        key = ("proxy", address)
+        if key not in self.memo:
+            nets = self.nets.get(PREFETCH_PROXY)
+            self.memo[key] = bool(nets) and self._inside(address, nets)
         return self.memo[key]
 
     def from_hosting(self, address: str) -> bool:

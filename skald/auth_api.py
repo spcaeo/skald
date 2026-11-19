@@ -628,7 +628,9 @@ def _invite(h, db, form, config=None) -> None:
                                text(form, "password"))
     except ValueError as why:
         return answer(h, 400, {"ok": False, "error": str(why)})
-    sites = accounts.sites_of_org(db, user["org_id"])
+    # The first site this member may see: a member limited to some sites would get
+    # a 403 on the organisation's first site by name (SKALD-39).
+    sites = users.visible_sites(db, user["org_id"], user["id"])
     nxt = f"/traffic/{sites[0]}/" if sites else "/traffic/"
     if not user["new"] or user["must_reset"]:
         # The link alone never signs in an existing account: whoever holds the

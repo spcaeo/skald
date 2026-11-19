@@ -35,6 +35,7 @@ kept visits or codes they could have read are pruned (its `expired`).
 """
 from __future__ import annotations
 
+import dataclasses
 import ipaddress
 import re
 from collections import Counter
@@ -212,20 +213,31 @@ class Judge:
         self.checkers = audit_tools.link_checkers(
             lines, gap, self.hosts, _asset, lambda l: bool(_PAYLOAD.search(l.url)),
             lambda l: bool(_BEACON.search(l.path)))
-        # Browser-like visits that drew nothing (audit_rendered): bots.
+        # Browser-like visits that drew nothing (audit_rendered): bots. The
+        # prefetch proxy's pages a browser drew, for rejoin (SKALD-41).
+        self.joins: dict = {}
         first, last = window or ((min(l.when for l in lines), max(l.when for l in lines))
                                  if lines else (None, None))
         self.unrendered = audit_rendered.never_drawn(
             config, lines, gap, self.hosts, first, last, tz or timezone.utc, _asset,
             lambda path: bool(_BEACON.search(path)),
             lambda agent: f"{browser_of(agent)}/{system_of(agent)}",
-            audit_extras.keyed, audit_extras.secret(config), navigation) if lines else {}
+            audit_extras.keyed, audit_extras.secret(config), navigation,
+            self.checks.prefetch_proxy if self.checks.on else None, self.joins) if lines else {}
         # Browser-like visits that read pages too fast for a person (audit_too_fast).
         self.too_fast = audit_too_fast.too_fast(
             config, lines, gap, self.hosts, is_page,
             self.checks.from_hosting if self.checks.on else None)
         # What the last call found beyond the group (audit_release2.BotsRecount).
         self.info: dict = {}
+
+    def rejoin(self, line: Line) -> Line:
+        """The line as counted: a prefetch-proxy page a browser drew is that
+        browser's, with its address and country (audit_rendered)."""
+        to = self.joins.get((line.address, line.agent, line.when, line.path))
+        if to is None:
+            return line
+        return dataclasses.replace(line, address=to[0], country=to[1] or line.country)
 
     def _ours(self, line: Line) -> str:
         """The label of the first `ours` rule the line matches, or ""."""
@@ -478,6 +490,7 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
             excluded += 1
             more.other_host(line)
             continue
+        line = judge.rejoin(line)
         group, cited = judge(line)
         bots.hit(line, group, judge.info)
         more.judged(line, group, judge.info)
@@ -584,7 +597,8 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
             if wanted and line.host and line.host.lower() not in wanted:
                 yield line, "excluded"
             else:
-                yield line, judge(line)[0]
+                # Judged as counted, given as logged (requests_feed does the same).
+                yield line, judge(judge.rejoin(line))[0]
         day += timedelta(days=1)
 
 

@@ -20,6 +20,11 @@ Object.defineProperty(globalThis.navigator, "clipboard", { configurable: true, v
 
 const FOUND = { site: "blog.example.org", reachable: true, server: "nginx", server_label: "nginx", hosts: ["blog.example.org"], recommended_method: "server", reason: "It answers from its own nginx." };
 let verify = null;
+// SKALD-38: what POST sites/name says about a taken address (site_configs.why_taken).
+const NAMES = {
+  "gone.example.org": { kind: "yours", words: "gone.example.org was removed on 21 Oct 2026; its data is kept. Restore it to collect again.", restore: "gone.example.org" },
+  "theirs.example.org": { kind: "elsewhere", words: "theirs.example.org is already in use on this install. Someone who is an admin of both organisations can move it to yours (Settings › Organisation › Organisations, Move a site here), or the install's admin can free it." },
+};
 let sites = { ok: true, can_add: true, ingest_url: "https://app.example.com/traffic-ingest", sites: [
   { name: "example.com", status: "active", source: "dashboard", setup: null },
   { name: "half.example.org", status: "active", source: "dashboard", setup: { step: 4, method: "", done: false } },
@@ -32,6 +37,8 @@ globalThis.fetch = async (path, opts = {}) => {
   if (path === "sites") return answer(sites);
   if (path === "sites/detect") return answer({ ok: true, found: { ...FOUND, site: body.address } });
   if (path === "sites/add") return answer({ ok: true, site: body.host, verify });
+  if (path === "sites/name") return answer(NAMES[body.host] ? { ok: true, site: body.host, free: false, ...NAMES[body.host] } : { ok: true, site: body.host, free: true });
+  if (path === "sites/restore") return answer({ ok: true, status: "active" });
   if (path === "sites/setup") return answer({ ok: true });
   if (path === "sites/link") return answer({ ok: true, command: "curl -fsSL https://app.example.com/traffic-kit/" + "k".repeat(43) + " | sudo bash", url: "x", expires_at: "2099-01-02T12:00:00Z", token_id: "cd34ef56" });
   if (path.startsWith("sites/status")) return answer({ ok: true, last_batch: null, today: null });
@@ -154,6 +161,32 @@ dialog().querySelector('input[name="site-address"]').dispatchEvent(new Ev("input
 await next();
 assert.equal(heading(), "Step 2 of 3: Prove it's yours");
 assert.ok(posted.some(([p, b]) => p === "sites/setup" && b.name === "shop.example.org" && b.step === 2));
+await close();
+
+// ---- SKALD-38: a taken address is said at the first step, with what to do; Next stays here
+async function type(v) {
+  const a = dialog().querySelector('input[name="site-address"]');
+  a.value = v; a.dispatchEvent(new Ev("input"));
+  await tick(DETECT_WAIT_MS + 60);
+}
+await openSiteKey("new", 0, {});
+await tick();
+await type("theirs.example.org");
+d = dialog();
+assert.equal(d.querySelector(".sw-taken").textContent, NAMES["theirs.example.org"].words, "why, at once");
+assert.ok(!button(d, "Restore"), "another organisation's site: nothing to restore here");
+await next();
+assert.equal(heading(), "Step 1 of 2: Your site", "Next refused for a taken address");
+assert.ok(!posted.some(([p, b]) => p === "sites/add" && b.host === "theirs.example.org"), "never sent to sites/add");
+await type("gone.example.org");
+assert.equal(d.querySelector(".sw-taken").textContent.startsWith("gone.example.org was removed on 21 Oct 2026"), true);
+button(d, "Restore").click();
+await tick(30);
+assert.deepEqual(posted.find(([p]) => p === "sites/restore")[1], { name: "gone.example.org" });
+assert.match(d.querySelector(".sw-taken").textContent, /^gone\.example\.org is restored: it collects again\./);
+assert.ok(!button(d, "Restore"), "restored once");
+await type("fresh.example.org");
+assert.ok(d.querySelector(".sw-taken").hidden, "a free address: no words");
 await close();
 
 console.log("add-site: all passed");

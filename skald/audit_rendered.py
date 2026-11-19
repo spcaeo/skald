@@ -14,6 +14,14 @@ vouches for it, or the same address and agent drew earlier that day, or its
 browser-like visit is a bot. A Next.js navigation (the audit's own test,
 audit.navigation) is a page request, and a payload that draws: a visit of
 such navigations alone drew.
+
+A page fetched from a Chrome prefetch-proxy address (SKALD-41) belongs to
+the browser that drew it: the same agent, from an address that is no proxy,
+fetching a draw whose referrer is that page (a site host, the same path) from
+5 s before to render_seconds after it, unless that browser asked for the
+page itself in that window around the draw; the nearest in time, then the
+lowest address. That browser's visit drew, and the audit moves the page line to its
+address and country before judging it (audit.Judge.rejoin).
 """
 from __future__ import annotations
 
@@ -22,6 +30,7 @@ import re
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .classify import OTHER_BOT
 
@@ -137,12 +146,14 @@ def stored_readers(config: dict, first: date) -> set[str]:
 
 def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: datetime,
                 end: datetime, tz, is_asset, is_beacon, family, keyed, secret,
-                is_navigation=None) -> dict:
+                is_navigation=None, is_proxy=None, joins: dict | None = None) -> dict:
     """{(address, agent): [(first, last)]} of browser-like visits that drew
     nothing. `lines` is the window's lines; the helpers are the audit's own
     (its asset and beacon path tests, its browser/system label, its hash,
     and its Next.js navigation test: such a payload is a page request too,
-    and draws as every payload does)."""
+    and draws as every payload does). With `is_proxy(address)`, the prefetch
+    proxy's pages a browser drew go in `joins`: {(address, agent, when,
+    path): (browser's address, its country)}."""
     if not switched_on(config):
         return {}
     own = prefixes(config)
@@ -187,6 +198,9 @@ def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: da
         asked = [l.when for l in group if page_request(l)]
         if any(p - early <= f <= p + after for f in fetched for p in asked):
             drew.add(n)
+    if is_proxy is not None:
+        drew |= _proxy_pages(visits, hosts, is_proxy, draws, is_asset, is_beacon,
+                             early, after, joins if joins is not None else {})
 
     # Beacon openings: each vouches for at most one visit, and for none when
     # a visit that drew already holds that page near that time.
@@ -215,3 +229,52 @@ def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: da
             continue
         out.setdefault(pair, []).append((group[0].when, group[-1].when))
     return out
+
+
+def _proxy_pages(visits: list, hosts: set, is_proxy, draws, is_asset, is_beacon,
+                 early: timedelta, after: timedelta, joins: dict) -> set:
+    """Fill `joins` (never_drawn) and return the browser visits that drew a
+    proxy's page."""
+    proxy = {pair[0]: bool(is_proxy(pair[0])) for pair, _ in visits}
+
+    def of_page(referrer: str, path: str) -> bool:
+        try:
+            parts = urlsplit(referrer or "")
+        except ValueError:
+            return False
+        host = (parts.hostname or "").lower()
+        return bool(host) and (not hosts or host in hosts) and (parts.path or "/") == path
+
+    def document(line) -> bool:
+        return (line.method in ("GET", "HEAD") and not _RSC.search(line.url)
+                and not is_asset(line) and not is_beacon(line.path))
+
+    # The draws of the agents a proxy address sent, from other addresses,
+    # less those of a page the browser asked for itself.
+    agents = {pair[1] for pair, _ in visits if proxy[pair[0]]}
+    theirs: dict[str, list] = {}
+    for n, (other, group) in enumerate(visits):
+        if other[1] in agents and not proxy[other[0]]:
+            asked = [(l.path, l.when) for l in group if document(l)]
+            theirs.setdefault(other[1], []).extend(
+                (l, n, asked) for l in group if draws(l))
+    found = set()
+    for pair, group in visits:
+        if not proxy[pair[0]]:
+            continue
+        for line in group:
+            if not document(line):
+                continue
+            best = None
+            for l, n, asked in theirs.get(pair[1], ()):
+                if (line.when - early <= l.when <= line.when + after
+                        and of_page(l.referrer, line.path)
+                        and not any(p == line.path and w - early <= l.when <= w + after
+                                    for p, w in asked)):
+                    rank = (abs((l.when - line.when).total_seconds()), l.address, l.when)
+                    if best is None or rank < best[0]:
+                        best = (rank, n, l.country)
+            if best is not None:
+                joins[(pair[0], pair[1], line.when, line.path)] = (best[0][1], best[2])
+                found.add(best[1])
+    return found

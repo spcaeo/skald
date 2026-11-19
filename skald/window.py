@@ -343,8 +343,10 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
             opens = rendering.beacon_opens(config, start, end)
             returning = rendering.earlier_readers(
                 config, start.astimezone(zone(config)).date(), load_key(config))
+        verifier = classifier.verifier
         drawn = rendering.Rendering(hosts, gap, rendering.asset_prefixes(config),
-                                    rendering.render_seconds(config), opens, returning)
+                                    rendering.render_seconds(config), opens, returning,
+                                    verifier.prefetch_proxy if verifier is not None else None)
 
     pages, seconds = too_fast.limits(config)
     cloud, pace = too_fast.cloud_limits(config)
@@ -376,6 +378,8 @@ def _classifier(config: dict, first_pass, start: datetime | None = None,
     if drawn is not None:
         classifier.unrendered = drawn.unrendered()
         classifier.rendering = drawn.counts
+        # The prefetch proxy's pages a browser drew: counted as its (rendering.rejoined).
+        classifier.proxied = drawn.joined
     if fast is not None:
         classifier.too_fast = fast.spans()
     return classifier

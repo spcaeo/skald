@@ -27,8 +27,11 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-19-2.53.1",
+  id: "2026-11-19-2.54.0",
   items: [
+    ["Add a site says why, at once", "when an address can't be added, the first step says why and what to do while you type: one of your sites, removed (an owner gets Restore there), another organisation's, set up in the server's config, or held after a delete.", "connections"],
+    ["Invited to some sites: you land on one", "a person invited to only some sites of an organisation opens one of them after joining; a site you may not open shows \"You don't have access to this site\" with a link to yours.", "sign-in-and-team"],
+    ["Google visitors on Android counted", "a visit from Google Search that Chrome fetched through its prefetch proxy counts as a visitor again, not as a bot; from today on.", "ai-and-bots"],
     ["Recorded journeys in the drawer again", "an owner or admin opening a visit sees its Recorded journeys again (or the note that none is linked); since 2.49.0 the section was left out.", "recorded-journeys"],
     ["A new Back trail from the menu", "a section or page picked in the left menu starts a new trail, so \"Back to\" never points at an unrelated screen from before; links inside a page keep it.", "getting-started"],
     ["\"(all others)\" stays last", "the row that adds up what a day's list cut off stays the last row of every table, whatever the sort.", "search"],

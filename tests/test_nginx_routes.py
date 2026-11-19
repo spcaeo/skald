@@ -395,6 +395,30 @@ class Coverage:
         dash = [loc for loc in self.config.locations if loc.arg == "/traffic/"][0]
         self.assertEqual(dash.directives("auth_request"), [["/traffic-auth/check"]])
 
+    def test_a_refused_site_gets_skalds_page_never_nginxs(self):
+        # SKALD-39: the session check's 403 (not a member, or a site outside the
+        # member's limit) showed nginx's own "403 Forbidden" page.
+        dash = [loc for loc in self.config.locations if loc.arg == "/traffic/"][0]
+        self.assertIn(["403", "=", "@skald_no_access"], dash.directives("error_page"))
+        for loc in self.config.all_locations(dash.children):
+            with self.subTest(loc=repr(loc)):
+                self.assertFalse(loc.directives("error_page"), "it would drop the dashboard's")
+        page = [loc for loc in self.config.locations if loc.arg == "@skald_no_access"]
+        self.assertEqual(len(page), 1, "location @skald_no_access is missing")
+        self.assertEqual(page[0].directives("default_type"), [["text/html"]])
+        self.assertEqual(page[0].directives("types"), [[]], "else a .json address says JSON")
+        heads = {a[0]: a[1] for a in page[0].directives("add_header")}
+        self.assertEqual(heads.get("Cache-Control"), "no-store")
+        self.assertEqual(heads.get("Referrer-Policy"), "no-referrer")
+        self.assertIn("frame-ancestors 'none'", heads.get("Content-Security-Policy", ""))
+        ret = page[0].directives("return")
+        self.assertEqual(len(ret), 1)
+        self.assertEqual(ret[0][0], "403", "still a 403 for scripts and monitors")
+        body = ret[0][1]
+        self.assertIn("You don&#39;t have access to this site", body)
+        self.assertIn('href="/traffic/"', body, "a way to the sites the person can open")
+        self.assertTrue(body.rstrip().endswith("</html>"), "an unescaped quote cut it short")
+
     def test_every_helper_location_clears_the_user_headers(self):
         for loc in self.config.all_locations():
             if self.config.target(loc) is None:

@@ -44,6 +44,19 @@ assistant two minutes later has the assets cached and asks for none. The
 people's visits (aggregate._Sessions) then split by source inside it, on
 both roads alike; audit_rendered.py judges the same gap-only spans.
 
+A page Chrome's prefetch proxy fetched (SKALD-41): Google Search on Android
+Chrome fetches a result's HTML through Chrome's private prefetch proxy, from
+Google's network, and the browser then fetches the page's files from its own
+address. Joined on one address, neither half would render. So a page line
+from a proxy address (Google's published list, bot_verify.PREFETCH_PROXY) is
+the browser's when the same agent fetched an own asset or payload from
+another, non-proxy address within the same window (EARLY_SECONDS before to
+render_seconds after) whose referrer is that page (same host, same path),
+and that browser did not fetch that page itself in the same window around
+the fetch (then the files are its own page's); the nearest such fetch wins. `rejoined` then gives the page line that
+browser's address and country, in every pass that counts: one visit, the
+person's own. A proxy page nobody opened joins nothing and stays a bot.
+
 What it cannot know: a person whose browser blocks scripts and styles, or
 who reads through a text-only browser, is left out with the scrapers. The
 beacon shows how rare that is (README, "What this cannot know").
@@ -53,7 +66,9 @@ audit_rendered.py counts the same thing by a separate road.
 from __future__ import annotations
 
 import bisect
+import dataclasses
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from .classify import BROWSER, NOT_RENDERED, OTHER_BOT  # noqa: F401 - NOT_RENDERED re-exported
 from .config import setting
@@ -96,12 +111,14 @@ class Rendering:
 
     `opens` is the beacon's page openings, [(path, when opened)], and
     `returning(address, agent)` says whether that visitor was a counted
-    reader on an earlier day; both may be empty.
+    reader on an earlier day; both may be empty. `proxy(address)` says
+    whether an address is Chrome's prefetch proxy (None: no list).
     """
 
     def __init__(self, hosts: list[str] | None, gap_minutes: int = 30,
                  prefixes: tuple[str, ...] = ASSET_PREFIXES,
-                 seconds: int = RENDER_SECONDS, opens=(), returning=None) -> None:
+                 seconds: int = RENDER_SECONDS, opens=(), returning=None,
+                 proxy=None) -> None:
         self.wanted = {h.lower() for h in (hosts or [])}
         self.gap = timedelta(minutes=gap_minutes)
         self.prefixes = tuple(prefixes)
@@ -109,9 +126,15 @@ class Rendering:
         self.before = timedelta(seconds=EARLY_SECONDS)
         self.opens = sorted((_aware(at), path) for path, at in opens)
         self.returning = returning
-        # (address, agent) -> [(when, path or None, renders)]: a document
-        # carries its path, an asset or payload carries renders=True.
+        self.proxy = proxy
+        # (address, agent) -> [(when, path or None, renders, referrer,
+        # country)]: a document carries its path, an asset or payload carries
+        # renders=True. The last two are the hit's own strings, for the
+        # prefetch-proxy join.
         self.seen: dict[tuple[str, str], list] = {}
+        # (proxy address, agent) -> {(when, path): (address, country)}: the
+        # proxy's pages each browser drew (unrendered() fills it).
+        self.joined: dict[tuple[str, str], dict] = {}
         self._browser: dict[str, bool] = {}
 
     def _browser_like(self, agent: str) -> bool:
@@ -143,11 +166,12 @@ class Rendering:
         if self.renders(hit):
             # A Next.js navigation (parse.Hit.soft_navigation) is a page of
             # its own, and the payload it is shows the page's script drew it.
-            item = (when, hit.path if hit.soft_navigation else None, True)
+            item = (when, hit.path if hit.soft_navigation else None, True,
+                    hit.referrer, hit.country)
         elif self.document(hit):
-            item = (when, hit.path, False)
+            item = (when, hit.path, False, None, None)
         else:
-            item = (when, None, False)
+            item = (when, None, False, None, None)
         self.seen.setdefault((hit.address, hit.user_agent), []).append(item)
 
     # ------------------------------------------------------------ verdicts
@@ -168,7 +192,7 @@ class Rendering:
         renders = [e[0] for e in visit if e[2]]
         if not renders:
             return False
-        for when, path, _ in visit:
+        for when, path, *_ in visit:
             if path is None:
                 continue
             k = bisect.bisect_left(renders, when - self.before)
@@ -182,9 +206,11 @@ class Rendering:
         visits = {key: self._visits(events) for key, events in self.seen.items()}
         drawn = {(key, i) for key, vs in visits.items() for i, v in enumerate(vs)
                  if self._drawn(v)}
+        self.joined = self._join_proxy(visits, drawn)
         signed = self._beacon(visits, drawn)
         out: dict[tuple[str, str], list] = {}
-        counts = {"assets": 0, "beacon": 0, "earlier": 0, "returning": 0, "not_rendered": 0}
+        counts = {"assets": 0, "beacon": 0, "earlier": 0, "returning": 0, "not_rendered": 0,
+                  "proxy_pages": sum(len(v) for v in self.joined.values())}
         for key, vs in visits.items():
             before = False
             back = None
@@ -218,7 +244,7 @@ class Rendering:
         pages: dict[str, list] = {}
         for key, vs in visits.items():
             for i, visit in enumerate(vs):
-                for when, path, _ in visit:
+                for when, path, *_ in visit:
                     if path is not None:
                         pages.setdefault(path, []).append((when, key, i))
         signed: set = set()
@@ -232,6 +258,87 @@ class Rendering:
             near.sort()
             signed.add((near[0][2], near[0][3]))
         return signed
+
+    def _from_page(self, referrer: str, path: str) -> bool:
+        """The referrer is this page of the site: same path, a wanted host."""
+        try:
+            got = urlsplit(referrer)
+        except ValueError:
+            return False
+        host = (got.hostname or "").lower()
+        if not host or (self.wanted and host not in self.wanted):
+            return False
+        return (got.path or "/") == path
+
+    def _join_proxy(self, visits: dict, drawn: set) -> dict:
+        """The prefetch proxy's pages each browser drew (module docstring):
+        {(proxy address, agent): {(when, path): (address, country)}}. The
+        browser's visit that drew one is added to `drawn`: the page is its."""
+        if self.proxy is None:
+            return {}
+        proxied = {key for key in visits if self.proxy(key[0])}
+        if not proxied:
+            return {}
+        agents = {agent for _, agent in proxied}
+        # agent -> [(when, address, visit index, referrer, country)] of the
+        # draws from other addresses, in time order.
+        draws: dict[str, list] = {}
+        for key, vs in visits.items():
+            if key[1] not in agents or key in proxied:
+                continue
+            for i, visit in enumerate(vs):
+                for when, _, renders, referrer, country in visit:
+                    if renders and referrer:
+                        draws.setdefault(key[1], []).append((when, key[0], i, referrer, country))
+        for got in draws.values():
+            got.sort(key=lambda d: (d[0], d[1]))
+        own: dict = {}          # (address, agent, visit) -> {path: [its page times]}
+
+        def fetched_itself(address: str, agent: str, i: int, path: str, at) -> bool:
+            pages = own.get((address, agent, i))
+            if pages is None:
+                pages = own[(address, agent, i)] = {}
+                for when, p, renders, *_ in visits[(address, agent)][i]:
+                    if p is not None and not renders:
+                        pages.setdefault(p, []).append(when)
+            return any(t - self.before <= at <= t + self.after for t in pages.get(path, ()))
+
+        joined: dict = {}
+        for key in sorted(proxied):
+            got = draws.get(key[1])
+            if not got:
+                continue
+            times = [d[0] for d in got]
+            for visit in visits[key]:
+                for when, path, renders, *_ in visit:
+                    if path is None or renders:
+                        continue
+                    k = bisect.bisect_left(times, when - self.before)
+                    near = [(abs((d[0] - when).total_seconds()), d[1], d[0], d)
+                            for d in got[k:bisect.bisect_right(times, when + self.after)]
+                            if self._from_page(d[3], path)
+                            and not fetched_itself(d[1], key[1], d[2], path, d[0])]
+                    if not near:
+                        continue
+                    _, address, _, (_, _, i, _, country) = min(near)
+                    joined.setdefault(key, {})[(when, path)] = (address, country)
+                    drawn.add(((address, key[1]), i))
+        return joined
+
+
+def rejoined(hit, joined: dict | None):
+    """The hit as counted: a prefetch-proxy page a browser drew (SKALD-41)
+    becomes that browser's, with its address and country. Any other hit
+    is itself."""
+    if not joined:
+        return hit
+    got = joined.get((hit.address, hit.user_agent))
+    if not got:
+        return hit
+    to = got.get((_aware(hit.when), hit.path))
+    if to is None:
+        return hit
+    return dataclasses.replace(hit, address=to[0], country=to[1] or hit.country)
 
 
 # ----------------------------------------------------------------- inputs

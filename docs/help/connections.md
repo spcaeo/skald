@@ -220,6 +220,13 @@ Owners and admins add a site in two short steps. Open **Settings > Organisation 
 
 1. **Your site.** Type the site's address, as people type it. A whole link works too: `https://www.example.com/pricing` becomes the site `www.example.com`. While you type, Skald looks at the site and says what it found in one line, for example **Runs on nginx · suggested: one command on the server**. The details are behind **What Skald found**. The time zone is your browser's (or the one Skald found); press **Change** to type another.
 
+   If the address can't be added, Skald says why under it while you type, and **Next** stays on this step:
+   - **One of your sites**: pick it in the site menu.
+   - **Removed** (yours): it says when; its data is kept. An owner of its organisation presses **Restore** there (or, for another of your organisations, switches to it and restores it in **Settings › Organisation › Sites**, under **Removed sites**). Anyone else asks an owner.
+   - **Already in use on this install**: it is another organisation's site (Skald does not say whose). Someone who is an admin of both organisations can move it to yours (**Move a site here** in Settings › Organisation › Organisations), or the install's admin can free it.
+   - **Set up in the server's config**: it can't be added from the dashboard.
+   - **Deleted, name held**: a site whose data was deleted keeps its name for 30 days; an install admin can re-use it sooner.
+
    Then two questions about people:
    - **Organisation.** **This organisation** (the default), **Another of mine** (a list of the organisations where you are an owner or admin), or **A new one**: type its name and choose **Their data**: **Internal, keep everything** (the default) or **A client: their own privacy settings apply**. A new organisation is made with the site, and you are its owner.
    - **Who will use it.** Tick the members who should see it (when the site stays in this organisation they see it already), or type an email and choose **viewer** or **admin** (**owner** too, for a new organisation), then **Add**. Or tick **No one else**. Then **Sees**: **this site only** (the default) or **every site** of the organisation; in a new organisation the default is every site, and an owner always sees every site. Nobody is invited yet: each person gets an invite as soon as the first data arrives. Members here who see only some sites are marked **some sites only**: they do not see the new site until you give it to them in Settings › Organisations.

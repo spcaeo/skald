@@ -270,8 +270,7 @@ is the repo's `NAME` file (the one place to rename the tool), the version
 `VERSION` (semver, raised by hand for a release worth naming), the release
 the commit count of HEAD. It sits at the dashboard's root, beside the site
 folders, so the app's own copy step (which empties `_app/` of old files)
-never removes it; a page reads `../build.json`. Without it the footer is
-simply blank.
+never removes it; a page reads `../build.json`. Without it the footer is simply blank.
 
 `mark-deploy` is the deploys log (`markers.log`); the mtime of
 `/opt/skald.prev` is not. Roll back with
@@ -401,8 +400,7 @@ The dashboard is files on disk. Serve `dashboard.out` behind basic auth (or
 sessions mode, below), with
 headers that keep it out of indexes even if the auth is ever removed. If the
 server already has such a location (auth, `X-Robots-Tag`, `no-store`, and no
-access logging for it), nothing here needs adding - only `dashboard.url`.
-Otherwise:
+access logging for it), nothing here needs adding - only `dashboard.url`. Otherwise:
 
 ```sh
 sudo apt-get install -y apache2-utils
@@ -501,8 +499,7 @@ right helper, so a new route cannot be left out. Change them together.
 
 <!-- skald-nginx-sessions:begin -->
 
-At the http level (a file in `/etc/nginx/conf.d/`, or the top of the site's
-file):
+At the http level (a file in `/etc/nginx/conf.d/`, or the top of the site's file):
 
 ```nginx
 # ---- http level ----
@@ -625,7 +622,8 @@ location = /traffic { return 301 /traffic/; }
 location ^~ /traffic/ {
     set $skald_path $uri;              # repeat in every nested location: `set` is not inherited
     auth_request /traffic-auth/check;
-    error_page 401 = @skald_login;     # no session: to the sign-in page; 403: not a member
+    error_page 401 = @skald_login;     # no session: to the sign-in page
+    error_page 403 = @skald_no_access; # a site this account may not see: Skald's page, never nginx's (SKALD-39)
     error_page 404 = @skald_not_written;   # a site's page not written yet: wait, never a bare 404 (#12)
     alias /var/www/skald/;
     index index.html;
@@ -689,6 +687,15 @@ location ^~ /traffic/ {
     }
 }
 location @skald_login { return 302 /traffic-auth/login?next=$request_uri; }
+# A site the session check refuses (SKALD-39): Skald's page with a way to the person's sites, still a 403.
+location @skald_no_access {
+    types { } default_type text/html;  # HTML even for a .json address
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    return 403 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>No access</title></head><body style="font: 16px/1.5 system-ui, sans-serif; max-width: 34em; margin: 4em auto; padding: 0 1em; color: #222"><h1 style="font-size: 1.4em">You don&#39;t have access to this site</h1><p>You are signed in, but your account cannot open this site&#39;s dashboard. The site may belong to another organisation, or your access may cover only some of its sites.</p><p><a href="/traffic/">Open a site you have access to</a></p><p style="color: #666">To see this site, ask an admin of its organisation to give you access.</p></body></html>';
+}
 # A site's own page that is not written yet (a new site, a fresh install, the first start
 # on a volume from before 2.45.6): its live run writes it within minutes, so say so and
 # retry, with a 503 that monitors read as "back soon". Any other missing file stays a 404.

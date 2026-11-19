@@ -327,6 +327,40 @@ class Invites(Server):
         self.assertEqual(used.status, 400)
         self.assertEqual(self.call("GET", f"/traffic-auth/invite-info?t={token}").status, 400)
 
+    def test_a_person_limited_to_some_sites_lands_on_one_of_them(self):
+        # SKALD-39: the next page was the organisation's first site by name, which a
+        # member limited to other sites may not see: nginx's bare 403 after joining.
+        first = "aaa.example"                       # before alpha.example by name
+        db = self.db()
+        try:
+            accounts.assign_site(db, first, self.alpha["id"], "cli")
+            token = accounts.invite(db, self.alpha["id"], "limited@example.com", "viewer",
+                                    self.uids["owner@example.com"], sites=[A])
+            again = accounts.invite(db, self.alpha["id"], "bob@example.com", "viewer",
+                                    self.uids["owner@example.com"], sites=[A])
+        finally:
+            db.close()
+        got = self.call("POST", "/traffic-auth/invite",
+                        {"token": token, "name": "Limited", "password": PW}, SAME)
+        self.assertEqual((got.status, got.json["next"]), (200, f"/traffic/{A}/"))
+        self.assertEqual(self.check(f"/traffic/{A}/", got.cookie).status, 200)
+        self.assertEqual(self.check(f"/traffic/{first}/", got.cookie).status, 403)
+        # an existing account (signs in itself): the same page after its sign-in
+        got = self.call("POST", "/traffic-auth/invite", {"token": again}, SAME)
+        self.assertEqual((got.status, got.json["next"], got.json["signed_in"]),
+                         (200, f"/traffic/{A}/", False))
+
+    def test_a_person_with_every_site_lands_on_the_first_by_name(self):
+        db = self.db()
+        try:
+            accounts.assign_site(db, "aaa.example", self.alpha["id"], "cli")
+        finally:
+            db.close()
+        token = self.make_invite("every@example.com")
+        got = self.call("POST", "/traffic-auth/invite",
+                        {"token": token, "name": "Every", "password": PW}, SAME)
+        self.assertEqual((got.status, got.json["next"]), (200, "/traffic/aaa.example/"))
+
     def test_an_existing_account_joins_but_must_sign_in_itself(self):
         token = self.make_invite("bob@example.com")
         info = self.call("GET", f"/traffic-auth/invite-info?t={token}")
