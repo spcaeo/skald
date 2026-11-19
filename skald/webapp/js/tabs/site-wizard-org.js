@@ -39,9 +39,16 @@ export const seesOf = (o) => o.sees || (o.org === "new" ? "all" : "site");
 export function whoBody(o) {
   const choice = o.org === "other" ? o.other : o.org;
   const sees = seesOf(o);
-  const people = o.none ? [] : [...(choice !== "same" ? [...o.ticked].map((id) => ({ user: id, role: "viewer" })) : []), ...o.emails]
+  const people = o.none ? [] : [...tickedFor(o, choice).map((id) => ({ user: id, role: "viewer" })), ...o.emails]
     .map((p) => ({ ...p, sees }));
   return addBody({ org: choice, name: o.name, privacy: o.privacy, people });
+}
+/* The members ticked: in this organisation only those on some sites only (SKALD-42: the
+   set-up gives them this site too; the rest see it already). */
+function tickedFor(o, choice) {
+  if (choice !== "same") return [...o.ticked];
+  const some = new Set((o.opts?.members || []).filter((m) => m.limited).map((m) => String(m.id)));
+  return [...o.ticked].filter((id) => some.has(String(id)));
 }
 export function whoCheck(o) {
   if (o.org === "new" && !String(o.name || "").trim()) return "Name the new organisation.";
@@ -64,7 +71,7 @@ export function whoPart(o, keep, redraw) {
       if (redraw) redraw();
     });
   }
-  const write = () => keep({ org: o.org === "other" ? o.other || "same" : o.org, ppl: o.org === "same" ? "" : pplValue([...o.ticked]), sees: o.sees });
+  const write = () => keep({ org: o.org === "other" ? o.other || "same" : o.org, ppl: pplValue(tickedFor(o, o.org === "other" ? o.other : o.org)), sees: o.sees });
 
   function radio(value, words, more = null) {
     const r = h("input", { type: "radio", name: "sw-org", value, checked: o.org === value || null });
@@ -101,7 +108,7 @@ export function whoPart(o, keep, redraw) {
     const roles = ["viewer", "admin", ...(o.org === "new" ? ["owner"] : [])];
     const members = (opts.members || []).filter((m) => String(m.id) !== String(ME.user_id ?? "") && m.email !== ME.user);
     const rows = members.map((m) => {
-      const tick = h("input", { type: "checkbox", checked: (same && !m.limited) || o.ticked.has(m.id) || null, disabled: same || o.none || null });
+      const tick = h("input", { type: "checkbox", checked: (same && !m.limited) || o.ticked.has(m.id) || null, disabled: (same && !m.limited) || o.none || null });
       tick.addEventListener("change", () => { if (tick.checked) o.ticked.add(m.id); else o.ticked.delete(m.id); write(); draw(); });
       return h("li", null, h("label", null, tick, ` ${m.name || m.email} `), withCopy(h("small", null, m.email), m.email, { label: "the address" }), " ", h("small", { class: "muted" }, same && m.limited ? `${m.role}, some sites only` : m.role));
     });
@@ -126,7 +133,7 @@ export function whoPart(o, keep, redraw) {
     none.addEventListener("change", () => { o.none = none.checked; if (o.none) { o.emails = []; o.ticked.clear(); write(); } draw(); });
     return h("fieldset", { class: "sw-q" }, h("legend", null, "Who will use it"),
       rows.length ? h("ul", { class: "sw-people" }, rows) : null,
-      same && rows.length ? h("small", { class: "note" }, limited ? "The rest see every site of this organisation already. Those on some sites only will not see this one: give it to them in Settings › Organisations."
+      same && rows.length ? h("small", { class: "note" }, limited ? "The rest see every site of this organisation already. Those on some sites only: tick them to give them this one too."
         : "They see every site of this organisation already.") : null,
       h("ul", { class: "sw-people" }, added),
       h("div", { class: "sw-add" }, email, role, add, said),
@@ -137,7 +144,7 @@ export function whoPart(o, keep, redraw) {
 
   /* One line, once someone will be invited: their site access in the organisation. */
   function seesLine(same) {
-    if (o.none || !(o.emails.length || (!same && o.ticked.size))) return null;
+    if (o.none || !(o.emails.length || tickedFor(o, same ? "same" : "other").length)) return null;
     const now = seesOf(o);
     const pick = (v, words) => {
       const r = h("input", { type: "radio", name: "sw-sees", value: v, checked: now === v || null });

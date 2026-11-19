@@ -44,7 +44,8 @@ globalThis.fetch = async (path, opts = {}) => {
   const answer = (data, st = 200) => ({ ok: st < 300, status: st, json: async () => structuredClone(data), headers: { get: () => null } });
   if (path === "sites") return answer(sites);
   if (path === "sites/whoopts") return answer({ ok: true, org: { id: 1, name: "Alpha" }, may_make: true,
-    orgs: [{ id: 7, name: "Beta", sites: 2 }], members: [{ id: 12, email: "ana@example.com", name: "Ana", role: "viewer" }] });
+    orgs: [{ id: 7, name: "Beta", sites: 2 }], members: [{ id: 12, email: "ana@example.com", name: "Ana", role: "viewer" },
+      { id: 15, email: "lee@example.com", name: "Lee", role: "viewer", limited: true }] });
   if (path === "sites/detect") return answer({ ok: true, found: { site: body.address, reachable: true, server: "nginx", recommended_method: "server" } });
   if (path === "sites/add") return answer({ ok: true, site: body.host, verify: null, org: { id: 31, name: body.org_name || "Alpha", new: body.org === "new" }, people: (body.people || []).length });
   if (path === "sites/setup") return answer({ ok: true });
@@ -268,6 +269,27 @@ assert.equal(add2.org, "7");
 assert.deepEqual(add2.people, [{ email: "cy@example.com", role: "viewer", sees: "all" }]);
 await close();
 for (const k of ["org", "ppl", "sees"]) assert.equal(readState()[k], "", `closing Add a site takes ${k} away`);
+// SKALD-42: this organisation, and a member on some sites only: their tick works, and gives
+// them the new site too (the rest see it already: ticked, and greyed).
+posted.length = 0;
+await openSiteKey("new", 0, {});
+await tick(30);
+const [anaTick, leeTick] = dialog().querySelectorAll(".sw-people input");
+assert.ok(anaTick.getAttribute("disabled") != null && anaTick.getAttribute("checked") != null, "Ana sees it already");
+assert.equal(leeTick.getAttribute("disabled"), null, "Lee, on some sites only, can be ticked");
+assert.match(dialog().textContent, /Those on some sites only: tick them to give them this one too\./);
+leeTick.checked = true; leeTick.dispatchEvent(new Ev("change"));
+assert.equal(readState().ppl, "15", "the member by id");
+assert.deepEqual(checkedOf("sw-sees"), ["site"], "Sees: this site only, by default");
+const addr3 = dialog().querySelector('input[name="site-address"]');
+addr3.value = "alpha-shop.example.net"; addr3.dispatchEvent(new Ev("input"));
+await tick(DETECT_WAIT_MS + 60);
+await next();
+const add3 = posted.find(([p]) => p === "sites/add")[1];
+assert.equal(add3.org, undefined, "this organisation: nothing to say");
+assert.deepEqual(add3.people, [{ user: 15, role: "viewer", sees: "site" }], "only Lee: Ana sees it already");
+await close();
+
 // This organisation's own id (or one not mine): "This organisation".
 await openSiteKey("new", 0, { org: "1" });
 await tick(30);

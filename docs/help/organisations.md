@@ -56,7 +56,7 @@ By default each member sees every site of the organisation. You can let an admin
 
 You can also choose the sites when you invite someone. The choice counts everywhere: the dashboard and its site switcher, a link typed by hand, the API and MCP tokens they make, and the mails. A token they made before the change stops reading the sites they no longer see.
 
-An owner always sees every site. An admin cannot change their own sites; another admin or an owner does it.
+An owner always sees every site. An admin cannot change their own sites; another admin or an owner does it. An admin who sees only some sites cannot change anyone's, and sees other sites only as **and others**, never by name. **Settings › Organisation › People** shows the same **Sites** column, with **Change**.
 
 ## Ownership
 

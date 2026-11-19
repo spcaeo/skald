@@ -14,16 +14,18 @@ import { call } from "./ipmanager.js";
 import { field, input, status, why, when, copyable } from "./forms.js";
 import { copyIf } from "../urlactions.js";
 import { tip } from "./settings-frame.js";
-import { ROLE_WORD, accessWords } from "./org-words.js";
+import { ROLE_WORD, accessWords, seenWords } from "./org-words.js";
 
 const NO_MAIL = "Mail is not set up: pass this link on yourself. It works once, for 7 days.";
+// SKALD-42: an admin's invite replaces the address's open one (accounts/invites.py).
+export const REPLACED = "It replaces the invite sent before: that link no longer works.";
 
 /* The roles this reader may give: an owner's only by an owner. */
 const rolesFor = (may, current) => ["viewer", "admin", ...(may.owners || current === "owner" ? ["owner"] : [])];
 
 /* Ticks for "which sites": Every site, or some of the organisation's. -> {el, value()}:
-   null for every site, else the names ticked. */
-function sitePicker(all, chosen, label) {
+   null for every site, else the names ticked. Also People's Change (team.js, SKALD-42). */
+export function sitePicker(all, chosen, label) {
   const every = h("input", { type: "checkbox", name: "every", checked: chosen == null });
   const boxes = all.map((s) => h("input", { type: "checkbox", name: "site", value: s, checked: chosen == null || chosen.includes(s), disabled: chosen == null }));
   every.checked = chosen == null;
@@ -72,7 +74,7 @@ function row(st, m, all, msg) {
   // The sites they see: words, and Change for an admin (never an owner's: every site).
   const sitesCell = h("td", { class: "org-access" });
   const drawSites = () => {
-    const words = h("span", null, accessWords(m.sites, m.role));
+    const words = h("span", null, seenWords(m));
     const canChange = may.sites_access && m.role !== "owner" && !m.me && all.length > 1;
     if (!canChange) { sitesCell.replaceChildren(words); return; }
     const b = h("button", { type: "button", class: "linkish", "aria-label": `Change the sites ${m.email} sees` }, "Change");
@@ -145,7 +147,7 @@ function inviteForm(st, all, linkSlot) {
     go.disabled = false;
     if (!r.ok) { msg.say(why(r)); return; }
     email.value = "";
-    msg.say(r.mailed ? `Invite sent to ${to}.` : r.warning || `Invite made for ${to}.`, true);
+    msg.say((r.mailed ? `Invite sent to ${to}.` : r.warning || `Invite made for ${to}.`) + (r.replaced ? ` ${REPLACED}` : ""), true);
     linkSlot.replaceChildren(r.link ? h("div", { class: "state ok", role: "status" }, h("div", null, h("p", null, h("strong", null, NO_MAIL), ` It is for ${to}.`), copyable(r.link, "the invite link"))) : "");
     const fresh = await call(`orgs/show?org=${encodeURIComponent(st.id)}`);
     if (fresh.ok) st.r.invites = fresh.invites;

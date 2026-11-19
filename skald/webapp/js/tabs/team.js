@@ -1,7 +1,8 @@
 // Settings > People > Team (accounts, access.mode: sessions): who belongs to this
-// organisation, with which role, and the invites still open. An admin changes
-// roles, removes members and sends, resends or cancels invites; a viewer sees
-// the same lists with every control disabled. The helper behind <page>/team
+// organisation, with which role and which sites, and the invites still open. An
+// admin changes roles and sites (SKALD-42: Change, as in the Organisations drawer),
+// removes members and sends, resends or cancels invites; a viewer sees the same
+// lists with every control disabled. The helper behind <page>/team
 // checks the session, the role and the CSRF value; every change is audited.
 
 import { h } from "../ui.js";
@@ -11,6 +12,8 @@ import { ME, isViewer, lockForViewer, sessions, VIEWER } from "../access.js";
 import { head1, copyable, field, input, status, confirmIn, when, why, ROLE_NAME } from "./forms.js";
 import { copyIf } from "../urlactions.js";
 import { tip } from "./settings-frame.js";
+import { sitePicker, REPLACED } from "./org-members.js";
+import { accessWords, seenWords } from "./org-words.js";
 
 const NO_MAIL = "Mail is not set up; send this link yourself.";
 
@@ -54,7 +57,7 @@ export default function team() {
     }
     // v2: the members with their roles and one Invite row; invites waiting folded; what each
     // role may do behind the "?" (the owner, 2026-10-26: less on each screen).
-    box.replaceChildren(...[members(r.members || []), inviteForm(), invites(r.invites || []), scope(r.sites || [], r.others || [])].flat().filter(Boolean));
+    box.replaceChildren(...[members(r.members || [], r.sites || [], !!r.may_sites), inviteForm(), invites(r.invites || []), scope(r.sites || [], r.others || [])].flat().filter(Boolean));
     lockForViewer(box);
   }
 
@@ -69,7 +72,39 @@ export default function team() {
     return h("section", { class: "s team-scope muted" }, seen.length ? h("p", null, ...seen) : null, also);
   }
 
-  function members(list) {
+  // The sites a member sees: words, and Change for an admin who sees every site (not your own,
+  // not an owner's). A reader on some sites only is told "and others", never their names.
+  function sitesCell(m, all, me, may) {
+    const cell = h("td", { class: "org-access" });
+    const idle = () => {
+      const words = h("span", null, seenWords(m));
+      if (!may || isViewer() || me || m.role === "owner" || all.length < 2) { cell.replaceChildren(words); return; }
+      const b = h("button", { type: "button", class: "linkish", "aria-label": `Change the sites ${m.email} sees` }, "Change");
+      b.addEventListener("click", () => {
+        const pick = sitePicker(all, m.sites, `Sites ${m.email} sees`);
+        const save = h("button", { type: "button", class: "btn" }, "Save");
+        const back = h("button", { type: "button", class: "btn" }, "Cancel");
+        cell.replaceChildren(pick.el, h("div", { class: "acts" }, back, save));
+        back.addEventListener("click", idle);
+        save.addEventListener("click", async () => {
+          const sites = pick.value();
+          if (sites && !sites.length) { msg.say("Tick at least one site, or Every site."); return; }
+          save.disabled = true;
+          const r = await call("team/access", { email: m.email, sites });
+          save.disabled = false;
+          if (!r.ok) { msg.say(why(r)); return; }
+          m.sites = r.sites;
+          msg.say(`${m.email} now sees ${accessWords(r.sites, m.role).toLowerCase()}.`, true);
+          idle();
+        });
+      });
+      cell.replaceChildren(words, " ", b);
+    };
+    idle();
+    return cell;
+  }
+
+  function members(list, all, may) {
     const roleTip = tip("each role", h("dl", { class: "u-roles" },
       h("dt", null, "Viewer"), h("dd", null, "sees everything these pages show, changes nothing"),
       h("dt", null, "Admin"), h("dd", null, "also changes settings, the team and tokens"),
@@ -83,7 +118,8 @@ export default function team() {
         s.disabled = true;
         const r = await call("team/role", { email: m.email, role: s.value });
         s.disabled = false;
-        if (r.ok) { msg.say(`${m.email} is now ${ROLE_NAME[s.value] || s.value}.`, true); m.role = s.value; } else { msg.say(why(r)); s.value = m.role; }
+        // An owner's sites go, and their Sites cell with them: draw the team again.
+        if (r.ok) { msg.say(`${m.email} is now ${ROLE_NAME[s.value] || s.value}.`, true); m.role = s.value; reload(); } else { msg.say(why(r)); s.value = m.role; }
       });
       if (me) { sel.disabled = true; sel.title = "You cannot change your own role."; }
       const cell = h("td", { class: "n" });
@@ -99,12 +135,12 @@ export default function team() {
       drawCell();
       const on = m.totp_on ?? m.two_step;
       return h("tr", null, h("td", { class: "path nm" }, copyIf("email", m.email || "", m.email, { label: "email", cls: "" }), me ? h("span", { class: "you" }, " (you)") : null), h("td", null, copyIf("text", m.name || "", null, { label: "name", cls: "" })),
-        h("td", null, sel), h("td", { class: "muted n" }, when(m.last_seen ?? m.last_sign_in)),
+        h("td", null, sel), sitesCell(m, all, me, may), h("td", { class: "muted n" }, when(m.last_seen ?? m.last_sign_in)),
         h("td", { class: "c" }, on == null ? h("span", { class: "muted" }, "not known") : h("span", { class: `tf ${on ? "on" : "off"}` }, on ? "On" : "Off")), cell);
     });
     return h("section", { class: "s" }, head, roleTip.box,
       h("div", { class: "scroll" }, h("table", { class: "rows-mid" }, h("caption", { class: "vh" }, "Members"),
-        h("thead", null, h("tr", null, [["Email"], ["Name"], ["Role"], ["Last seen", "n"], ["Two-step sign-in", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
+        h("thead", null, h("tr", null, [["Email"], ["Name"], ["Role"], ["Sites"], ["Last seen", "n"], ["Two-step sign-in", "c"]].map(([t, cls]) => h("th", { scope: "col", class: cls }, t)), h("th", { scope: "col", class: "n" }, h("span", { class: "vh" }, "Action")))),
         h("tbody", null, rows))));
   }
 
@@ -154,7 +190,7 @@ export default function team() {
       email.value = "";
       shownLink = r.link ? { link: r.link, who: addr } : null;
       linkNote(linkSlot);
-      msg.say(r.link ? `Invite made for ${addr}.` : `Invite sent to ${addr}.`, true);
+      msg.say((r.link ? `Invite made for ${addr}.` : `Invite sent to ${addr}.`) + (r.replaced ? ` ${REPLACED}` : ""), true);
       reload();
     });
     // v2: one primary, Invite someone, opens the form (Viewer chosen); the form waits for it.

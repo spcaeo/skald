@@ -108,6 +108,13 @@ export function accessWords(sites, role) {
   return sites.join(", ");
 }
 
+/* A member's sites as this reader may know them (SKALD-42): a reader on some sites only gets
+   the ones they share and `more`, never the others' names. */
+export function seenWords(m) {
+  if (!m.more) return accessWords(m.sites, m.role);
+  return m.sites?.length ? `${accessWords(m.sites, m.role)}, and others` : "Other sites only";
+}
+
 /* The overview's figure: a number, or "Not recorded" (never 0 for a figure not kept). */
 export function figure(v) {
   return v == null ? "Not recorded" : Number(v).toLocaleString("en-US");

@@ -174,6 +174,16 @@ def _history(c: Ctx):
 
 # ------------------------------------------------------------------ reading
 
+def _limited(c: Ctx, org_id: int) -> set[str] | None:
+    """The sites the reader sees when only some (None: every site, or an install
+    admin). SKALD-42: such a reader is never told the others' names, nor changes
+    who sees which (a Save from their shorter list would drop the rest)."""
+    if c.install_admin:
+        return None
+    got = users.site_access(c.db, org_id, c.uid)
+    return None if got is None else set(got)
+
+
 def _visible(c: Ctx, org_id: int, names: list[str]) -> list[str]:
     """The site names the reader may see: every one for an install admin."""
     if c.install_admin:
@@ -246,19 +256,23 @@ def show(c: Ctx, form):
     names = _visible(c, org.id, orgs.sites_of_org(c.db, org.id))
     card = org_admin.card(c.db, org.row, org.role)
     card["sites"] = names
-    members = [{k: m[k] for k in ("id", "email", "name", "role", "sites", "added_at", "last_seen",
+    mine = _limited(c, org.id)
+    members = [{k: m[k] for k in ("id", "email", "name", "role", "added_at", "last_seen",
                                   "totp_on", "disabled_at", "has_password")}
-               | {"me": m["id"] == c.uid} for m in users.members(c.db, org.id)]
+               | users.shown_sites(m["sites"], mine) | {"me": m["id"] == c.uid}
+               for m in users.members(c.db, org.id)]
     from .keep_everything import install_on
     may = {"rename": admin, "privacy": c.install_admin, "archive": org.at_least("owner"),
-           "members": admin, "owners": org.at_least("owner"), "sites_access": admin,
+           "members": admin, "owners": org.at_least("owner"),
+           "sites_access": admin and mine is None,
            "settings_totp": org.at_least("owner"), "settings_mail": admin, "keys": admin,
            "audit": admin, "move": admin, "add_site": admin,
            "leave": org.role is not None, "transfer": org.role == "owner"}
     return c.ok(org=card, role=org.role, acts=org.acts, may=may,
                 overview=org_admin.overview(c.db, org.id, _history(c)),
                 sites=_site_rows(c, org.id, names), members=members,
-                invites=invites.pending(c.db, org.id) if admin else [],
+                invites=[i | users.shown_sites(i["sites"], mine)
+                         for i in invites.pending(c.db, org.id)] if admin else [],
                 settings=_settings(c, org.id),
                 keys=[{k: v for k, v in t.items() if k != "org_id"}
                       for t in apitokens.listing(c.db, org.id)] if admin else [],
@@ -434,15 +448,18 @@ def settings(c: Ctx, form):
 
 # ------------------------------------------------------------------ members
 
-def _invite(c: Ctx, org_row: dict, email: str, role: str, sites) -> dict:
+def _invite(c: Ctx, org_row: dict, email: str, role: str, sites, resend=False) -> dict:
     """Make the invite and mail it, or hand its link back. Raises ValueError."""
     from .accounts import mails
+    # SKALD-42: say when a new invite replaces an open one (its link stops working).
+    had = not resend and invites.open_invite(c.db, org_row["id"], email) is not None
+    more = {"replaced": True} if had else {}
     token = invites.invite(c.db, org_row["id"], email, role, c.uid, sites=sites)
     url = auth_api.link(c.config, c.allowed, "invite", token) or \
         f"{auth_api.PREFIX}invite?t={token}"
     if not mails.configured(c.config):
         invites.mark_handed(c.db, token)
-        return {"link": url, "mailed": False}
+        return {"link": url, "mailed": False, **more}
     try:
         to = users.clean_email(email)
         mails.deliver(mails.invite_mail(c.config, to, url, org_row["name"], role,
@@ -450,9 +467,9 @@ def _invite(c: Ctx, org_row: dict, email: str, role: str, sites) -> dict:
     except Exception as why:              # noqa: BLE001 - the link is handed back instead
         note(f"invite mail not sent: {type(why).__name__}")
         invites.mark_handed(c.db, token)
-        return {"link": url, "mailed": False,
+        return {"link": url, "mailed": False, **more,
                 "warning": "The mail could not be sent. Pass this link on yourself."}
-    return {"mailed": True}
+    return {"mailed": True, **more}
 
 
 def member_invite(c: Ctx, form):
@@ -519,6 +536,8 @@ def member_sites(c: Ctx, form):
         return None
     if user["id"] == c.uid and not c.install_admin:
         return c.no(400, "Ask another admin to change the sites you see.")
+    if _limited(c, org.id) is not None:
+        return c.no(403, "Only an admin who sees every site changes who sees which.")
     try:
         got = users.set_site_access(c.db, org.id, user["id"], form.get("sites"), c.uid)
     except ValueError as why:
@@ -540,7 +559,8 @@ def invite_resend(c: Ctx, form):
     if found[0]["role"] == "owner" and not org.at_least("owner"):
         return c.no(403, "Only an owner can invite an owner.")
     try:
-        return c.ok(**_invite(c, org.row, email, found[0]["role"], found[0]["sites"]))
+        return c.ok(**_invite(c, org.row, email, found[0]["role"], found[0]["sites"],
+                              resend=True))
     except ValueError as why:
         return c.no(400, str(why))
 

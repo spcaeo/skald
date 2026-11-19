@@ -7,6 +7,7 @@ Served by the refresh helper (refresh_server.py) for every site page,
   GET  team                      {members, invites}            every member (read-only)
   POST team/invite               email, role -> {link?}        admin
   POST team/role | team/remove | team/resend | team/cancel     admin
+  POST team/access               email, sites (a list, or null: every site)  admin
   GET  account                   {email, name, totp_on, sessions}
   POST account/name | account/password | account/signout-all
   POST account/totp/start (password) | account/totp/confirm | account/totp/off (password)
@@ -37,7 +38,7 @@ from .auth_api import answer, csrf_ok, note, read_json, text
 from .saas import enabled as saas_on, limits as saas_limits
 
 PAGE = r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-PATH = re.compile(PAGE + r"(?P<act>team(?:/(?:invite|role|remove|resend|cancel))?"
+PATH = re.compile(PAGE + r"(?P<act>team(?:/(?:invite|role|remove|resend|cancel|access))?"
                          r"|account(?:/(?:name|password|signout-all|totp/start|totp/confirm"
                          r"|totp/off))?"
                          r"|tokens(?:/(?:create|revoke))?|audit)$")
@@ -165,11 +166,20 @@ def _target(c: Ctx, form) -> dict | None:
     return user
 
 
+def _reader_limit(c: Ctx) -> set[str] | None:
+    """The sites the reader sees, when only some (None: every site)."""
+    got = users.site_access(c.db, c.org["id"], c.uid)
+    return None if got is None else set(got)
+
+
 def team(c: Ctx, form):
+    mine = _reader_limit(c)
     members = [{k: m[k] for k in ("email", "name", "role", "added_at", "last_seen", "totp_on",
                                   "disabled_at", "has_password")}
+               | users.shown_sites(m["sites"], mine)
                for m in users.members(c.db, c.org["id"])]
-    pending = invites.pending(c.db, c.org["id"]) if c.admin else []
+    pending = [i | users.shown_sites(i["sites"], mine)
+               for i in invites.pending(c.db, c.org["id"])] if c.admin else []
     # 2.38.0: the sites this team sees, and the reader's other organisations,
     # each with a site whose Team page shows that organisation's team.
     from .files import slug
@@ -179,23 +189,28 @@ def team(c: Ctx, form):
         if o["id"] != c.org["id"] and names:
             others.append({"org": o["name"], "sites": len(names),
                            "path": f"{slug(names[0])}/"})
+    sites = accounts.sites_of_org(c.db, c.org["id"])
     return c.ok(org=c.org["name"], role=c.role, members=members, invites=pending,
-                sites=accounts.sites_of_org(c.db, c.org["id"]), others=others)
+                sites=[s for s in sites if mine is None or s in mine], others=others,
+                may_sites=c.admin and mine is None)
 
 
 def _send_invite(c: Ctx, email: str, role: str, kind: str, sites=None):
     from .accounts import mails
     try:
+        # SKALD-42: say when this replaces an open invite (its link stops working).
+        had = kind == "invite" and invites.open_invite(c.db, c.org["id"], email) is not None
         token = invites.invite(c.db, c.org["id"], email, role, c.uid, sites=sites)
     except ValueError as why:
         return c.no(400, str(why))
+    more = {"replaced": True} if had else {}
     url = auth_api.link(c.config, c.allowed, "invite", token)
     if url is None:
         # No base URL: hand back the path; the admin adds their own address.
         url = f"{auth_api.PREFIX}invite?t={token}"
     if not mails.configured(c.config):
         invites.mark_handed(c.db, token)
-        return c.ok(link=url, mailed=False)
+        return c.ok(link=url, mailed=False, **more)
     try:
         to = users.clean_email(email)
         mails.deliver(mails.invite_mail(c.config, to, url, c.org["name"], role,
@@ -203,9 +218,9 @@ def _send_invite(c: Ctx, email: str, role: str, kind: str, sites=None):
     except Exception as why:
         note(f"{kind} mail not sent: {type(why).__name__}")
         invites.mark_handed(c.db, token)
-        return c.ok(link=url, mailed=False,
+        return c.ok(link=url, mailed=False, **more,
                     warning="The mail could not be sent. Pass this link on yourself.")
-    return c.ok(mailed=True)
+    return c.ok(mailed=True, **more)
 
 
 def team_invite(c: Ctx, form):
@@ -240,6 +255,24 @@ def team_cancel(c: Ctx, form):
     except ValueError as why:
         return c.no(400, str(why))
     return c.ok() if gone else c.no(404, "There is no open invite for that address.")
+
+
+def team_access(c: Ctx, form):
+    """The sites a member sees (SKALD-42: People shows and changes them, as the
+    Organisations drawer does). Never your own; an owner always sees every site; an
+    admin on some sites only may not (a Save from their list would drop the rest)."""
+    user = _target(c, form)
+    if user is None:
+        return None
+    if user["id"] == c.uid:
+        return c.no(400, "Ask another admin to change the sites you see.")
+    if _reader_limit(c) is not None:
+        return c.no(403, "Only an admin who sees every site changes who sees which.")
+    try:
+        got = users.set_site_access(c.db, c.org["id"], user["id"], form.get("sites"), c.uid)
+    except ValueError as why:
+        return c.no(400, str(why))
+    return c.ok(email=user["email"], sites=got)
 
 
 def team_role(c: Ctx, form):
@@ -392,6 +425,7 @@ def audit(c: Ctx, form):
 ROUTES = {
     "team": team, "team/invite": team_invite, "team/role": team_role,
     "team/remove": team_remove, "team/resend": team_resend, "team/cancel": team_cancel,
+    "team/access": team_access,
     "account": account, "account/name": account_name, "account/password": account_password,
     "account/signout-all": account_signout_all, "account/totp/start": account_totp_start,
     "account/totp/confirm": account_totp_confirm, "account/totp/off": account_totp_off,

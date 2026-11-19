@@ -4,6 +4,64 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.55.0 (2026-11-19)
+
+Saves work on a new or just-restored site before its first dashboard build, and a stale save
+tries once more; a person named on several new sites' set-ups gets all of them, and
+Settings › Organisation › People shows (and changes) which sites each member sees.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount.
+- New route `POST team/access` (admins who see every site), served by the helper like the
+  other `team/` routes: a self-hosted nginx copied from DEPLOY.md needs no change.
+
+### Changes
+
+- **Saves work on a new or just-restored site before its first dashboard build (SKALD-40).**
+  Seen on 18 Nov 2026: on a site restored that day, with no data yet, many settings pages
+  refused every save with "The page is out of date. Reload it and try again.", and a reload
+  did not help until the site's first build. The page asked who is reading (`<page>/me`: the
+  role, the menu and the value every save must carry) only once the site's funnels file
+  existed, so before that no save carried the value. Now the page always asks (the demo
+  still doesn't), and when the helper refuses a request as out of date (a new sign-in in
+  another tab, say) the page asks once more and tries once again before showing the message,
+  but only as the same person: if someone else signed in in another tab, the message shows
+  and a reload says who is signed in.
+  The role's menu (Team, Your account, a viewer's hidden pages) is right on such a site too.
+  **Who it affects:** everyone with accounts, on a site before its first build. **What to
+  do:** nothing. **How it was checked:** `tests/js/csrf-me.mjs` (a site with no funnels file
+  saves; a stale value is replaced and the save tried once more, never a third time, never
+  as another person; any other refusal shows at once; no helper stays basic mode) and `tests/test_csrf_me.py`
+  (runs it, and holds every helper module that checks the value to the refusal words the
+  page knows).
+
+- **A person named on several new sites gets all of them, not only the last (SKALD-42).** Seen
+  on 17-19 Nov 2026: three sites added one morning each named the same person, "this site
+  only". Each invite deleted the one before (one open invite per address and organisation), so
+  the links in the first two mails said "This invite has expired, was used already, or was
+  cancelled", and the person joined seeing one site of three. Settings › Organisation › People
+  listed them, but showed nothing about which sites they see. Now an invite from Add a site
+  adds to the open one: every open link of that address gets all the sites named (every site
+  when one said so) and the strongest role, and stays valid until one is used. Someone already
+  in the organisation but limited to some sites gets the new site added instead of being
+  skipped (their role stays), and the wizard lets you tick them. An invite typed on People or
+  in Organisations still replaces the open one, and now says so: "It replaces the invite sent
+  before: that link no longer works." People shows each member's **Sites**, with **Change** for
+  admins who see every site (a new `POST team/access`), as the Organisations drawer does. A
+  set-up never changes its maker's own access, and "every site" widens a member only when the
+  maker sees every site. Someone who sees only some sites is shown other sites as "and others",
+  never by name, on People and in Organisations (where, before, each member's full list went to
+  every member), and can no longer change who sees which there. **Who it affects:**
+  owners and admins who add sites or invite people. **What to do:** nothing; someone already
+  short of sites gets them with **Change**. **How it was checked:**
+  `tests/test_invites_add_sites.py` (three set-ups, every link working, the union, every site,
+  the strongest role, an expired invite, a typed invite still replacing, members widened, never
+  narrowed, People's column, `team/access` and its refusals, `replaced` on both pages) and
+  `tests/js/team-sites.mjs` and `tests/js/setup-live.mjs` (the column, Change, the words, the
+  tick); each failed before the change.
+
 ## 2.54.1 (2026-11-19)
 
 A fix to 2.54.0's prefetch-proxy join (SKALD-41): on a site whose log lines carry no country,
