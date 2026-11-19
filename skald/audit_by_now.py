@@ -48,6 +48,7 @@ def recount(config: dict, tz, start: datetime, end: datetime, paths=None,
     for line in lines:
         if wanted and line.host and line.host.lower() not in wanted:
             continue
+        line = judge.rejoin(line)       # a proxy's page a browser drew is its (SKALD-41)
         group, cited = judge(line)
         if group != "people":
             continue

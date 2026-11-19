@@ -4,6 +4,35 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.54.1 (2026-11-19)
+
+A fix to 2.54.0's prefetch-proxy join (SKALD-41): on a site whose log lines carry no country,
+a visitor joined from Google's proxy was shown in the proxy's country, and the audit disagreed.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount. Upgrade from 2.54.0 before its first daily run if
+  you can: on such a site that run's audit would withhold the day it counts.
+
+### Changes
+
+- **A visitor joined from Chrome's prefetch proxy keeps their own country on a log with no
+  country, and every audit road counts the join (SKALD-41).** Seen live on 19 Nov 2026, right
+  after 2.54.0: `audit --live` disagreed on 4 of 19 sites. On sites whose log lines carry no
+  country (the country file fills it in), the first pass that finds the join read the log
+  without the country file, so the join kept the browser's country empty and the page line
+  kept the proxy's: a few readers a day showed in the proxy's country (FR, PL, NL, CA), with no
+  city, while the audit (which fills countries first) said the visitor's own. Reader totals
+  were right. The audit's "yesterday at this hour" and per-view roads did not apply the join at
+  all, so they disagreed by a visitor or a page. Now the first pass reads with the country file,
+  and both audit roads apply the join. **Who it affects:** sites whose log carries no country,
+  with visitors from Google Search on Chrome. **What to do:** nothing; days counted with 2.54.0
+  are counted again by the daily run as usual. **How it was checked:**
+  `tests/test_prefetch_proxy_country.py` (lines with no country and a country file: the
+  reader's country on the main road, collect and the day audit agree, `audit_by_now` and
+  `audit_views` count the joined page as the browser's visit); each failed on 2.54.0.
+
 ## 2.54.0 (2026-11-19)
 
 Add a site says at its first step why an address can't be added and what to do; a person
