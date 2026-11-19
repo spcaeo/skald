@@ -4,6 +4,40 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.53.1 (2026-11-19)
+
+Two server errors fixed: the visitor drawer's **Recorded journeys** answers again, and a log
+sender that hangs up before Skald's answer is one plain line, not a double traceback.
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount.
+
+### Changes
+
+- **Two server errors in the log: Recorded journeys in the visitor drawer, and a log sender's
+  hang-up (SKALD-36).**
+  - **Recorded journeys failed for every visit an owner opened.** Since 2.49.0 the drawer
+    names a visit by its place and its start; the server then read the visit's row by column
+    name on a connection that returns plain rows, raised a TypeError, and the request failed
+    (a 502 behind nginx). The drawer quietly left its Recorded journeys out. The visit lookup
+    now reads its rows by name whatever the connection, and the route answers the visit's
+    linked sessions again.
+  - **A sender that hangs up before Skald's answer is one line, not a double traceback.** A
+    log drain that closed its connection while Skald was still answering (the batch already
+    kept) was logged as "ingest: failed", then a 500 was written to the closed connection,
+    which failed again, and the site's sending status showed a refusal for a batch that was
+    accepted. Now: one line naming the site, nothing more written, no refusal noted. A batch
+    the sender posts again is answered as a duplicate and kept once, as before.
+  - **Who it affects:** owners and admins opening visits (part 1); installs whose sites send
+    logs with a drain or the shipper (part 2). **What to do:** nothing; no figure changes and
+    nothing needs a recount. **How it was checked:** `test_recorded_journeys.VisitRoute` calls
+    the route on a plain store connection, with and without the visit's start;
+    `test_ingest_hangup.py` covers a hang-up while answering a kept batch, a failure whose 500
+    cannot be sent, and a refused connection that is not the sender's. Each failed before
+    the fix.
+
 ## 2.53.0 (2026-11-18)
 
 Six small fixes from a review of the live dashboard: Back after the left menu, "(all others)"

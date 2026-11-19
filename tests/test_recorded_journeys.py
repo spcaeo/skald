@@ -372,5 +372,66 @@ class Daily(Base):
         self.assertIn("1 session(s)", ctx.said[0])
 
 
+class VisitRoute(Base):
+    """GET <page>/recorded/visit (journeys_api.visit), the visitor drawer's Recorded
+    journeys (SKALD-36). The route's store connection gives plain tuples; with `at`
+    (#56) people/timeline._the_visit read rows by name and raised TypeError, so the
+    request failed (502 behind nginx) every time an owner opened a visit."""
+
+    DAY = NOW.strftime("%Y-%m-%d")
+
+    def setUp(self):
+        super().setUp()
+        status, body, _ = self.post(event("session_started", seconds=-30, ip="192.0.2.7"))
+        self.assertEqual(status, 201, body)
+        from skald.conversions.schema import PEOPLE_TABLES
+        db = self.db()
+        try:
+            db.executescript(PEOPLE_TABLES)
+            db.execute("INSERT INTO visits (site, day, seq, ip, start, end, landing, pages, trail) "
+                       "VALUES ('example.com', ?, 1, '192.0.2.7', ?, ?, '/pricing', 1, '[]')",
+                       (self.DAY, cstore.stamp(NOW - timedelta(seconds=60)),
+                        cstore.stamp(NOW + timedelta(seconds=60))))
+            db.commit()
+        finally:
+            db.close()
+
+    def ask(self, **form):
+        from skald import journeys_api
+        test = self
+
+        class Ctx:                          # journeys_api.Ctx, without the HTTP around it
+            site, admin, folder, config = "example.com", True, test.folder, test.config
+
+            def conf(self):
+                return test.config
+
+            def store(self):                # as Ctx.store: a plain connection, tuples
+                return sqlite3.connect(test.folder / "conversions.sqlite")
+
+            def ok(self, **body):
+                return 200, body
+
+            def no(self, code, error, **extra):
+                return code, {"error": error}
+
+            def log(self, *args):
+                pass
+
+        return journeys_api.visit(Ctx(), {"day": self.DAY, "seq": "1", **form})
+
+    def test_with_the_visits_start_it_answers_its_sessions(self):
+        start = (NOW - timedelta(seconds=60)).strftime("%Y-%m-%dT%H:%M")    # site time is UTC
+        code, body = self.ask(at=start)
+        self.assertEqual(code, 200, body)
+        self.assertEqual([s["linked_by"] for s in body["sessions"]], ["address"],
+                         "the one session from the visit's address, inside its time")
+
+    def test_without_at_and_with_another_start(self):
+        self.assertEqual(len(self.ask()[1]["sessions"]), 1, "no at: the place alone")
+        code, body = self.ask(at=(NOW - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M"))
+        self.assertEqual((code, body["sessions"]), (200, []), "a start that is not this visit's")
+
+
 if __name__ == "__main__":
     unittest.main()

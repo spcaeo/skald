@@ -327,10 +327,30 @@ def handle(h, config, live_dir, config_path=None) -> None:
     h._skald_ingest = None                 # set once the path names a site (keep-alive)
     try:
         return _handle(h, config or {}, live_dir, config_path)
+    except HUNG_UP:
+        return _gone(h)
     except Exception as why:               # noqa: BLE001 - never a traceback to a caller
         import sys
         sys.stderr.write(f"ingest: failed ({type(why).__name__})\n")
-        return no(h, 500, "failed")
+        try:
+            return no(h, 500, "failed")
+        except HUNG_UP:
+            return _gone(h)
+
+
+# The sender closed the connection (SKALD-36, 19 Nov 2026: a log drain hung up while
+# its kept batch's 200 was being written). Not a refused connection: that is ours.
+HUNG_UP = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+
+
+def _gone(h) -> None:
+    """One line, no traceback, nothing more written, no refusal noted: a batch kept
+    before the hang-up stays kept, and one the sender posts again is answered as a
+    duplicate (ingest_log.Writer.seen)."""
+    import sys
+    site = (getattr(h, "_skald_ingest", None) or {}).get("site") or "?"
+    sys.stderr.write(f"ingest: {site}: the sender closed the connection before the answer\n")
+    h.close_connection = True
 
 
 def _handle(h, config, live_dir, config_path) -> None:

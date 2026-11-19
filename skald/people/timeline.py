@@ -78,12 +78,16 @@ def _the_visit(db, site: str, day: str, seq: int, at: str | None, tz):
     place in that count's list; a late log line can move the places, so when the
     page also gives its start (`at`, site time to the minute) the row must start
     then. If (day, seq) starts at another minute, the one visit of that day
-    starting at `at` is taken; with none or several, None (never a guess)."""
-    row = db.execute("SELECT * FROM visits WHERE site = ? AND day = ? AND seq = ?",
-                     (site, day, int(seq))).fetchone()
+    starting at `at` is taken; with none or several, None (never a guess).
+    Rows come by name whatever `db`'s row factory: journeys_api.visit passes the
+    store's plain connection (SKALD-36: row["start"] on a tuple was a TypeError)."""
+    cur = db.cursor()
+    cur.row_factory = sqlite3.Row
+    row = cur.execute("SELECT * FROM visits WHERE site = ? AND day = ? AND seq = ?",
+                      (site, day, int(seq))).fetchone()
     if not at or (row is not None and _local_minute(row["start"], tz) == at):
         return row, False
-    same = [r for r in db.execute("SELECT * FROM visits WHERE site = ? AND day = ?", (site, day))
+    same = [r for r in cur.execute("SELECT * FROM visits WHERE site = ? AND day = ?", (site, day))
             if _local_minute(r["start"], tz) == at]
     return (same[0], False) if len(same) == 1 else (None, bool(same) or row is not None)
 
