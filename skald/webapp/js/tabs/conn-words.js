@@ -43,6 +43,7 @@ export const REASON_FIX = {
   removed: "The site was removed. Stop the shipper: sudo skald-ship-uninstall on the server (an older zip kit: sudo bash uninstall.sh in its folder).",
   not_here: "This Skald does not process the site. Check the site name in the send address.",
   rate_limited: "Nothing to do: the shipper waits and sends the lines a little later.",
+  edge_limited: "Those records are lost: a Worker does not send them again. If it happens outside a scanner's burst, ask whoever runs Skald's server to raise ingest.edge_per_minute and ingest.edge_burst above the site's busiest minute.",
   day_full: "Nothing to do: the lines are sent after midnight UTC. Ask for a bigger daily limit if this happens every day.",
   plan_limit: "Choose a bigger plan in Settings > Billing. Nothing is lost.",
   read_only: "Settle the bill in Settings > Billing. Nothing is lost.",

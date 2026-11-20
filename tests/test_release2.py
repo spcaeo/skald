@@ -313,7 +313,7 @@ class TestReleaseTwoDay(unittest.TestCase):
         bots = self.stored("bots")
         self.assertEqual(bots["verification"]["GPTBot"],
                          {"group": "answer_engines", "method": "ranges", "verified": 1,
-                          "unverified": 0, "spoofed": 1})
+                          "unverified": 0, "spoofed": 1, "cdn": 0})
         self.assertEqual(bots["link_previews"], {"Slack": 1, "iMessage": 1})
         self.assertEqual(bots["fake_browsers"]["hosting_network"], {"requests": 1, "addresses": 1})
         self.assertEqual(bots["fake_browsers"]["bare_mozilla"], {"requests": 1, "addresses": 1})

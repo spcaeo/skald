@@ -16,11 +16,20 @@ for today so far:
                     the site's not-a-page list kept out of the page views, by
                     entry (not_pages.py): {entry: {"requests", "people"}}
   gaps              stretches of more than GAP_MINUTES with no line at all
+  cdn_lines         lines whose address is a CDN's own (bot_verify CDN_LISTS): the site's
+                    server logged the edge, not the visitor (SKALD-17); None when no CDN
+                    list is kept
   first/last line   when the window's own lines start and stop
 
 and, at render time, whether each day verified and passed the independent
 audit, the newest line against the server clock, the log files on disk, and
-when each scheduled job last ran (runs.py).
+when each scheduled job last ran (runs.py), and
+
+  intake_refused    posts the log endpoint refused that day, by reason
+                    (ingest_status.py `refused`, SKALD-34): {reason: count};
+                    None before the site's counting began, or for a site that
+                    sends nothing to the endpoint. Not a figure of the log but of
+                    what never reached it (a Worker's refused post is lost).
 """
 from __future__ import annotations
 
@@ -76,6 +85,10 @@ class Quality:
         self.last = None
         self.dups = Duplicates()
         self.not_pages: dict[str, list] = {}
+        # SKALD-17: address -> CDN name or "" (bot_verify.Verifier.cdn); None when no CDN
+        # list is kept, and cdn_lines is then not recorded.
+        self.cdn = None
+        self.cdn_lines = 0
 
     def not_page(self, rule: str, people: bool) -> None:
         """A request of the site's hosts the not-a-page list took out of the
@@ -88,6 +101,8 @@ class Quality:
     def add(self, hit) -> None:
         self.parsed += 1
         when = _aware(hit.when)
+        if self.cdn is not None and self.cdn(hit.address):
+            self.cdn_lines += 1
         if self.dups.seen(hit):
             self.duplicates += 1
         if hit.fmt in ("nginx_combined", "apache_combined"):
@@ -116,7 +131,9 @@ class Quality:
                 "last_line": self._hhmm(self.last) if self.last else None,
                 "newest_line": self.last.isoformat(timespec="seconds") if self.last else None,
                 "not_pages": {rule: {"requests": n, "people": p}
-                              for rule, (n, p) in sorted(self.not_pages.items())}}
+                              for rule, (n, p) in sorted(self.not_pages.items())},
+                # Lines whose address is a CDN edge's, not a visitor's (SKALD-17).
+                "cdn_lines": self.cdn_lines if self.cdn is not None else None}
 
 
 def check(blob: dict | None, parsed: int) -> list:
@@ -127,7 +144,7 @@ def check(blob: dict | None, parsed: int) -> list:
     if blob.get("parsed") != parsed:
         problems.append(Problem("quality: lines parsed",
                                 f"{blob.get('parsed')} against {parsed:,} in the window"))
-    for k in ("duplicates", "old_format"):
+    for k in ("duplicates", "old_format", "cdn_lines"):
         if int(blob.get(k) or 0) > parsed:
             problems.append(Problem(f"quality: {k}", "more than the lines parsed"))
     return problems
@@ -170,10 +187,71 @@ def _lines(p) -> dict[str, tuple]:
         (p.key, p.first.isoformat(), p.anchor.isoformat()))}
 
 
-def _day(p, entry: dict, stored: dict[str, tuple]) -> dict:
+def intake_days(status: dict, tz, days, now: datetime | None = None) -> dict:
+    """{day: {reason: count} | None}: the log endpoint's refusals (ingest_status.py
+    `refused`, by UTC quarter hour) added up by the site's own days. None: not recorded
+    - the day ended before counting began, or before the KEEP_DAYS the file keeps. The
+    first day of either is partial, so it shows its counts when there are any, else None.
+    A damaged file is read as nothing recorded."""
+    from .ingest_status import KEEP_DAYS
+    out: dict = {day.isoformat(): None for day in days}
+    if not isinstance(status, dict):
+        return out
+    try:
+        start = datetime.fromisoformat(str(status.get("counting_since")).replace("Z", "+00:00"))
+        if start.tzinfo is None:
+            raise ValueError("no zone")
+    except ValueError:
+        return out
+    now = now or datetime.now(timezone.utc)
+    start = max(start, now - timedelta(days=KEEP_DAYS))
+    sums: dict[str, dict] = {}
+    refused = status.get("refused")
+    for slot, by in (refused.items() if isinstance(refused, dict) else ()):
+        try:
+            when = datetime.fromisoformat(f"{slot}:00+00:00").astimezone(tz)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(by, dict):
+            continue
+        into = sums.setdefault(when.date().isoformat(), {})
+        for why, n in by.items():
+            if isinstance(n, int) and n > 0:
+                into[str(why)] = into.get(str(why), 0) + n
+    for day in days:
+        first = datetime(day.year, day.month, day.day, tzinfo=tz)
+        if first + timedelta(days=1) <= start:
+            continue                                   # over before what is kept began
+        got = sums.get(day.isoformat(), {})
+        out[day.isoformat()] = got if (first >= start or got) else None
+    return out
+
+
+def _intake(p) -> dict:
+    """This page's site's intake_days for the stored days and today. The endpoint runs in
+    the server, which writes every site's counts beside the history; a page for any site but
+    the install's first has its own folder as live_dir, so read beside the history file."""
+    from . import ingest, ingest_status
+    today, site = getattr(p, "today", None), getattr(p, "site", None)
+    if today is None or not site:
+        return {}
+    history = getattr(getattr(p, "history", None), "path", None)
+    base = Path(history).parent if history else ingest.history_folder(p.config, p.live_dir)
+    try:
+        status = ingest_status.read(base, site)
+    except Exception:                     # noqa: BLE001 - the status never stops a page
+        status = {}
+    days = [e["day"] for e in getattr(p, "daily", [])] + [today]
+    return intake_days(status, p.tz, days, getattr(p, "now", None))
+
+
+def _day(p, entry: dict, stored: dict[str, tuple], intake: dict | None = None) -> dict:
     d = entry["day"].isoformat()
     row = {"day": d, "state": entry["state"]}
     if entry["state"] in ("missing", "before"):
+        # A day with no figures may be one whose every post was refused: say so.
+        if (intake or {}).get(d) is not None:
+            row["intake_refused"] = intake[d]
         return row
     blobs = p.extras.get(d) or {}
     q = blobs.get("quality")
@@ -185,6 +263,8 @@ def _day(p, entry: dict, stored: dict[str, tuple]) -> dict:
         "old_format": q.get("old_format") if q else None,
         # Shaped like pages, not counted as pages (not_pages.py); None: not recorded.
         "not_pages": q.get("not_pages") if q else None,
+        # Lines from a CDN edge's address (SKALD-17); None: not recorded.
+        "cdn_lines": q.get("cdn_lines") if q else None,
         "first_line": q.get("first_line") if q else None,
         "last_line": q.get("last_line") if q else None,
         "gaps": q.get("gaps") if q else None,
@@ -193,14 +273,35 @@ def _day(p, entry: dict, stored: dict[str, tuple]) -> dict:
         "not_rendered": (blobs.get("bots") or {}).get("not_rendered"),
         "verify": entry["state"], "problems": (lines[2] if lines else "") or "",
         "audit": _audit(blobs.get("audit")),
+        "intake_refused": (intake or {}).get(d),
     })
     return row
+
+
+def job_state(live_dir, history_path) -> dict:
+    """This site's runs.json, with the install's own jobs (runs.INSTALL_WIDE) read beside the
+    history, where they are recorded once for every site (SKALD-26: every site but the first
+    said "History backup: never ran")."""
+    from . import runs
+    if live_dir is None:
+        return {}
+    state = runs.load(live_dir)
+    home = Path(history_path).parent if history_path else None
+    if home is not None and home.resolve() != Path(live_dir).resolve():
+        shared = runs.load(home)
+        newest = lambda e: max(e.get("last_ok") or "", e.get("last_fail") or "")   # noqa: E731
+        for name in runs.INSTALL_WIDE:
+            # The newer record wins: `backup --site <site>` records in that site's own folder.
+            if name in shared and newest(shared[name]) >= newest(state.get(name) or {}):
+                state[name] = shared[name]
+    return state
 
 
 def build(p) -> dict:
     from . import runs
     stored = _lines(p)
-    days = [_day(p, e, stored) for e in p.daily]
+    intake = _intake(p)
+    days = [_day(p, e, stored, intake) for e in p.daily]
     today = None
     if p.snap is not None:
         q = ((p.snap.get("extras") or {}).get("quality")) if p.live_ok else None
@@ -213,11 +314,13 @@ def build(p) -> dict:
                  "unparsed": p.snap.get("unparsed"),
                  **{k: (q or {}).get(k) for k in ("duplicates", "duplicates_removed",
                                                    "old_format", "not_pages", "gaps",
-                                                   "first_line", "last_line", "files")},
+                                                   "first_line", "last_line", "files",
+                                                   "cdn_lines")},
                  "not_rendered": (((p.snap.get("extras") or {}).get("bots") or {})
                                   .get("not_rendered")) if p.live_ok else None,
-                 "newest_line": newest, "clock_skew_s": skew}
-    state = runs.load(p.live_dir) if p.live_dir is not None else {}
+                 "newest_line": newest, "clock_skew_s": skew,
+                 "intake_refused": intake.get(p.today.isoformat())}
+    state = job_state(p.live_dir, getattr(getattr(p, "history", None), "path", None))
     beat = None
     if p.live_ok:
         last = ((((p.snap.get("extras") or {}).get("ours") or {}).get("heartbeat")) or {}

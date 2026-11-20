@@ -369,6 +369,22 @@ class Collector:
             return None
         return bool(v.hosting(address))
 
+    def _cdn(self, address: str):
+        """The CDN whose edge this address is ("Cloudflare"), "" if none, None when no
+        CDN list is kept (SKALD-22): behind a CDN the address is the edge's, not the
+        scanner's, and its country the data centre's."""
+        v = self.verifier
+        if v is None or not hasattr(v, "cdn") or not v.cdn_known():
+            return None
+        return v.cdn(address)
+
+    def _where(self, address: str, country) -> dict:
+        """A row's country and networks: behind a CDN edge the country is not known."""
+        edge = self._cdn(address)
+        return {"country": None if edge else (country or None),
+                "hosting": self._hosting(address),
+                **({} if edge is None else {"cdn": edge})}
+
     def finish(self) -> dict:
         rules = self.rules
         for p in self.pairs.values():
@@ -387,10 +403,16 @@ class Collector:
         cats, status, countries, paths = Counter(), Counter(), Counter(), Counter()
         hosting = 0 if self.verifier is not None and getattr(
             self.verifier, "hosting_set", None) is not None else None
+        cdn_on = self._cdn("") is not None
+        cdn = 0 if cdn_on else None
         for (address, _), p in scanners:
             cats.update(p.cats)
             status.update(p.probe_status)
-            countries[p.country or N.UNKNOWN] += p.probes
+            edge = cdn_on and bool(self._cdn(address))
+            # A CDN edge's country is its data centre's: the scanner's is not known.
+            countries[N.UNKNOWN if edge else (p.country or N.UNKNOWN)] += p.probes
+            if edge:
+                cdn += p.probes
             paths.update(p.paths)
             if hosting is not None and self._hosting(address):
                 hosting += p.probes
@@ -411,6 +433,7 @@ class Collector:
             "status": {k: int(v) for k, v in sorted(status.items())},
             "countries": _top(countries, N.TOP_COUNTRIES),
             "hosting": hosting,
+            **({"cdn": cdn} if cdn_on else {}),      # probes through a CDN edge (SKALD-22)
             "forged": forged,
             "bare_ip": self.probes_bare,
             "paths": _top(paths, N.TOP_PATHS),
@@ -462,8 +485,8 @@ class Collector:
                 "status": {k: int(v) for k, v in sorted(p.status.items())},
                 "probe_status": {k: int(v) for k, v in sorted((p.probe_status or {}).items())},
                 "forged": bool(p.own_ref and not p.rendered),
-                "bare_ip": p.bare_ip, "country": p.country or None,
-                "hosting": self._hosting(key[0]),
+                "bare_ip": p.bare_ip,
+                **self._where(key[0], p.country),
                 "fake": fake, "fake_requests": int(sum((p.fakes or {}).values())),
                 "injection": p.injection, "login": p.login, "burst": p.burst,
                 "paths": _top(p.paths or Counter(), N.ROW_PATHS) if p.paths else {},
@@ -578,6 +601,8 @@ def check(totals, blob, differs, problems) -> None:
         bad.append("more probes of the site's hosts than bot requests")
     if int(blob["requests"]) < probes:
         bad.append("scanners made fewer requests than probes")
+    if blob.get("cdn") is not None and int(blob["cdn"]) > probes:
+        bad.append("more probes through a CDN than probes")       # SKALD-22
     if int(blob["addresses"]) > int(blob["scanners"]):
         bad.append("more scanner addresses than scanners")
     ex = blob["exposure"]

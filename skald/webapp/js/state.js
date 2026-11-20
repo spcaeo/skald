@@ -75,9 +75,17 @@ export const firstSetting = () => SETTINGS_MENU.flatMap(([, keys]) => keys).find
 
 // Where an asked-for route opens: #settings opens the first settings page this reader may see;
 // an old address its new tab (routes.js); a bare section its first tab.
+// SKALD-28: an address that is none of these never shows another screen under it. An unknown tab
+// of a section opens the section's first tab, an unknown settings page Settings, and the address
+// says so (moved); anything else stays as typed, and read() says there is no such page (missing).
 export function route(asked, params = null) {
   if (asked === "settings") return { tab: firstSetting(), patch: {}, moved: true };
-  return resolve(asked, FIRST, params);
+  const r = resolve(asked, FIRST, params);
+  if (!r.tab || TABS.some(([k]) => k === r.tab)) return r;
+  const head = r.tab.split("/")[0];
+  if (FIRST[head]) return { tab: FIRST[head], patch: r.patch, moved: true };
+  if (head === "settings") return { tab: firstSetting(), patch: r.patch, moved: true };
+  return r;
 }
 // A page's name, from its route or an older one: "Sources", "Settings".
 export function nameOf(key) {
@@ -126,7 +134,10 @@ export function read() {
   const [asked, q = ""] = raw.split("?");
   const p = new URLSearchParams(q);
   const r = route(asked, p);
-  const s = { ...DEFAULT, tab: TABS.some(([k]) => k === r.tab) ? r.tab : DEFAULT.tab };
+  const known = TABS.some(([k]) => k === r.tab);
+  const s = { ...DEFAULT, tab: known ? r.tab : DEFAULT.tab };
+  // No such page (SKALD-28): drawn as such over Overview's state (main.js), the address kept.
+  s.missing = known || !r.tab ? "" : r.tab;
   // A personal value (an address, an email) is a token in the address (js/routemask.js);
   // an older link that carries one as it is is rewritten with the token.
   let personal = false;
@@ -138,7 +149,7 @@ export function read() {
   }
   Object.assign(s, r.patch);
   s.moved = (r.moved || personal) && s.tab === r.tab;
-  if (p.get("cmp") === "1") s.moved = true;
+  if (p.get("cmp") === "1" && !s.missing) s.moved = true;   // the old switch, rewritten; never over "No such page"
   const offed = s.cmp === "off";
   s.cmp = cmpOf(s.cmp);
   // Compare mode (js/mode-compare.js): a custom B needs its period, else the previous one.
@@ -208,6 +219,7 @@ export function hashFor(s) {
    step): main.js then opens or closes it without drawing the tab again. */
 export function onlyOverlay(a, b) {
   if (!a || !b) return false;
+  if ((a.missing || "") !== (b.missing || "")) return false;     // "no such page" and back (SKALD-28)
   for (const k of [...Object.keys(DEFAULT), ...FILTERS]) if (!OVERLAY.includes(k) && (a[k] ?? "") !== (b[k] ?? "")) return false;
   return true;
 }

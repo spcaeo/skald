@@ -43,6 +43,9 @@ export const REDIRECTS = {
   // AI & bots
   bots: ["ai/assistants"], crawlers: ["ai/assistants"],
   "settings/crawlers": ["ai/rules"],
+  // Security (route key "threats", 2.21). SKALD-28: #security, the guess anyone makes, opened
+  // Settings' sign-in rules (its short name before 2.21); it opens Security's first tab.
+  security: ["threats/exposed"],
   // Site
   health: ["site/health"],
   "health/alerts": ["site/alerts"], alerts: ["site/alerts"],

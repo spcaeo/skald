@@ -74,3 +74,58 @@ const lines = [...el.querySelectorAll(".jm-t")].map((e) => e.textContent);
 // #62: past a visit's first minute times are kept to 10 s, so a gap reads "about".
 assert.deepEqual(lines, ["about 10 min · past midnight", "about 10 min"]);
 console.log("visitor-drawer: midnight passed");
+
+// SKALD-18: "First seen 16 Nov" beside "First came from Direct, 26 days ago". The visits shown
+// are those linked here and still kept; the first touch is kept longer and may be a visit from
+// another address. First seen is the older of the two, and the sentence says that visit is not
+// among those shown. Times are whole UTC instants, so the drawer's zone does not move the day.
+const { firstSeen, stateLine } = await import(new URL("tabs/visitor.js", JS));
+const kept = (start) => ({ kind: "kept", start, source: "Direct or unknown", via: "", trail: [], raw: {} });
+const shownVisits = [kept("2026-11-17T15:00:00Z"), kept("2026-11-16T15:03:00Z"), kept("2026-11-16T18:00:00Z")];
+const touched = { visits: shownVisits, firstKnown: true, leads: [], conversions: [],
+  firstTouch: { by: "vid", day: "2026-10-22", start: "2026-10-22T14:00:00Z", source: "Direct or unknown", via: "" } };
+const fs = firstSeen(touched);
+assert.equal(fs.day, "2026-10-22", "the first touch is older than every visit shown");
+assert.ok(fs.touch);
+assert.match(fs.words, /^22 Oct/);
+assert.match(stateLine(touched), /^3 visits over 2 days\. First came from Direct, \d+ days ago \(that visit is not shown here\)\.$/);
+// By the 30-day hash: a day, no time.
+const byHash = { ...touched, firstTouch: { by: "hash", day: "2026-10-22", start: null, source: "Search", via: "" } };
+assert.equal(firstSeen(byHash).words, "22 Oct");
+// The first touch is the oldest visit shown (the usual case): nothing added.
+const same = { ...touched, firstTouch: { by: "vid", day: "2026-11-16", start: "2026-11-16T15:03:00Z", source: "Direct or unknown", via: "" } };
+assert.equal(firstSeen(same).touch, false);
+assert.equal(firstSeen(same).day, "2026-11-16");
+assert.ok(!stateLine(same).includes("not shown"));
+// No first touch linked ("none", "off"), or none at all: the oldest visit shown.
+for (const ft of [{ by: "none" }, { by: "off" }, undefined]) {
+  const m = { ...touched, firstTouch: ft };
+  assert.equal(firstSeen(m).day, "2026-11-16");
+  assert.ok(!stateLine(m).includes("not shown"));
+}
+assert.equal(firstSeen({ visits: [], firstTouch: undefined }), null);
+// The reader's zone is not the site's (the review of SKALD-18). A first touch's `day` is the
+// site's day and its `start` the site's wall time: compared as instants, or as site days.
+const { setZone } = await import(new URL("tz.js", JS));
+setZone("utc", "America/New_York");
+// One visit at 21:00 New York on 16 Nov (02:00 UTC on the 17th), and it is the first touch.
+const ny = { visits: [kept("2026-11-17T02:00:00Z")], firstKnown: true, leads: [], conversions: [],
+  firstTouch: { by: "vid", day: "2026-11-16", start: "2026-11-16T21:00", source: "Direct or unknown", via: "" } };
+assert.equal(firstSeen(ny).touch, false, "the same visit: shown, so never 'not shown here'");
+assert.ok(!stateLine(ny).includes("not shown"));
+assert.equal(firstSeen({ ...ny, firstTouch: { ...ny.firstTouch, by: "hash", start: null } }).touch, false, "by its site day too");
+// A first touch's start is kept to the minute: the visit that started at 21:00:40 is the one
+// whose first touch says 21:00 (found in the demo build: "not shown here" beside that very visit).
+const secs = { ...ny, visits: [kept("2026-11-17T02:00:40Z")] };
+assert.equal(firstSeen(secs).touch, false, "the same minute is the same visit");
+assert.equal(firstSeen({ ...secs, firstTouch: { ...ny.firstTouch, start: "2026-11-16T20:59" } }).touch, true, "a minute before is older");
+// A first touch an hour earlier the same evening: older, by its time.
+assert.equal(firstSeen({ ...ny, firstTouch: { ...ny.firstTouch, start: "2026-11-16T20:00" } }).touch, true);
+// A site ahead of UTC: the visit at 20:00 UTC on 16 Nov is 01:30 on the 17th in Kolkata, so a
+// first touch on the site's 16 Nov is older.
+setZone("utc", "Asia/Kolkata");
+const ahead = { ...ny, visits: [kept("2026-11-16T20:00:00Z")], firstTouch: { by: "hash", day: "2026-11-16", start: null, source: "Search", via: "" } };
+assert.equal(firstSeen(ahead).touch, true, "the site's day before the visit's site day");
+assert.equal(firstSeen({ ...ahead, firstTouch: { ...ahead.firstTouch, day: "2026-11-17" } }).touch, false);
+setZone("site", "UTC");
+console.log("visitor-drawer: first seen passed");

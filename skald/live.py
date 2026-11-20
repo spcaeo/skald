@@ -231,7 +231,10 @@ def build(config: dict, site: str, tz: ZoneInfo, now: datetime,
     from .privacy import forgotten
     from .visitors import annotate, load_key, repeat_days
     hidden = forgotten(Path(db_path).parent if db_path is not None else None)
-    ai = AIEvents(load_key(config), hidden)
+    from .bot_verify import from_config as verifier_of
+    lists = verifier_of(config)
+    ai = AIEvents(load_key(config), hidden,
+                  lists.cdn if lists is not None and lists.cdn_known() else None)
     from . import realtime
     now_seen = realtime.Observer(end)          # Real time: the last 30 minutes
     from . import by_now

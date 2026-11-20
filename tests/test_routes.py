@@ -103,7 +103,8 @@ TABLE = [
     ("users", "settings/org/people", {}), ("settings/users", "settings/org/people", {}),
     ("account", "settings/you/account", {}), ("settings/account", "settings/you/account", {}),
     ("billing", "settings/org/billing", {}), ("settings/billing", "settings/org/billing", {}),
-    ("security", "settings/org/people", {"sub": "security"}), ("settings/security", "settings/org/people", {"sub": "security"}),
+    # SKALD-28: a bare #security is the Security section (its first tab), not Settings' sign-in rules.
+    ("security", "threats/exposed", {}), ("settings/security", "settings/org/people", {"sub": "security"}),
     ("audit", "settings/org/audit", {}), ("settings/audit", "settings/org/audit", {}),
     ("mail", "settings/site/mail", {}), ("settings/mail", "settings/site/mail", {}),
     ("reports", "settings/site/mail", {"sub": "reports"}), ("settings/reports", "settings/site/mail", {"sub": "reports"}),
@@ -301,6 +302,59 @@ console.log(JSON.stringify(out));
         self.assertEqual(got["off30"], ["", "#traffic/sources?range=30d&cmp=off"])
         self.assertEqual(got["today"], ["", "#traffic/sources"])
         self.assertEqual(got["back"], ["prev", "#traffic/sources?range=7d"])
+
+    def test_an_unknown_address_never_shows_another_screen_under_it(self):
+        """SKALD-28: #threats/blocklist showed Overview's Summary under its own address. An unknown
+        tab of a known section opens the section's first tab and the address says so; an unknown
+        settings page opens Settings; any other unknown address is "no such page" (s.missing),
+        its address kept so the reader sees what was typed."""
+        script = """
+const loc = { hash: "" };
+globalThis.location = loc;
+globalThis.history = { replaceState: (_, __, h) => { loc.hash = h; }, pushState: (_, __, h) => { loc.hash = h; } };
+globalThis.addEventListener = () => {};
+globalThis.localStorage = { getItem: () => null };
+const S = await import(process.argv[2]);
+S.addSections(JSON.parse(process.argv[1]));
+let seen = null;
+S.on((s) => { seen = s; });
+const out = {};
+for (const h of ["#threats/blocklist", "#traffic/nosuch?range=7d", "#settings/nosuch", "#nosuch", "#foo/bar?range=7d",
+                 "#security", "#traffic/sources", "#threats", "#help", "#", "", "#?range=7d", "#nosuch?cmp=1", "#threats/blocklist/"]) {
+  loc.hash = h;
+  S.emit(true);
+  out[h] = [loc.hash, seen.tab, seen.missing];
+}
+out.first = S.firstSetting();
+// Its link to Overview draws Overview: not taken for a drawer opening over the same tab.
+loc.hash = "#nosuch"; const gone = S.read(); loc.hash = "#overview/summary"; const back = S.read();
+out.redraw = [S.onlyOverlay(gone, back), S.onlyOverlay(back, gone), S.onlyOverlay(back, S.read())];
+// set() and nameOf() take an unknown tab the same way.
+loc.hash = "#site/health"; S.set({ tab: "threats/blocklist" }); out.set = loc.hash;
+out.names = [S.nameOf("threats/blocklist"), S.nameOf("security")];
+console.log(JSON.stringify(out));
+"""
+        done = subprocess.run(["node", "--input-type=module", "-e", script, json.dumps(registry()), (JS / "state.js").as_uri()],
+                              capture_output=True, text=True, timeout=60, cwd=JS)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        got = json.loads(done.stdout)
+        self.assertEqual(got["#threats/blocklist"], ["#threats/exposed", "threats/exposed", ""])
+        self.assertEqual(got["#traffic/nosuch?range=7d"], ["#traffic/visitors?range=7d", "traffic/visitors", ""])
+        self.assertEqual(got["#settings/nosuch"], [f"#{got['first']}", got["first"], ""])
+        self.assertEqual(got["#nosuch"], ["#nosuch", "overview/summary", "nosuch"], "kept, and said to be no page")
+        self.assertEqual(got["#foo/bar?range=7d"], ["#foo/bar?range=7d", "overview/summary", "foo/bar"])
+        self.assertEqual(got["#security"], ["#threats/exposed", "threats/exposed", ""])
+        self.assertEqual(got["#traffic/sources"], ["#traffic/sources", "traffic/sources", ""])
+        self.assertEqual(got["#threats"], ["#threats/exposed", "threats/exposed", ""])
+        self.assertEqual(got["#help"], ["#help", "help", ""])
+        for h in ("#", ""):
+            self.assertEqual(got[h][1:], ["overview/summary", ""], "no address is Overview, never no page")
+        self.assertEqual(got["redraw"], [False, False, True])
+        self.assertEqual(got["#?range=7d"][1:], ["overview/summary", ""])
+        self.assertEqual(got["#nosuch?cmp=1"], ["#nosuch?cmp=1", "overview/summary", "nosuch"], "the old compare switch never hides it")
+        self.assertEqual(got["#threats/blocklist/"], ["#threats/exposed", "threats/exposed", ""])
+        self.assertEqual(got["set"], "#threats/exposed")
+        self.assertEqual(got["names"], ["Is anything exposed?", "Is anything exposed?"])
 
     def test_every_redirect_row_is_tested_and_lands_on_a_route(self):
         text = (JS / "routes.js").read_text(encoding="utf-8")

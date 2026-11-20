@@ -8,7 +8,9 @@
 //                        warn (can't tell: no sizes), none (no scanner answered 2xx)
 //   merge(rows, ans)     the suspect rows joined to the addresses (people/security), one row
 //                        per address and agent when known, else per day and row number
-//   blockList(rows, mode) the worst addresses (probes, then attack attempts) and networks
+//   blockList(rows, mode) the worst addresses (probes, then attack attempts) and networks;
+//                        never a CDN edge's (SKALD-20), counted apart in `left`
+//   mostlyCdn(total)     half or more of the period's probes came through a CDN's edges
 //   nginx / cloudflare / plain   the block list as text to download
 
 export const FOLD = "(all others)";
@@ -43,13 +45,14 @@ function next(iso) { const t = new Date(`${iso}T00:00:00Z`); t.setUTCDate(t.getU
 
 export function sumOf(blobs) {
   const t = { days: blobs.length, probes: 0, probes_other: 0, scanners: 0, addresses: 0, requests: 0, forged: 0, bare_ip: 0,
-    hosting: null, categories: {}, status: {}, countries: {}, paths: {}, perDay: [],
+    hosting: null, cdn: null, cdnProbes: 0, categories: {}, status: {}, countries: {}, paths: {}, perDay: [],
     exposure: { answered: 0, shell: 0, empty: 0, possible: 0, unknown: 0, folded: 0, rows: [], hosts: {} },
     injection: { requests: 0, kinds: {}, rows: [] }, login: { posts: 0, episodes: 0, rows: [] }, bursts: { requests: 0, episodes: 0, rows: [] },
     fake: { requests: 0, pairs: 0, kinds: {}, pages: {} }, who: [], whoDays: 0, whoFolded: 0 };
   for (const [day, b] of blobs) {
     for (const k of ["probes", "probes_other", "scanners", "addresses", "requests", "forged", "bare_ip"]) t[k] += b[k] || 0;
     if (b.hosting != null) t.hosting = (t.hosting || 0) + b.hosting;
+    if (b.cdn != null) { t.cdn = (t.cdn || 0) + b.cdn; t.cdnProbes += b.probes || 0; }   // SKALD-22: days that counted it
     add(t.categories, b.categories); add(t.status, b.status); add(t.countries, b.countries); add(t.paths, b.paths);
     t.perDay.push({ day, probes: b.probes || 0, scanners: b.scanners || 0 });
     const e = b.exposure || {};
@@ -100,7 +103,7 @@ export function merge(rows, ans) {
     if (!m) {
       m = { key, ip: known ? who.ip : null, agent: known ? who.user_agent || "" : null, removed: who?.ip === "(removed)", days: [], refs: [],
         first: r.first, last: r.last, requests: 0, probes: 0, injection: 0, login: 0, burst: 0, fake_requests: 0, bare_ip: 0,
-        categories: {}, status: {}, probe_status: {}, paths: {}, pages: {}, kinds: [], fake: r.fake || null, forged: false, country: r.country || null, hosting: r.hosting ?? null };
+        categories: {}, status: {}, probe_status: {}, paths: {}, pages: {}, kinds: [], fake: r.fake || null, forged: false, country: r.country || null, hosting: r.hosting ?? null, cdn: r.cdn || null };
       out.set(key, m);
     }
     m.days.push(r.day); m.refs.push(`${r.day}#${r.seq}`);
@@ -113,6 +116,8 @@ export function merge(rows, ans) {
     if (!m.fake && r.fake) m.fake = r.fake;
     if (!m.country && r.country) m.country = r.country;
     if (m.hosting == null && r.hosting != null) m.hosting = r.hosting;
+    if (!m.cdn && r.cdn) m.cdn = r.cdn;
+    if (!m.cdn && known && who.cdn) m.cdn = who.cdn;     // by today's list, any day (SKALD-20)
   }
   return [...out.values()].sort((a, b) => b.probes - a.probes || ATTACK(b) - ATTACK(a) || b.requests - a.requests || (a.first < b.first ? -1 : 1));
 }
@@ -143,11 +148,17 @@ export function networkOf(ip) {
    networks: [{cidr, addresses, probes, attacks}]}. mode "full": each address, and each
    network holding two or more of them; "short": the kept addresses are networks already,
    so only networks; "off": nothing. */
+// Over the days that counted it (days stored before SKALD-22 have no cdn figure).
+export const mostlyCdn = (t) => t.cdn != null && t.cdnProbes > 0 && t.cdn / t.cdnProbes >= 0.5;
+
 export function blockList(merged, mode) {
-  if (mode !== "full" && mode !== "short") return { addresses: [], networks: [] };
-  const by = new Map();
+  const left = { addresses: 0, probes: 0 };
+  if (mode !== "full" && mode !== "short") return { addresses: [], networks: [], left };
+  const by = new Map(), edges = new Set();
   for (const m of merged) {
     if (!m.ip || !(m.probes || ATTACK(m))) continue;
+    // A CDN edge's address carries real visitors too: never one to block (SKALD-20).
+    if (m.cdn) { edges.add(m.ip); left.probes += m.probes; continue; }
     const got = by.get(m.ip) || { ip: m.ip, probes: 0, attacks: 0, requests: 0, country: m.country, hosting: m.hosting, days: new Set() };
     got.probes += m.probes; got.attacks += ATTACK(m); got.requests += m.requests;
     for (const d of m.days) got.days.add(d);
@@ -164,7 +175,8 @@ export function blockList(merged, mode) {
     nets.set(cidr, got);
   }
   const networks = [...nets.values()].filter((x) => mode === "short" || x.addresses >= 2).sort(rank);
-  return { addresses: mode === "short" ? [] : addresses, networks };
+  left.addresses = edges.size;
+  return { addresses: mode === "short" ? [] : addresses, networks, left };
 }
 
 // ------------------------------------------------------------------ exports

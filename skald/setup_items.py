@@ -153,6 +153,15 @@ def items(app=None, status=None, tools=None, settings=None, waiting=(),
                          "site sends no page request, so Skald does not count it yet. One line "
                          "in the web server's log format fixes it.", _tech(rsc), "rsc"))
 
+    # 2c. SKALD-23: the log holds a CDN's addresses, not the visitors' (doctor "addresses").
+    edges = _doc(status, "addresses")
+    if (edges or {}).get("state") == "NEEDS ATTENTION":
+        out.append(_line("addresses", "Log the visitor's real address", "todo",
+                         "Most addresses in this log are your CDN's (Cloudflare's), not your "
+                         "visitors'. Cities, crawler checks, scanners and the block list are "
+                         "not reliable until the site's server logs the visitor's own address.",
+                         _tech(edges)))
+
     # 3. Countries: a visit with a country, or the GeoIP file to set.
     by_country = ((f or {}).get("by") or {}).get("country") or {}
     cc = [k for k in by_country if k and k != "Unknown" and not str(k).startswith("(")]

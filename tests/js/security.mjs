@@ -155,7 +155,7 @@ const answer = { ok: true, mode: "full", keep_days: 395, kept_from: "2026-10-01"
   assert.deepEqual(short.addresses, [], "a site that shortens: networks only");
   assert.deepEqual(short.networks.map((x) => x.cidr), ["198.51.100.0/24"]);
   assert.doesNotMatch(D.plain(short), /198\.51\.100\.7/);
-  assert.deepEqual(D.blockList(D.merge(t.who, answer), "off"), { addresses: [], networks: [] });
+  assert.deepEqual(D.blockList(D.merge(t.who, answer), "off"), { addresses: [], networks: [], left: { addresses: 0, probes: 0 } });
   assert.equal(D.networkOf("2001:db8:85a3:8d3:1319:8a2e:370:7348"), "2001:db8:85a3::/48");
   assert.equal(D.networkOf("(removed)"), "");
 }

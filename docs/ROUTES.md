@@ -12,7 +12,11 @@ https://app.skaldanalytics.com/traffic/example.com/#traffic/visitors?range=7d&vi
 ```
 
 The route (`#traffic/visitors`) names the section and the tab; older routes redirect
-(`js/routes.js`, for example `#sources` and `#live`). The keys after `?` are of four
+(`js/routes.js`, for example `#sources`, `#live` and `#security`, which opens Security). An
+unknown address never shows another page under it (`js/state.js` `route`, SKALD-28): an
+unknown tab of a section (`#threats/blocklist`) opens the section's first tab and the address
+says so, an unknown settings page opens Settings, and anything else (`#nosuch`) shows "No such
+page" with the address as typed and a link to Overview. The keys after `?` are of four
 kinds.
 
 ## Rules
@@ -185,7 +189,7 @@ Every older address opens its new home with every parameter it carried
 | `#settings/ai/api` | `#settings/ai/assistants?sub=api` |
 | `#settings/ai/tokens`, `#settings/tokens`, `#tokens` | `#settings/ai/assistants?sub=tokens` |
 | `#settings/org/team`, `#settings/org/users`, `#settings/team`, `#team`, `#settings/users`, `#users` | `#settings/org/people` |
-| `#settings/org/security`, `#settings/security`, `#security` | `#settings/org/people?sub=security` |
+| `#settings/org/security`, `#settings/security` | `#settings/org/people?sub=security` (a bare `#security` opens Security, SKALD-28) |
 | `#settings/site/leads?sub=search` / `?sub=webhooks` | `#settings/site/leads?tool=search` / `?tool=webhooks` |
 | `#settings/site/leads?sub=hooks`, `#settings/integrations`, `#integrations` | `#settings/site/leads` |
 | `#settings/account`, `#account` | `#settings/you/account` |

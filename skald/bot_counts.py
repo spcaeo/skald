@@ -65,8 +65,9 @@ class BotCounts:
         if group in (Group.ANSWER_ENGINE, Group.SEARCH_ENGINE) and verdict.engine:
             name = verdict.engine
             self.groups.setdefault(name, group.value)
+            # "cdn": its address is a CDN edge's, so it cannot be checked (SKALD-17).
             self.checks.setdefault(name, Counter())[
-                "verified" if verdict.verified == "verified" else "unverified"] += 1
+                verdict.verified if verdict.verified in ("verified", "cdn") else "unverified"] += 1
         elif group is Group.BOTS:
             if verdict.verified == "spoofed" and verdict.claim:
                 self.groups.setdefault(verdict.claim, claim_group(verdict.claim))
@@ -88,7 +89,8 @@ class BotCounts:
         return {
             "verification": {
                 name: {"group": self.groups[name], "method": method_of(vendor_of(name)),
-                       **{k: int(c.get(k, 0)) for k in ("verified", "unverified", "spoofed")}}
+                       **{k: int(c.get(k, 0)) for k in ("verified", "unverified", "spoofed",
+                                                         "cdn")}}
                 for name, c in sorted(self.checks.items())},
             "link_previews": dict(self.previews.most_common()),
             "fake_browsers": {f: {"requests": int(self.flagged[f]["requests"]),
@@ -126,7 +128,7 @@ def check(totals, blob: dict | None, differs, problems: list) -> None:
     ver = blob.get("verification") or {}
     for group in (Group.ANSWER_ENGINE, Group.SEARCH_ENGINE):
         stats = totals.groups.get(group)
-        got = sum(v["verified"] + v["unverified"] for v in ver.values()
+        got = sum(v["verified"] + v["unverified"] + v.get("cdn", 0) for v in ver.values()
                   if v["group"] == group.value)
         differs(f"{group.value}: verified and unverified requests", got,
                 stats.hits if stats else 0, "requests in the group")

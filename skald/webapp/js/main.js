@@ -224,7 +224,7 @@ const actions = () => [
 // Pages without figures keep only their title and the buttons that always apply; a section's tab says so itself (figures: false).
 // Every settings page is a form, not figures: no period, page group or filters there.
 const NO_DATA = new Set(["about", "help"]);
-const noData = (s) => NO_DATA.has(s.tab) || S.inSettings(s.tab) || opt(s.tab, "figures", s, true) === false;
+const noData = (s) => s.missing || NO_DATA.has(s.tab) || S.inSettings(s.tab) || opt(s.tab, "figures", s, true) === false;
 
 /* A tab with a period of its own (Real time, Insights, Alerts, the request log...):
    the period bar does not apply there, so it is not shown; a fixed chip says the
@@ -240,12 +240,12 @@ function periodChip(s) {
 let chip = null;            // the phone's site button (nav.js siteChip), made once
 function drawBar(s) {
   // A section's tab is named by its section here; the tab strip under the bar names the tab.
-  const name = S.sectionOf(s.tab)?.name || S.nameOf(s.tab);
+  const name = s.missing ? MISSING : S.sectionOf(s.tab)?.name || S.nameOf(s.tab);
   // Left: the menu button (phones), the section and the drill-down trail.
-  const chain = chainOf(s);
+  const chain = s.missing ? [] : chainOf(s);
   const last = chain[chain.length - 1];
   // The trail: the group or the parent (nav.js trailOf), the page, then the drill-down's last step.
-  const trail = trailOf(s.tab);
+  const trail = s.missing ? [[MISSING]] : trailOf(s.tab);
   chip = chip || siteChip();
   const title = h("div", { class: "tb-title" },
     h("button", { type: "button", class: "btn icon menu-btn", id: "menu-btn", html: MENU, "aria-label": "Open the menu", "aria-expanded": "false", "aria-controls": "rail", onclick: openDrawer }),
@@ -464,6 +464,21 @@ function notBuilt(name, file, error) {
       `Its data file (${file}.json) failed${since ? ` since ${tzTime(since, { date: true })}` : ""}: ${error}. Nothing is shown rather than empty figures; Data quality lists every file that failed, and the next redraw tries again.`))];
 }
 
+/* SKALD-28: an address that is no page of this dashboard (state.js read: s.missing). Said as
+   such, with the address as typed (text, never markup) and the way to Overview; never another
+   page's screen under the unknown address. */
+const MISSING = "No such page";
+function noSuchPage(asked) {
+  let plain = asked;
+  try { plain = decodeURIComponent(asked); } catch { /* a stray % stays as it is */ }
+  const typed = plain.length > 80 ? `${plain.slice(0, 80)}…` : plain;
+  return [h("div", { class: "head" }, h("h1", null, MISSING)),
+    h("div", { class: "state", role: "status", html: ICON.info }, h("div", null,
+      h("strong", null, "This dashboard has no page at "), h("code", null, `#${typed}`), h("strong", null, ". "),
+      "The address may be mistyped, or from an older link. ",
+      h("a", { href: "#overview/summary" }, "Open Overview"), " or pick a section in the menu."))];
+}
+
 async function render(s, { keepScroll = false, changed = false } = {}) {
   const prev = current;
   current = s;
@@ -475,7 +490,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   // The big files this tab is drawn with (data.js LAZY), when the page does not have them yet:
   // a "Loading" line in the panel meanwhile, never a blank page (2.41). The 2-minute refresh
   // may swap the model while we wait: ask the new one too.
-  const want = tabFiles(s.tab, s);
+  const want = s.missing ? [] : tabFiles(s.tab, s);
   if (!has(model, want)) {
     panel.replaceChildren(h("div", { class: "state lazy-wait", role: "status", "aria-busy": "true" },
       h("div", null, h("strong", null, `Loading ${S.nameOf(s.tab)}…`), " Its page lists are fetched the first time it opens.")));
@@ -488,7 +503,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   // A page's drawers (drill-down, request detail) belong to the render that opened them.
   closeDrawers("page");
   setZone(s.tz, model.tz);
-  mark(s.tab);
+  mark(s.missing ? "" : s.tab);
   drawBar(s);
   footTick();
   setMarkers(markersByDay(model), marksOn());
@@ -496,16 +511,16 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   REGISTRY.length = 0;
   setContext(model, s);
   setSiteBase(model.site);
-  const name = S.nameOf(s.tab), sec = S.sectionOf(s.tab);
+  const name = s.missing ? MISSING : S.nameOf(s.tab), sec = s.missing ? null : S.sectionOf(s.tab);
   // The area's tint (css/ui.css): the section's key, settings, help or about.
-  app.dataset.area = sec ? sec.key : S.inSettings(s.tab) ? "settings" : String(s.tab || "").split("/")[0];
+  app.dataset.area = s.missing ? "missing" : sec ? sec.key : S.inSettings(s.tab) ? "settings" : String(s.tab || "").split("/")[0];
   document.title = `${model.site} · ${sec ? `${name} · ${sec.name}` : name} — ${toolName()}`;
   const file = opt(s.tab, "file", s, null), broken = file && model.failed?.[file];
-  const body = broken ? notBuilt(name, file, broken)
+  const body = s.missing ? noSuchPage(s.missing) : broken ? notBuilt(name, file, broken)
     : DEMO.on && demoTab(s.tab) ? TAB_RENDER[s.tab](model, s, { first: firstPaint, changed })
     : DEMO.on && S.inSettings(s.tab) ? framed(s.tab, () => demoState(name))(model, s) : DEMO.on && opt(s.tab, "helper", s, false) ? demoState(name) : TAB_RENDER[s.tab](model, s, { first: firstPaint, changed });
   // modeBanner: while Compare is on, what A and B are, or why not (modes.js).
-  const banners = [demoBanner(), welcomeBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
+  const banners = s.missing ? [] : [demoBanner(), welcomeBanner(), updateBanner(), planBanner(), modeBanner(model, s), filterBanner(s)].filter(Boolean);
   const content = [body].flat(Infinity).filter(Boolean);
   if (sec) {
     // A section: its tabs right under the bar's title, the notices and the chosen tab's page in the strip's panel.
@@ -517,9 +532,9 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     strip.panel.append(...banners, ...content);
     panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), crumbLine(model, s), strip.root);
   // Settings (v2): no trail line; the menu on the left already says where the page is.
-  } else panel.replaceChildren(printHead(s, name), ...(S.inSettings(s.tab) ? [] : [crumbLine(model, s)]), ...banners, ...content);
+  } else panel.replaceChildren(printHead(s, name), ...(S.inSettings(s.tab) || s.missing ? [] : [crumbLine(model, s)]), ...banners, ...content);
   quietKpis(panel);
-  const tabChanged = !prev || prev.tab !== s.tab;
+  const tabChanged = !prev || prev.tab !== s.tab || (prev.missing || "") !== (s.missing || "");
   if (tabChanged && !reduced()) {
     panel.classList.remove("enter");
     void panel.offsetWidth;
@@ -530,8 +545,8 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   }
   firstPaint = false;
   // What the address opens over the tab (a drawer, a dialog: overlays.js), then the drill-down on top.
-  syncOverlays(model, s);
-  drillView(model, s);
+  // None over "No such page": they would open over Overview's figures, which it does not show.
+  if (!s.missing) { syncOverlays(model, s); drillView(model, s); }
   // Back, Forward, a breadcrumb or a reload: the step's scroll back (crumbs.js).
   restoreScroll();
 }
@@ -624,7 +639,7 @@ async function boot() {
   S.on((next) => {
     // A drill-down opened on today reads the newest count at once, not at the next tick (#53).
     if (next.dd && next.dd !== current?.dd && next.range === "today") freshen();
-    if (current && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next);
+    if (current && !next.missing && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next);
   });
   // 2.42: Export asks what you need (export-dialog.js); the report builder's old links open its PDF path, Change open.
   addRestorer("dlg:export", () => { const s = S.read(); return openExport(model, s, (next) => load(next, { previous: model }), { kind: s.kind, change: s.xch === "1" }); });

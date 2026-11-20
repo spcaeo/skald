@@ -79,6 +79,10 @@ export function setupItems(m, { status = null, tools = null, settings = null, wa
   const rsc = DOC(status, "rsc");
   if (rsc?.state === "NEEDS ATTENTION") out.push({ id: "rsc", title: "Pages opened inside the site are not counted yet", state: "todo", says: "Your site is built with Next.js. A page opened by a link inside the site sends no page request, so Skald does not count it yet. One line in the web server's log format fixes it.", tech: techOf(rsc), act: "rsc" });
 
+  // 2c. SKALD-23: the log holds a CDN's addresses, not the visitors' (doctor "addresses").
+  const edges = DOC(status, "addresses");
+  if (edges?.state === "NEEDS ATTENTION") out.push({ id: "addresses", title: "Log the visitor's real address", state: "todo", says: "Most addresses in this log are your CDN's (Cloudflare's), not your visitors'. Cities, crawler checks, scanners and the block list are not reliable until the site's server logs the visitor's own address.", tech: techOf(edges), act: null });
+
   // 3. Countries: a visit with a country, or the GeoIP file to set.
   const cc = Object.keys(f?.by?.country || {}).filter((k) => k && k !== "Unknown" && !k.startsWith("("));
   if (cc.length) out.push({ id: "countries", title: "Countries shown", state: "done", says: "Visits show their country.", tech: null, act: null });

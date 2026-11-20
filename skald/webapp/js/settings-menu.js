@@ -138,7 +138,8 @@ export const OLD_SETTINGS = {
   "settings/integrations": ["settings/site/leads"], integrations: ["settings/site/leads"],
   "settings/aianswers": ["settings/ai/answers"],
   "settings/sitesadmin": ["settings/org/sites"],
-  "settings/security": ["settings/org/people", { sub: "security" }], security: ["settings/org/people", { sub: "security" }],
+  // A bare #security is the Security section now (routes.js, SKALD-28); Settings' old page keeps its own.
+  "settings/security": ["settings/org/people", { sub: "security" }],
   "settings/audit": ["settings/org/audit"], audit: ["settings/org/audit"],
   "settings/billing": ["settings/org/billing"], billing: ["settings/org/billing"],
 };

@@ -116,7 +116,7 @@ const columns = () => [
   { key: "rule", label: "Group, and the rule that decided it", csv: (r) => r.rule || GROUP_NAME[r.group] || r.group, sort: (r) => `${r.group}|${r.rule || ""}`,
     fmt: (_, r) => h("span", { class: "si-rq-g", style: { "--g": color(r.group) }, title: GROUP_NAME[r.group] || r.group },
       h("span", { class: "rule" }, r.rule || GROUP_NAME[r.group] || r.group),
-      r.verified && r.verified !== "verified" ? h("span", { class: `vb ${r.verified}` }, r.verified === "unverified" ? "not verifiable" : r.verified) : null,
+      r.verified && r.verified !== "verified" ? h("span", { class: `vb ${r.verified}` }, r.verified === "unverified" ? "not verifiable" : r.verified === "cdn" ? "can't check (CDN)" : r.verified) : null,
       r.page_view ? h("span", { class: "pv", title: "Counted as a page view" }, "page view") : null,
       (r.flags || []).filter((f) => FLAG_WORDS[f] && f !== "probe").map((f) => h("span", { class: "flag-chip", title: FLAG_WORDS[f][1] }, FLAG_WORDS[f][0]))) },
   { key: "ip", label: "From", csv: (r) => r.ip,

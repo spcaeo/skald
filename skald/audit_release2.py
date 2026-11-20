@@ -22,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .bot_policy import match as policy_match
-from .bot_verify import (CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE, PREFETCH_PROXY,
+from .bot_verify import (CDN_LISTS, CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE,
+                         PREFETCH_PROXY,
                          VENDORS)
 from .classify import LINK_PREVIEWS, OTHER_BOT
 from .path_names import PATH_CHARS
@@ -58,6 +59,7 @@ class Checks:
         self.current: set[str] = set()
         self.dns: dict = {}
         self.hosting: list = []
+        self.cdn: dict[str, list] = {}      # "cdn-<name>" -> its ranges (SKALD-17)
         self.memo: dict = {}
         if not self.on:
             return
@@ -78,6 +80,9 @@ class Checks:
             if path.stem == "hosting":
                 self.hosting = nets
                 continue
+            if path.stem.startswith("cdn-"):
+                self.cdn[path.stem] = nets
+                continue
             self.nets[path.stem] = nets
             try:
                 if now - datetime.fromisoformat(data["fetched"]) <= MAX_LIST_AGE:
@@ -93,7 +98,7 @@ class Checks:
         return any(ip.version == n.version and ip in n for n in nets)
 
     def verdict(self, name: str, address: str, agent: str):
-        """"verified", "unverified", "spoofed", or None (no owner known)."""
+        """"verified", "unverified", "spoofed", "cdn", or None (no owner known)."""
         vendor = _vendor(name)
         if vendor is None:
             return None
@@ -105,6 +110,8 @@ class Checks:
         have = [n for n in lists if n in self.nets]
         if any(self._inside(address, self.nets[n]) for n in have):
             out = "verified"
+        elif self.from_cdn(address):
+            out = "cdn"                     # a CDN edge's address: no check can speak for it
         elif names:
             said = (self.dns.get(f"{vendor}|{address}") or {}).get("result")
             out = said if said in ("verified", "spoofed") else "unverified"
@@ -114,6 +121,20 @@ class Checks:
             out = "unverified"
         self.memo[(vendor, address)] = out
         return out
+
+    def from_cdn(self, address: str) -> bool:
+        """Inside a stored CDN list (SKALD-17)?"""
+        key = ("cdn", address)
+        if key not in self.memo:
+            self.memo[key] = any(self._inside(address, nets) for nets in self.cdn.values())
+        return self.memo[key]
+
+    def cdn_name(self, address: str) -> str:
+        """The CDN whose stored list holds this address ("Cloudflare"), or "" (SKALD-22)."""
+        for stem, nets in sorted(self.cdn.items()):
+            if self._inside(address, nets):
+                return CDN_LISTS.get(stem, (stem[4:],))[0]
+        return ""
 
     def crawler_list(self, address: str) -> str:
         """Rule 5b: the crawler name of the first crawler-only list (the
@@ -199,8 +220,9 @@ class BotsRecount:
         if group in ("answer_engines", "search_engines") and name:
             self.paths.setdefault(name, Counter())[line.path[:200]] += 1
             self.groups.setdefault(name, group)
+            checked = info.get("checked")
             self.checks.setdefault(name, Counter())[
-                "verified" if info.get("checked") == "verified" else "unverified"] += 1
+                checked if checked in ("verified", "cdn") else "unverified"] += 1
         elif group == "bots" and info.get("spoofed"):
             claim = info["spoofed"]
             self.groups.setdefault(claim, info.get("claim_group", ""))
@@ -219,7 +241,7 @@ class BotsRecount:
     def figures(self) -> dict:
         return {"verification": {n: {"group": self.groups[n], "method": _method(_vendor(n)),
                                      **{k: c.get(k, 0) for k in
-                                        ("verified", "unverified", "spoofed")}}
+                                        ("verified", "unverified", "spoofed", "cdn")}}
                                  for n, c in self.checks.items()},
                 "link_previews": dict(self.previews),
                 "fake_browsers": {f: {"requests": self.flags[f]["requests"],
@@ -248,7 +270,8 @@ class BotsRecount:
 
 # ------------------------------------------------------------- quality
 
-def quality(files, start: datetime, end: datetime, parse, upto: dict | None = None) -> dict:
+def quality(files, start: datetime, end: datetime, parse, upto: dict | None = None,
+            cdn=None) -> dict:
     """Lines in [start, end) counted from the raw text: parsed, byte-identical
     repeats within one second, old-layout lines, and gaps of over 10
     minutes. `parse(raw)` is audit.line_hit; `old(raw)` tells the layout.
@@ -258,7 +281,7 @@ def quality(files, start: datetime, end: datetime, parse, upto: dict | None = No
     from .audit import _EXTENDED, raw_lines
     seen: dict[int, set] = {}
     rids: set = set()
-    parsed = dupes = old = removed = 0
+    parsed = dupes = old = removed = cdn_lines = 0
     minutes = set()
     for path in files:
         for raw in raw_lines(Path(path), upto):
@@ -273,6 +296,8 @@ def quality(files, start: datetime, end: datetime, parse, upto: dict | None = No
             if not (start <= line.when < end):
                 continue
             parsed += 1
+            if cdn is not None and cdn(line.address):
+                cdn_lines += 1              # a CDN edge's address, by the audit's own list
             second = int(line.when.timestamp())
             text = raw.rstrip("\n")
             bucket = seen.setdefault(second, set())
@@ -288,7 +313,7 @@ def quality(files, start: datetime, end: datetime, parse, upto: dict | None = No
     ordered = sorted(minutes)
     gaps = sum(1 for a, b in zip(ordered, ordered[1:]) if b - a - 1 > 10)
     return {"parsed": parsed, "duplicates": dupes, "old_format": old, "gaps": gaps,
-            "duplicates_removed": removed}
+            "duplicates_removed": removed, "cdn_lines": cdn_lines if cdn is not None else None}
 
 
 def compare_crawler_paths(stored: dict, got: dict, same, problems) -> None:
@@ -337,7 +362,7 @@ def compare(stored: dict, got_bots: dict, got_quality: dict | None, same, proble
         for name in sorted(set(ver) | set(got_bots["verification"])):
             mine = got_bots["verification"].get(name) or {}
             kept = ver.get(name) or {}
-            for k in ("verified", "unverified", "spoofed"):
+            for k in ("verified", "unverified", "spoofed", "cdn"):
                 same(f"{name}: {k}", int(kept.get(k, 0)), int(mine.get(k, 0)))
         prev = blob.get("link_previews") or {}
         for app in sorted(set(prev) | set(got_bots["link_previews"])):
@@ -374,6 +399,11 @@ def compare(stored: dict, got_bots: dict, got_quality: dict | None, same, proble
         same("quality: duplicates removed", int(q.get("duplicates_removed") or 0),
              int(got_quality.get("duplicates_removed", 0)))
     same("quality: gaps", len(q.get("gaps") or []), int(got_quality["gaps"]))
+    # Stored since SKALD-17, and only when a CDN list was kept: a day collected before, or
+    # without the list, is not compared (never withheld for what it could not count).
+    if q.get("cdn_lines") is not None and got_quality.get("cdn_lines") is not None:
+        same("quality: lines from a CDN's addresses", int(q["cdn_lines"]),
+             int(got_quality["cdn_lines"]))
     if "not_pages" in q and "not_pages" in got_quality:   # stored since 2.35 (not_pages.py)
         kept, mine = q.get("not_pages") or {}, got_quality["not_pages"]
         for entry in sorted(set(kept) | set(mine)):

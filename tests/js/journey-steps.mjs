@@ -72,4 +72,40 @@ const live = { ...visit, pages: 3, seconds: 247,
   trail: [{ path: "/pricing-plans/", page: true, at: 0 }, { path: "/consulting/", page: true, at: 90 }, { path: "/implementation/", page: true, at: 90 }] };
 const words = [...journeyMap([live]).el.querySelectorAll(".jm-t")].map((e) => e.textContent);
 assert.deepEqual(words, ["about 1 min 30 s", "under 10 s"]);
+
+// SKALD-43: a single-page site's visit is mostly steps seen in the browser, so nearly every
+// gap said "time not known" and the visit showed almost no times (seen on a live site, 18 Nov).
+// Each such step now shows its own time in the visit under its chip, the tooltip's "+46 s";
+// the gaps keep the #62 words. A loaded page shows none (its gaps carry the time), and a
+// step with no time kept shows nothing. A browser step that met a 404 is timed the same.
+const spa = { ...visit, pages: 1, seconds: 70,
+  trail: [{ path: "/", page: true, at: 0 }, { path: "/features/", page: false, at: 31 },
+    { path: "/features/teams/", page: false, at: 46, nf: true }, { path: "/about/", page: false, at: 60 },
+    { path: "/pricing/", page: false }] };
+const map = journeyMap([spa]).el;
+const ats = [...map.querySelectorAll(".jm-at")];
+assert.deepEqual(ats.map((e) => e.textContent), ["+31 s", "+46 s", "+1 min"]);
+assert.deepEqual([...map.querySelectorAll(".jm-t")].map((e) => e.textContent),
+  ["within 31 s", "time not known", "time not known"], "the gaps keep the #62 words");
+const stepsOf = [...map.querySelectorAll(".jm-s.pg")];
+assert.equal(stepsOf.length, 5);
+assert.equal(stepsOf[0].querySelectorAll(".jm-at").length, 0, "a loaded page: no time under it");
+assert.ok(!classes(stepsOf[0]).includes("timed") && !classes(stepsOf[4]).includes("timed"));
+assert.equal(stepsOf[4].querySelectorAll(".jm-at").length, 0, "no time kept: nothing under it");
+assert.ok(classes(stepsOf[2]).includes("nf"), "a 404 browser step keeps its mark");
+for (const [k, e] of ats.entries()) {
+  const li = stepsOf[k + 1];
+  assert.equal(e.parentNode, li, "in its own step, after the chip");
+  const chip = li.querySelectorAll(".jm-app")[0];
+  assert.ok(!chip.contains(e), "beside the chip's button, never inside it");
+  // urlactions.css shows the copy and open icons on the row's hover by `li:hover > .ua-host`:
+  // the chip (or its host) stays the step's own child.
+  assert.ok(li.childNodes.includes(chip) || li.childNodes.some((c) => c.contains?.(chip) && classes(c).includes("ua-host")),
+    "the chip or its URL host is the step's child");
+  assert.equal(e.getAttribute("aria-hidden"), "true", "the button's label already says it");
+  assert.ok(chip.getAttribute("aria-label").includes(`${e.textContent} from the first request`));
+  assert.ok(classes(li).includes("timed"), "its rail line runs on under the time");
+}
+assert.ok(/\.jm-at\s*\{[^}]*grid-column:\s*2/.test(css), "visitor.css puts .jm-at under the chip");
+assert.ok(/\.jm-s\.timed \.jm-rail\s*\{[^}]*grid-row:\s*1 \/ span 2/.test(css), "and the rail beside both");
 console.log("journey-steps: all passed");

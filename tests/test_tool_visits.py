@@ -18,6 +18,7 @@ whose script sends one HEAD) stay people. Addresses are RFC 5737's.
 from __future__ import annotations
 
 import ast
+import re
 import sys
 import tempfile
 import unittest
@@ -110,6 +111,22 @@ def checker_fixture():
     return tool
 
 
+def image_checker_fixture():
+    """SKALD-25: a page and its payload (it renders), then HEAD for the page's images through
+    /_next/image/, the same address many times in one second."""
+    tool = reader(at(13), "203.0.113.96", CHROME, "/blog/")
+    tool.append(line(at(13, 0, 1), "203.0.113.96", "/blog/a/?_rsc=1x2y3", CHROME,
+                     "https://example.com/blog/"))
+    for k, picture in enumerate(NEXT_IMAGES):
+        tool += [method(asset(at(13, 0, 2 + k), "203.0.113.96", CHROME, "/blog/",
+                              picture), "HEAD")] * 4
+    return tool
+
+
+NEXT_IMAGES = ("/_next/image/?url=%2Fuploads%2Fa.png&w=256&q=75",
+               "/_next/image/?url=%2Fuploads%2Fb.png&w=256&q=75")
+
+
 class TestTheAttackString(unittest.TestCase):
 
     def test_twice_and_thrice_encoded_traversal_is_an_attack(self):
@@ -195,6 +212,58 @@ class TestProbeSweep(unittest.TestCase):
         self.assertIs(c(bot).group, Group.SEARCH_ENGINE)
 
 
+# SKALD-24 (Site › Health on a live site, 17 Nov 2026): "Server errors (5xx) 30", 28 of them
+# people. One scanner with a browser agent asked each of these twice and the site answered
+# 5xx: a recon of Next.js and React server actions. Only /admin/ was a probe then.
+FRAMEWORK_PROBES = ["/__flight/", "/_next/", "/_next/server-actions/", "/_next/server/", "/_react/",
+                    "/_rsc/", "/actions/", "/admin/", "/api/", "/api/auth/", "/api/route/", "/app/"]
+# A Next.js site's own requests, and pages a site may have: never probes.
+NEXT_READERS = ["/_next/static/chunks/main-abc123.js", "/_next/static/css/app.css",
+                "/_next/image", "/_next/data/build-id/pricing.json", "/_next/webpack-hmr",
+                "/api/", "/api/auth/session", "/api/route/", "/app/", "/actions/", "/react/",
+                "/blog/rsc-explained/", "/docs/next/server-actions/", "/_nextjs-guide/"]
+
+
+class TestFrameworkProbes(unittest.TestCase):
+
+    def test_the_recon_paths_are_probes_and_a_next_sites_own_are_not(self):
+        from skald.classify import PROBE, SECRET_PROBE
+        caught = [p for p in FRAMEWORK_PROBES if PROBE.search(p)]
+        self.assertEqual(caught, ["/__flight/", "/_next/", "/_next/server-actions/", "/_next/server/",
+                                  "/_react/", "/_rsc/", "/admin/"])
+        self.assertEqual([p for p in NEXT_READERS if PROBE.search(p)], [])
+        self.assertEqual([p for p in caught if SECRET_PROBE.search(p)], [],
+                         "they move only themselves unless five of them come from one visitor")
+        site = [s.strip() for s in (ROOT / "tests" / "fixtures" / "site_paths.txt").read_text().splitlines()
+                if s.startswith("/")]
+        self.assertEqual([s for s in site if PROBE.search(s)], [])
+
+    def test_the_scanner_is_bots_and_its_errors_leave_people(self):
+        scanner = reader(at(11), "203.0.113.70", CHROME)
+        scanner += [line(at(11, 0, 2 + k), "203.0.113.70", p, CHROME, status=500)
+                    for k, p in enumerate(FRAMEWORK_PROBES * 2)]
+        honest = reader(at(11, 3), "198.51.100.21", SAFARI)
+        honest.append(line(at(11, 4), "198.51.100.21", "/api/route/", SAFARI, status=500))
+        totals = count(scanner + honest)
+        people = totals.groups[Group.PEOPLE]
+        self.assertEqual((people.hits, people.readers), (len(honest), 1))
+        self.assertEqual(people.statuses["5xx"], 1, "only the error the reader saw")
+        bots = totals.groups[Group.BOTS]
+        self.assertEqual(bots.agents[SWEEP], 2 + 2 * 5, "its page, its asset and the paths no probe")
+        self.assertEqual(bots.probes, 2 * 7)
+        self.assertEqual(sum(g.hits for g in totals.groups.values()), len(scanner + honest))
+
+    def test_four_framework_paths_alone_stay_where_they_were(self):
+        lines = reader(at(12), "203.0.113.71", CHROME)
+        lines += [line(at(12, 0, 2 + k), "203.0.113.71", p, CHROME, status=500)
+                  for k, p in enumerate(["/__flight/", "/_rsc/", "/_react/", "/_next/server/"])]
+        lines.append(line(at(12, 0, 9), "203.0.113.71", "/api/", CHROME, status=500))
+        totals = count(lines)
+        self.assertNotIn(SWEEP, totals.groups[Group.BOTS].agents)
+        self.assertEqual(totals.groups[Group.BOTS].probes, 4, "each probe still moves itself")
+        self.assertEqual(totals.groups[Group.PEOPLE].statuses["5xx"], 1)
+
+
 class TestLinkChecker(unittest.TestCase):
 
     def test_head_for_pages_moves_the_whole_visit(self):
@@ -220,6 +289,40 @@ class TestLinkChecker(unittest.TestCase):
         self.assertEqual(totals.groups[Group.PEOPLE].hits, len(lines))
         self.assertNotIn(Group.BOTS, totals.groups)
 
+    def test_head_for_images_moves_the_whole_visit(self):
+        honest = reader(at(15), "203.0.113.95", SAFARI)
+        tool = image_checker_fixture()
+        totals = count(tool + honest)
+        people = totals.groups[Group.PEOPLE]
+        self.assertEqual((people.hits, people.readers), (2, 1))
+        self.assertEqual(totals.groups[Group.BOTS].agents[LINK_CHECKER], len(tool))
+
+    def test_one_picture_asked_many_times_is_the_tool_too(self):
+        lines = reader(at(16), "203.0.113.97", CHROME)
+        lines += [method(asset(at(16, 0, 2), "203.0.113.97", CHROME, path=NEXT_IMAGES[0]),
+                         "HEAD")] * 6
+        totals = count(lines)
+        self.assertNotIn(Group.PEOPLE, totals.groups)
+        self.assertEqual(totals.groups[Group.BOTS].agents[LINK_CHECKER], len(lines))
+
+    def test_one_image_head_or_scripts_stay_a_person(self):
+        lines = reader(at(16), "203.0.113.97", CHROME)
+        lines.append(method(asset(at(16, 0, 2), "203.0.113.97", CHROME, path=NEXT_IMAGES[0]),
+                            "HEAD"))
+        lines += [method(asset(at(16, 0, 3), "203.0.113.97", CHROME, path=p), "HEAD")
+                  for p in ("/_next/static/a.js", "/_next/static/b.css", "/build.json")]
+        totals = count(lines)
+        self.assertEqual(totals.groups[Group.PEOPLE].hits, len(lines))
+        self.assertNotIn(Group.BOTS, totals.groups)
+
+    def test_two_pictures_by_extension_count_too(self):
+        lines = reader(at(16), "203.0.113.97", CHROME)
+        lines += [method(asset(at(16, 0, 2), "203.0.113.97", CHROME, path=p), "HEAD")
+                  for p in ("/img/a.webp", "/img/b.JPG")]
+        totals = count(lines)
+        self.assertNotIn(Group.PEOPLE, totals.groups)
+        self.assertEqual(totals.groups[Group.BOTS].agents[LINK_CHECKER], len(lines))
+
     def test_a_tool_that_says_so_is_a_bot_anyway(self):
         lines = [method(line(at(16), "203.0.113.98", p, "curl/8.7.1"), "HEAD")
                  for p in ("/", "/a/")]
@@ -233,7 +336,10 @@ class TestBothRoads(unittest.TestCase):
         self.box = Sandbox()
         self.addCleanup(self.box.close)
         attack, honest = attack_fixture()
-        self.box.log(sorted(attack + honest + sweep_fixture() + checker_fixture()))
+        framework = [line(at(11, 0, 2 + k), "203.0.113.70", p, CHROME, status=500)
+                     for k, p in enumerate(FRAMEWORK_PROBES * 2)]
+        self.box.log(sorted(attack + honest + sweep_fixture() + checker_fixture() + framework
+                            + image_checker_fixture()))
 
     def collect_and_audit(self):
         code, _, err = self.box.run("--today", TODAY, "collect", "--day", DAY.isoformat())
@@ -260,6 +366,12 @@ class TestBothRoads(unittest.TestCase):
 
     def test_the_audit_catches_a_main_road_without_the_link_checker(self):
         with mock.patch.object(tool_visits.HeadChecks, "spans", lambda self: {}):
+            code, out, err = self.collect_and_audit()
+        self.assertEqual(code, 1, out)
+        self.assertIn("people", err)
+
+    def test_the_audit_catches_a_main_road_blind_to_images(self):
+        with mock.patch.object(tool_visits, "IMAGE", re.compile(r"(?!)")):
             code, out, err = self.collect_and_audit()
         self.assertEqual(code, 1, out)
         self.assertIn("people", err)

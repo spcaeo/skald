@@ -65,7 +65,7 @@ class TheConfig(unittest.TestCase):
 
 def lists(folder: Path, fetched: datetime, error=None) -> None:
     folder.mkdir(parents=True, exist_ok=True)
-    for name in [*bot_verify.LISTS, "hosting"]:
+    for name in bot_verify.ALL_LISTS:
         (folder / f"{name}.json").write_text(json.dumps(
             {"source": "test", "fetched": fetched.isoformat(), "networks": ["192.0.2.0/28"],
              "error": error}))

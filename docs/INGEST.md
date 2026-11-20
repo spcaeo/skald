@@ -843,7 +843,13 @@ fields (`ts`, `ip`, `method`, `host`, `path`, `status`, `bytes`, `referer`, `ua`
 - Each post is the next batch of one sender, `edge`: no `X-Skald-Batch`, no per-post state. A
   record posted twice is dropped when read, by its `id`.
 - Its own rate limit per site, `ingest.edge_per_minute` (1200) and `ingest.edge_burst` (300),
-  apart from the shipper's. A refused post is lost (the Worker does not retry).
+  apart from the shipper's. A refused post is lost (the Worker does not retry): it is refused
+  with its own words (reason `edge_limited`), counted per hour in the site's ingest status, and
+  Data quality shows the count per day ("Refused at the log endpoint"). nginx limits these
+  posts per sending token (40 a second, burst 600: above this limit), not per address, since
+  a Worker posts from addresses every Worker-fed site shares; and per address only as a cap
+  (100 a second, burst 1,000). A post nginx refuses never reaches Skald and is not counted
+  (DEPLOY.md; SKALD-34).
 
 Setup on each platform, and the field lists with their sources: [HOSTING.md](HOSTING.md),
 part B. Code: `skald/ingest_drain.py`, `parse_drains.py`.

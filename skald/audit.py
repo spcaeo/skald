@@ -450,10 +450,13 @@ def window(day: date, tz) -> tuple[datetime, datetime]:
 
 
 def recount(config: dict, day: date, tz, paths=None, now=None,
-            until: datetime | None = None, upto: dict | None = None) -> dict:
+            until: datetime | None = None, upto: dict | None = None,
+            cdn: bool = True) -> dict:
     """The day's figures, counted again from the log. `until` cuts the day
     short (today so far, for comparing with the live snapshot); `upto` (the
-    snapshot's `read_upto`) reads each plain file only as far as it did."""
+    snapshot's `read_upto`) reads each plain file only as far as it did.
+    `cdn` False: the stored day was counted without a CDN list (before
+    SKALD-17, counted_with_cdn), so it is recounted without one too, as it was."""
     start, end = window(day, tz)
     if until is not None:
         end = min(end, until)
@@ -469,6 +472,8 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
                                       if start <= l.when < end]))
     _countries(config, lines)
     judge = Judge(config, lines, gap, window=(start, end), tz=tz)
+    if not cdn:
+        judge.checks.cdn = {}             # as the stored day was counted (SKALD-17)
     bots = audit_release2.BotsRecount(gap)
     not_pages: dict = {}            # entry -> {"requests", "people"} (quality.json)
 
@@ -567,7 +572,8 @@ def recount(config: dict, day: date, tz, paths=None, now=None,
         "ours": ours_labels,
         "extras": extras.figures(),
         "bots": bots.figures(),
-        "quality": {**audit_release2.quality(files, start, end, line_hit, upto),
+        "quality": {**audit_release2.quality(files, start, end, line_hit, upto,
+                                             judge.checks.from_cdn if judge.checks.cdn else None),
                     "not_pages": not_pages},
         "page_firsts": firsts.got,
         "more": more,
@@ -600,6 +606,36 @@ def judged(config: dict, tz, start: datetime, end: datetime, paths=None,
                 # Judged as counted, given as logged (requests_feed does the same).
                 yield line, judge(judge.rejoin(line))[0]
         day += timedelta(days=1)
+
+
+def counted_with_cdn(quality_blob) -> bool:
+    """Was this stored day (or live snapshot) counted with SKALD-17's CDN rules, a CDN
+    list at hand? Its quality blob then holds "cdn_lines" as a number. A day stored
+    before (no such key) or counted without a list (null) is recounted without the
+    rules too, as it was: a good day is never withheld for them."""
+    return isinstance(quality_blob, dict) and quality_blob.get("cdn_lines") is not None
+
+
+def stored_with_cdn(db_path, site: str, day: date) -> bool:
+    """counted_with_cdn for a stored day (its day_extras "quality" row); True when the
+    day is not stored (nothing old to protect)."""
+    import json
+    import sqlite3
+    try:
+        db = sqlite3.connect(f"file:{Path(db_path).resolve()}?mode=ro", uri=True)
+        try:
+            row = db.execute("SELECT data FROM day_extras WHERE site = ? AND day = ? AND "
+                             "kind = 'quality'", (site, day.isoformat())).fetchone()
+        finally:
+            db.close()
+    except (sqlite3.Error, OSError):
+        return True
+    if row is None:
+        return True
+    try:
+        return counted_with_cdn(json.loads(row[0]))
+    except ValueError:
+        return True
 
 
 def recount_requests(config: dict, tz, start: datetime, end: datetime,

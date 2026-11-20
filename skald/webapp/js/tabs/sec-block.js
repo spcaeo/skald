@@ -10,7 +10,8 @@
 import { h, n } from "../ui.js";
 import { table, download } from "../table.js";
 import { emptyState } from "./sa-options.js";
-import { merge, blockList, nginx, cloudflare, plain } from "../sec-data.js";
+import { merge, blockList, nginx, cloudflare, plain, mostlyCdn } from "../sec-data.js";
+import { CDN_GUIDE } from "./common.js";
 import { primary } from "../ui/primary.js";
 import { secTab, mayAddresses, loadAddresses, spanOf, flagOf, addressWords, missingNote } from "./sec-common.js";
 
@@ -24,6 +25,10 @@ export default function block(m, s) {
     draw: ({ f, r, p, t }) => {
       if (!t.days) return [emptyState("Not recorded for this period."), missingNote(p, t)];
       if (!mayAddresses()) return [emptyState("Only owners and admins see addresses, so only they see the block list."), missingNote(p, t)];
+      // SKALD-20: most scanners came through a CDN's edges; those rows are left out below.
+      const cdnNote = mostlyCdn(t) ? h("div", { class: "sec-review", role: "note" }, h("span", null, h("strong", null, "Most scanners came through a CDN. "),
+        "The log has the CDN's address (Cloudflare's), not theirs, so they cannot be blocked by address, and blocking the CDN would shut out real visitors. Only the scanners that came directly are listed. Have the site's server log the visitor's real address; then the rest can be listed too. ",
+        h("a", { href: CDN_GUIDE }, "How"))) : null;
       const holder = h("div", null, h("p", { class: "empty" }, "Loading the addresses…"));
       const [first, last] = spanOf(m, r);
       loadAddresses(first, last).then((ans) => {
@@ -39,7 +44,7 @@ export default function block(m, s) {
           h("button", { type: "button", class: "btn", onclick: () => download(`${stem}.txt`, plain(list), "text/plain;charset=utf-8") }, "Plain list"));
         const any = list.networks.length || list.addresses.length;
         const act = any ? primary("Block them", () => import("./fixit.js").then((x) => x.openFixit("block", m)), { label: "Block the scanners: who will do it?" }) : null;
-        const out = [h("div", { class: "sec-review", role: "note" }, h("span", null, h("strong", null, "Review before blocking: "), "a shared address or a CDN can carry real visitors too. The ? says more."), act), any ? buttons : null];
+        const out = [cdnNote, h("div", { class: "sec-review", role: "note" }, h("span", null, h("strong", null, "Review before blocking: "), "a shared address or a CDN can carry real visitors too. The ? says more."), act), any ? buttons : null];
         if (list.networks.length) out.push(h("h2", { class: "sec-h2" }, ans.mode === "short" ? "Networks (this site keeps addresses shortened)" : "Networks with two or more of them"),
           table([
             { key: "cidr", label: "Network" },
@@ -57,6 +62,7 @@ export default function block(m, s) {
           { key: "days", label: "Days seen", num: true },
           { key: "requests", label: "Requests", num: true, hide: true },
         ], { caption: "Addresses to block", ns: "sxd", file: "block-addresses.csv", rows: list.addresses, sortKey: "probes", dir: -1, limit: 20 }));
+        if (list.left.addresses) out.push(h("p", { class: "note" }, `${n(list.left.addresses)} CDN edge address${list.left.addresses === 1 ? " is" : "es are"} left out (${n(list.left.probes)} probe${list.left.probes === 1 ? "" : "s"}): a CDN's address carries real visitors too, so it is never one to block.`));
         if (!list.networks.length && !list.addresses.length) out.push(emptyState("No scanner or attacker with a kept address in this period."));
         const words = addressWords(ans, f);
         out.push(h("p", { class: "note" }, `${n(list.addresses.length)} address${list.addresses.length === 1 ? "" : "es"} and ${n(list.networks.length)} network${list.networks.length === 1 ? "" : "s"}, ranked by probes, then attack attempts. The exports hold every row, networks first.${words ? ` ${words}` : ""}`), missingNote(p, t));

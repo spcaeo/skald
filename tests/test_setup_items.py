@@ -75,6 +75,12 @@ CASES = [
                 doc("script", "NEEDS ATTENTION", "the helper does not serve /traffic-js/",
                     "Add the nginx location.")],
      "app": app({"requests": 3})},
+    # SKALD-23: the log holds a CDN's addresses (doctor "addresses"); OK says nothing.
+    {"status": [doc("addresses", "NEEDS ATTENTION", "98% of the log's last 4,000 lines carry "
+                    "Cloudflare's address, not the visitor's", "Log the visitor's own address.")],
+     "app": app({"requests": 3})},
+    {"status": [doc("addresses", "OK", "1% of the log's last 4,000 lines carry a CDN's address")],
+     "app": app({"requests": 3})},
     {"status": [doc("logs", "OK", "read"), doc("assets", "OFF", "not needed: no assets"),
                 doc("script", "NEEDS ATTENTION", "on; the last event came 3 days ago",
                     "Check the tag.")]},

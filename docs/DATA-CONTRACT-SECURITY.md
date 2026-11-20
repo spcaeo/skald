@@ -74,6 +74,7 @@ counts it for a day whose raw lines are still on the server.
 | `status` | `{"2xx": n, ...}` | probes by status class; adds up to `probes` |
 | `countries` | `{cc: n}` | probes by the pair's first line's country (`Unknown` none), top 10 and `(all others)`; adds up to `probes` |
 | `hosting` | int or null | probes from a hosting or cloud network (the hosting list `bots.ranges_dir` keeps); null when there is none |
+| `cdn` | int, absent | SKALD-22: probes whose address is a CDN edge's (bot_verify `CDN_LISTS`): behind a CDN the site's log has the edge, not the scanner, so `countries` counts these as not known; absent when no CDN list is kept, and on days stored before (the audit then recounts the day as it was) |
 | `forged` | int | suspects with a forged referrer |
 | `bare_ip` | int | probes sent to a bare IP |
 | `paths` | `{path: n}` | probes by path (no query string, 200 characters), top 20 and `(all others)`; adds up to `probes` |
@@ -83,7 +84,7 @@ counts it for a day whose raw lines are still on the server.
 | `attacks.bursts` | object | the same with `requests` |
 | `fake` | object | `requests`, `pairs`, `kinds` (`{kind: n}`, adds up to `requests`), `pages` (their page views by path, top 10 and `(all others)`) |
 | `signs` | object | log signs (2.21): `gateway` and `php`: `{"requests","hours": {"YYYY-MM-DDTHH" (UTC): n}}` (502/503/504 answers; paths matching `\.php\d?(/|$)`; every group, the site's hosts only; hours add up to `requests`); `posts`: `{"recorded" (POSTs whose line has request_length=),"large" (of `large_post_bytes` or more),"max","paths" (large ones by path, top 5 and `(all others)`)}`, or null when no line of the day recorded the field |
-| `who` | list | the suspects, worst first (probes, then login and burst requests, then requests, then the first time), at most 300: `{"seq","kinds" (scanner/attack/fake),"first","last","requests","probes","categories","status" (all its requests),"probe_status","forged","bare_ip" (its requests to a bare IP),"country","hosting","fake" (its most frequent kind),"fake_requests","injection","login","burst","paths" (its top 5 probe paths),"pages" (its top 5 fake page views)}` |
+| `who` | list | the suspects, worst first (probes, then login and burst requests, then requests, then the first time), at most 300: `{"seq","kinds" (scanner/attack/fake),"first","last","requests","probes","categories","status" (all its requests),"probe_status","forged","bare_ip" (its requests to a bare IP),"country" (null for a CDN edge: its country is the data centre's),"hosting","cdn" (SKALD-22: the CDN's name, or "" for any other address; absent without a CDN list),"fake" (its most frequent kind),"fake_requests","injection","login","burst","paths" (its top 5 probe paths),"pages" (its top 5 fake page views)}` |
 | `who_folded` | int | suspects beyond the 300 |
 
 `who` (and an episode's `who`) is the row's sequence number: never an address.

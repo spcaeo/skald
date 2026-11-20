@@ -47,7 +47,7 @@ Pick the period at the top as on any other page: today, yesterday, a number of d
 
 | Column | What it is |
 |---|---|
-| Name | The name the crawler gives itself. Bots without a known name go by the name in their user agent. Scanner probes are one row, **(scanner probes)**; everything else a scanner asked for that day (its home page, say, between two probes) is another, **scanner (asked for secret or config files)**. A visitor that asked for 5 or more scanner paths your site does not have is **scanner (asked for many missing probe paths)**, and a browser that checked pages with `HEAD` requests is **browser-like link checker (HEAD requests)**. |
+| Name | The name the crawler gives itself. Bots without a known name go by the name in their user agent. Scanner probes are one row, **(scanner probes)**; everything else a scanner asked for that day (its home page, say, between two probes) is another, **scanner (asked for secret or config files)**. A visitor that asked for 5 or more scanner paths your site does not have is **scanner (asked for many missing probe paths)**, and a browser that checked pages or images with `HEAD` requests is **browser-like link checker (HEAD requests)**. |
 | Reads | Assistants only: the pages it read for someone (see Reads, not requests, above). |
 | Requests | Every request it made in the period. |
 | Bytes sent | How much your server sent it, from the size field of each log line. |

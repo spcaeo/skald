@@ -316,6 +316,54 @@ def next_pages(config: dict) -> dict | None:
                 "from then on count.")
 
 
+CDN_SHARE = 0.5                # half the lines from a CDN's edges: the log does not see visitors
+CDN_FIX = ("Have the site's server log the visitor's own address, not the CDN's: in nginx, "
+           "`set_real_ip_from <each of the CDN's ranges>;` (Cloudflare publishes them at "
+           "cloudflare.com/ips) and `real_ip_header CF-Connecting-IP;` in the http block, then "
+           "`sudo nginx -t` and reload nginx. While at it, add $request_time to the log format. "
+           "Lines from then on carry the visitor's address. Help: Connections, \"Behind a CDN: "
+           "the visitor's real address\".")
+
+
+def visitor_addresses(config: dict, now: datetime) -> dict | None:
+    """SKALD-17/23: how many of the log's last lines carry a CDN's own address (the
+    stored CDN lists, bot_verify CDN_LISTS) rather than a visitor's. Half or more: the
+    site's server logs the CDN's edge, so cities, crawler checks, scanners and the block
+    list are not reliable. No CDN list kept, or no readable line: nothing said."""
+    from .bot_verify import from_config
+    from .parse import AUTO_ORDER, PARSERS, detect
+    part = "Visitor addresses"
+    lists = from_config(config, now)
+    if lists is None or not lists.cdn_known():
+        return item("addresses", part, OFF, "cannot check: no CDN list kept yet (verify-bots "
+                                            "fetches it with the crawler lists)")
+    raw = [r for r in _tail(config).decode("utf-8", "replace").splitlines() if r.strip()]
+    if not raw:
+        return None
+    first = PARSERS[detect(raw[-200:])]
+    edges = read = 0
+    names = set()
+    for one in raw:
+        hit = first(one) or next((h for h in (PARSERS[n](one) for n in AUTO_ORDER)
+                                  if h is not None), None)
+        if hit is None:
+            continue
+        read += 1
+        got = lists.cdn(hit.address)
+        if got:
+            edges += 1
+            names.add(got)
+    if not read:
+        return None
+    share = edges / read
+    said = f"{round(share * 100)}% of the log's last {read:,} lines carry"
+    if share < CDN_SHARE:
+        return item("addresses", part, OK, f"{said} a CDN's address: the rest are visitors' own")
+    return item("addresses", part, ATTENTION,
+                f"{said} {' and '.join(sorted(names))}'s address, not the visitor's: cities, "
+                "crawler checks, scanners and the block list are not reliable", CDN_FIX)
+
+
 def page_assets(config: dict) -> dict:
     """A request for one of the site's asset prefixes in the log's last
     lines: the evidence that a browser drew a page (rendering.py)."""
@@ -649,6 +697,7 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
                  now, ctx.live_dir, cmd)
     out += _safe("logs", "Access log", access_log, config, now, cmd)
     out += _safe("assets", "Page assets", page_assets, config)
+    out += _safe("addresses", "Visitor addresses", visitor_addresses, config, now)
     out += _safe("rsc", "Next.js pages", next_pages, config)
     out += _safe("forms", "Form posts", form_posts, config, ctx.db_path, ctx.site, ctx.tz,
                  now, cmd)

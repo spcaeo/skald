@@ -47,7 +47,7 @@ export function statusTone(st) {
 export const ipCopy = (ip, content = ip, cls = "ua-after") => copyIf("ip", content, ip, { label: "address", cls });
 
 const yes = (v) => (v == null ? "-" : v ? "yes" : "no");
-const VERIFIED = { verified: "verified: its address belongs to who it says", unverified: "not verifiable: no published address list", spoofed: "spoofed: claims a name its address does not belong to" };
+const VERIFIED = { verified: "verified: its address belongs to who it says", unverified: "not verifiable: no published address list", spoofed: "spoofed: claims a name its address does not belong to", cdn: "can't check: the address is a CDN edge's (the site's log has the CDN's address, not the crawler's)" };
 
 /* One request's drawer. code: its key in the address (req=<code>: an opaque code of the
    log line, never its address; js/overlays.js). */

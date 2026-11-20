@@ -9,7 +9,9 @@ address is never written to history, an email or a CSV export.
 
 Whether the visitor was seen before comes from the 30 days of keyed hashes
 (visitors.py): repeat, times_seen_30d (distinct days, today included) and
-first_seen. Without the visitor key those are None.
+first_seen. Without the visitor key those are None. An event from a CDN edge's address
+(SKALD-21: the site's server logged the CDN, not the visitor) carries `cdn` and has them
+None too, and its name's `visitors` and `repeat` are None: one edge is many visitors.
 
 An assistant's user fetch (kind "asked") also carries its role (ai_reads.py):
 "read", "repeat" (the same read asked again) or "file" (a file its page
@@ -32,8 +34,12 @@ class AIEvents:
     """An observer for the tally pass: keeps the LIMIT newest events and a
     count per name for all of them."""
 
-    def __init__(self, key: bytes | None = None, hidden=None) -> None:
+    def __init__(self, key: bytes | None = None, hidden=None, cdn=None) -> None:
         self.key = key
+        # SKALD-21: address -> CDN name or "" (bot_verify.Verifier.cdn). Behind a CDN the
+        # address is the edge's, shared by every visitor through it: no repeat, no visitors.
+        self.cdn = cdn
+        self.through: set[str] = set()      # names with an event from a CDN edge
         # privacy.forgotten: an address someone asked us to forget.
         self.hidden = hidden or (lambda ip: False)
         self.latest: list[tuple] = []
@@ -58,7 +64,10 @@ class AIEvents:
         else:
             return
         visitor = None
-        if self.key is not None:
+        edge = self.cdn(hit.address) if self.cdn is not None else ""
+        if edge:
+            self.through.add(name)
+        elif self.key is not None:
             from .visitors import visitor_hash
             visitor = visitor_hash(self.key, hit.address, family)
             self.visitors.setdefault(name, set()).add(visitor)
@@ -70,7 +79,7 @@ class AIEvents:
         when = hit.when if hit.when.tzinfo else hit.when.replace(tzinfo=timezone.utc)
         self.seq += 1
         item = (when, self.seq, kind, name, hit.path[:100], hit.status,
-                (hit.country or "").upper(), hit.address, visitor, role, of)
+                (hit.country or "").upper(), hit.address, visitor, role, of, edge)
         if len(self.latest) < LIMIT:
             heapq.heappush(self.latest, item)
         elif item > self.latest[0]:
@@ -88,9 +97,9 @@ class AIEvents:
                 wanted |= got
             known = history_of(db, site, day, wanted)
         out = []
-        for when, _, kind, name, path, status, cc, address, visitor, role, of in events:
+        for when, _, kind, name, path, status, cc, address, visitor, role, of, edge in events:
             past = known.get(visitor) if visitor else None
-            have = self.key is not None and db is not None
+            have = self.key is not None and db is not None and not edge
             out.append({
                 "at": when.astimezone(tz).isoformat(timespec="seconds"),
                 "name": name, "kind": kind, "path": path, "status": int(status),
@@ -101,12 +110,15 @@ class AIEvents:
                 "first_seen": ((past["first"] if past else day.isoformat()) if have and day
                                else None),
                 **({"role": role, "of": of} if role else {}),
+                **({"cdn": edge} if edge else {}),
             })
         by_name = {}
         for name, c in self.by_name.items():
             seen = self.visitors.get(name)
             repeat = (sum(1 for v in seen if v in known) if seen is not None and db is not None
                       else None)
+            if name in self.through:        # some came through a CDN edge: not known
+                seen, repeat = None, None
             by_name[name] = {"kind": self.kind_of[name], "events": int(c["events"]),
                              **({"reads": int(c["reads"])} if self.kind_of[name] == "asked"
                                 else {}),

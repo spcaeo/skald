@@ -212,7 +212,8 @@ which Cloudflare does not bill
 side each record is one post, with its own rate limit per site,
 `ingest.edge_per_minute` (1200) and `ingest.edge_burst` (300). A post over
 it is refused and the Worker drops it, so that request is not counted: set
-the limit above the site's busiest minute.
+the limit above the site's busiest minute. Data quality shows how many were
+refused each day ("Refused at the log endpoint").
 
 **Privacy.** A record holds what an access log line holds (time, address,
 method, host, path and query, status, bytes, referrer, user agent), plus the

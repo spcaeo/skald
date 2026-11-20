@@ -39,7 +39,7 @@ function row(it) {
         e.ip ? h("span", { class: "ip" }, copyIf("ip", link("ip", e.ip, { bare: true }), e.ip, { label: "address" })) : null,
         ...Object.entries(e.utm || {}).map(([k, v]) => copyIf("text", h("span", { class: "utm", title: `utm_${k}` }, `${k}: ${v}`), String(v), { label: `utm_${k}` })))),
     h("div", { class: "f-r" },
-      e.repeat == null ? h("span", { class: "rep", title: "Repeat visits are not counted: the visitor key is not set" }, "repeat: -")
+      e.repeat == null ? h("span", { class: "rep", title: e.cdn ? `Not known: this site's log has ${e.cdn}'s address, which every visitor through that edge shares` : "Repeat visits are not counted: the visitor key is not set" }, "repeat: -")
         : h("span", { class: `rep${e.repeat ? " yes" : ""}` }, e.repeat ? "Repeat" : "First time"),
       e.times_seen_30d != null ? h("span", null, `seen ${n(e.times_seen_30d)}× in 30 days`) : null,
       e.first_seen ? h("span", null, `first ${short(e.first_seen)}`) : null));

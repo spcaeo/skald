@@ -152,7 +152,9 @@ def forget_ip(db, ip: str, dry_run: bool = False, short_sites: tuple = ()) -> in
 
 def listing(config: dict, folder, site: str, first: date, last: date) -> dict:
     """people/security: the addresses behind the period's rows, for an owner
-    or admin. {ok, mode, rows: [{day, seq, ip, user_agent}], kept_from}."""
+    or admin. {ok, mode, rows: [{day, seq, ip, user_agent, cdn?}], kept_from}. `cdn`
+    (SKALD-20): the CDN whose edge the address is, by today's list, for every day, so
+    the block list never offers one, stored before SKALD-22 or after."""
     mode = policy.ip_mode(config, folder)
     out = {"ok": True, "mode": mode, "keep_days": policy.keep_days(config), "rows": [],
            "kept_from": None, "days": []}
@@ -176,7 +178,11 @@ def listing(config: dict, folder, site: str, first: date, last: date) -> dict:
             return out
     finally:
         db.close()
-    out["rows"] = [{"day": d, "seq": s, "ip": ip, "user_agent": ua} for d, s, ip, ua in got]
+    from .bot_verify import from_config
+    lists = from_config(config)
+    edge = lists.cdn if lists is not None and lists.cdn_known() else (lambda ip: "")
+    out["rows"] = [{"day": d, "seq": s, "ip": ip, "user_agent": ua,
+                    **({"cdn": c} if (c := edge(ip)) else {})} for d, s, ip, ua in got]
     out["days"] = [{"day": d, "state": st} for d, st in days]
     out["kept_from"] = low[0] if low else None
     return out

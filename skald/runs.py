@@ -27,6 +27,10 @@ FILE = "runs.json"
 # How often each job is meant to run, in minutes (for "late" in the panel).
 EXPECTED = {"live": 2, "run-daily": 1440, "verify-bots": 1440, "alerts": 2,
             "backup": 1440, "pagespeed": 1440, "heartbeat": 5}
+# Jobs of the whole install, not of one site (SKALD-26): the backup copies the one history file
+# that holds every site's figures. Each is recorded once, beside the history (the first site's
+# folder), and every site's Data quality reads it there.
+INSTALL_WIDE = ("backup",)
 GAPS = 6                 # the last few gaps between successes, kept
 LONGEST_GAP_S = 6 * 3600  # a longer gap is a stopped server, not a round
 

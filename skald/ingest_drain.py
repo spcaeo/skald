@@ -99,6 +99,9 @@ NETLIFY = ("log_type", "timestamp", "client_ip", "method", "url", "status_code",
 EDGE = ("ts", "ip", "method", "host", "path", "status", "bytes", "referer", "ua",
         "cache", "id")
 EDGE_PER_MINUTE, EDGE_BURST = 1200, 300
+# An edge post over that limit (SKALD-34): a Worker never sends it again, so its record is
+# lost. Its own words (ingest_status reason "edge_limited"), not the shipper's "slow down".
+EDGE_LIMIT_WORDS = "too many edge posts for this site at once; these records are lost"
 
 # Skald's own endpoints, reached through a rewrite on the host. nginx logs
 # them apart from the site's traffic (docs/BEACON.md); so does this.
@@ -312,7 +315,8 @@ def handle(h, config, live_dir, config_path, site: str, name: str) -> None:
                              f"{PLATFORMS[name]} or auto to take a {name} drain", extra)
         wait = (edge_bucket(config) if name == "edge" else ingest.bucket(config)).take(site)
         if wait:
-            return ingest.no(h, 429, "too many batches for this site; slow down",
+            return ingest.no(h, 429, EDGE_LIMIT_WORDS if name == "edge"
+                             else "too many batches for this site; slow down",
                              dict(extra, **{"Retry-After": str(max(1, int(wait + 0.999)))}))
         ingest_root = ingest_log.root(config, ingest.history_folder(config, live_dir))
         stop = ingest.guard(db, config, org, ingest_root)

@@ -9,7 +9,7 @@ for /index.php, /info.php, /phpinfo.php, /login.php, /admin/, /wp-login.php,
 /dashboard.php, /cart.php and more, twice over, on a site that runs none of
 them: every one a 404. Each probe was filed under bots (rule 6), but these
 are the probe families a real site may serve (scripts, WordPress, admin
-panels: classify._SERVED), which move only their own request, so the "/"
+panels: probes._SERVED), which move only their own request, so the "/"
 it fetched between them were people's pages, a visit and a landing.
 
 A reader may ask for one of those paths, and on a site that serves them
@@ -36,6 +36,16 @@ documents (no asset, payload or beacon) is a tool, and every request of
 that visit is bots. Two, not one: a page's own script may check one URL
 with HEAD.
 
+The same site's checker came back checking images (SKALD-25, 17 Nov 2026):
+six addresses with one Chrome agent opened blog pages and their ?_rsc=
+payloads (so they rendered), then sent HEAD for each page's images through
+/_next/image/, up to 37 times in one second: 2,794 of the day's 3,011
+duplicate lines, and 51 visits counted as people. A browser fetches an image
+with GET, and never asks for one picture twice in a second. So HEAD for
+images (IMAGE) at least HEAD_PAGES times, the same picture or not, is the
+same tool; one such HEAD stays a person's. Scripts, styles and data files
+stay out: a page's script may check its own build with HEAD.
+
 Neither rule reads the time a visit lasted, its page count, the hosting
 networks or reverse DNS: they work the same with or without bots.ranges_dir.
 A visit counts whole, so the groups still add up to the log.
@@ -44,6 +54,7 @@ audit_tools.py counts the same things by a separate road.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 
 from .classify import (BROWSER, LINK_CHECKER, OTHER_BOT, PROBE,  # noqa: F401 - re-exported
@@ -52,6 +63,8 @@ from .parse import ASSET, BEACON, RSC_PAYLOAD
 
 SWEEP_PATHS = 5
 HEAD_PAGES = 2
+# An image a page shows (rule 8b, SKALD-25). Next.js serves them through /_next/image/?url=...
+IMAGE = re.compile(r"\.(?:png|jpe?g|gif|svg|webp|avif|ico)$|^/_next/image/?$", re.I)
 
 
 def _aware(when: datetime) -> datetime:
@@ -83,7 +96,9 @@ class ProbeSweep:
         if self.wanted and host and host not in self.wanted:
             return
         path = hit.path
-        if ASSET.search(path) or not PROBE.search(path):
+        # A file the page needs is no sweep, but a folder is no file (SKALD-24): a recon of
+        # /_next/ and /_next/server/ sits under the file prefix /_next/ and still counts.
+        if (ASSET.search(path) and not path.endswith("/")) or not PROBE.search(path):
             return
         if self.legacy and any(path.startswith(p) for p in self.legacy):
             return
@@ -96,16 +111,18 @@ class ProbeSweep:
 
 class HeadChecks:
     """The first pass of rule 8b: fed every hit of the window, then asked
-    which browser-like visits sent HEAD for HEAD_PAGES different documents."""
+    which browser-like visits sent HEAD for HEAD_PAGES different documents,
+    or for images HEAD_PAGES times."""
 
     def __init__(self, hosts: list[str] | None, gap_minutes: int = 30,
                  least: int = HEAD_PAGES) -> None:
         self.wanted = {h.lower() for h in (hosts or [])}
         self.gap = timedelta(minutes=gap_minutes)
         self.least = least
-        # (address, agent) -> [(when, path of a HEAD document or None)]
+        # (address, agent) -> [(when, ("document", path) / ("image", n) sent HEAD, or None)]
         self.seen: dict[tuple[str, str], list] = {}
         self.heads: set[tuple[str, str]] = set()
+        self.images = 0
         self._browser: dict[str, bool] = {}
 
     def _browser_like(self, agent: str) -> bool:
@@ -123,11 +140,17 @@ class HeadChecks:
         if not self._browser_like(hit.user_agent):
             return
         key = (hit.address, hit.user_agent)
-        head = (hit.method == "HEAD" and not RSC_PAYLOAD.search(hit.url)
-                and not ASSET.search(hit.path) and not BEACON.search(hit.path))
-        if head:
+        checked = None
+        if hit.method == "HEAD" and not RSC_PAYLOAD.search(hit.url) \
+                and not BEACON.search(hit.path):
+            if not ASSET.search(hit.path):
+                checked = ("document", hit.path)
+            elif IMAGE.search(hit.path):
+                self.images += 1      # each one counts: a tool asks for one picture many times
+                checked = ("image", self.images)
+        if checked:
             self.heads.add(key)
-        self.seen.setdefault(key, []).append((_aware(hit.when), hit.path if head else None))
+        self.seen.setdefault(key, []).append((_aware(hit.when), checked))
 
     def spans(self) -> dict[tuple[str, str], list]:
         """{(address, agent): [(first, last), ...]}: the link-checker visits,
@@ -139,7 +162,9 @@ class HeadChecks:
             current: list = []
             for event in events + [None]:
                 if current and (event is None or event[0] - current[-1][0] > self.gap):
-                    if len({p for _, p in current if p is not None}) >= self.least:
+                    checked = {c for _, c in current if c is not None}
+                    if any(len({c for c in checked if c[0] == kind}) >= self.least
+                           for kind in ("document", "image")):
                         visits += 1
                         out.setdefault(key, []).append((current[0][0], current[-1][0]))
                     current = []
