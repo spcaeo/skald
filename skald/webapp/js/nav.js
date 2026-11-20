@@ -58,7 +58,7 @@ function apply() {
     t.title = `${expanded ? "Collapse" : "Expand"} the sidebar ([)`;
   }
   if (sh !== "drawer") closeDrawer(false);
-  requestAnimationFrame(() => mark(S.read().tab));
+  requestAnimationFrame(markNow);
 }
 export function toggleRail() {
   if (phone()) return drawerOpen() ? closeDrawer(true) : openDrawer();
@@ -80,7 +80,7 @@ export function openDrawer() {
   rail.setAttribute("aria-modal", "true");
   rail.setAttribute("aria-label", "Menu");
   openers().forEach((b) => b.setAttribute("aria-expanded", "true"));
-  requestAnimationFrame(() => mark(S.read().tab));
+  requestAnimationFrame(markNow);
   (list.querySelector('[aria-current="page"]') || list.querySelector("a"))?.focus();
 }
 export function closeDrawer(focusBack = true) {
@@ -192,9 +192,11 @@ export function buildNav() {
 /* The current section: the right menu drawn, the section marked for screen
    readers (aria-current) and by the moving indicator, and every link carrying
    the period and filters on screen. A section's link opens its first tab. */
+// The page open now, again (after the sidebar changed shape); none on "No such page" (SKALD-28).
+const markNow = () => { const s = S.read(); mark(s.missing ? "" : s.tab); };
 export function mark(key) {
   const settings = S.inSettings(key);
-  if (!settings) lastApp = key;
+  if (!settings && key) lastApp = key;          // "": no page of the menu (main.js noSuchPage)
   draw(settings);
   const back = document.getElementById("nav-back");
   if (back) back.href = hrefOf(lastApp);

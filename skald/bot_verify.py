@@ -89,6 +89,18 @@ CRAWLER_ADDRESSES = {
     "duckduckgo": "DuckDuckBot",
 }
 
+# A CDN's own published addresses (SKALD-17): a site behind the CDN whose server logs the
+# edge's address, not the visitor's (no real_ip from CF-Connecting-IP), has them on its
+# lines. A crawler's claim from one cannot be checked by address ("cdn", never "spoofed"),
+# its country is the data centre's, and it is never an address to block. One stored list
+# per CDN, from all its files: replaced only when every file arrives (half a list would
+# misjudge), else the last good copy stays.
+CDN_LISTS = {
+    "cdn-cloudflare": ("Cloudflare", ("https://www.cloudflare.com/ips-v4",
+                                      "https://www.cloudflare.com/ips-v6")),
+}
+ALL_LISTS = [*LISTS, *CDN_LISTS, "hosting"]   # every stored list, for "fetched today?"
+
 # Hosting and cloud networks, by AS number: a browser agent from one of these
 # is flagged, never moved.
 HOSTING_ASNS = {
@@ -227,7 +239,8 @@ def _fresh(entry: dict | None, now: datetime) -> bool:
 class Verifier:
     """Reads the stored lists and DNS answers; answers per (name, address).
 
-    `status(name, address, agent)` is "verified", "unverified", "spoofed",
+    `status(name, address, agent)` is "verified", "unverified", "spoofed", "cdn"
+    (from a CDN's own address, which no owner list or DNS answer can speak for),
     or None for a name nobody can check (method "none")."""
 
     def __init__(self, folder: Path | None, now: datetime | None = None) -> None:
@@ -237,6 +250,7 @@ class Verifier:
         self.fresh: set[str] = set()
         self.dns: dict = {}
         self.hosting_set: NetSet | None = None
+        self.cdn_sets: dict[str, NetSet] = {}         # CDN name -> its ranges (SKALD-17)
         self._memo: dict[tuple, str | None] = {}
         self._hosting_memo: dict[str, bool] = {}
         if self.folder is None:
@@ -250,6 +264,10 @@ class Verifier:
         hosting = load_list(self.folder, "hosting")
         if hosting and hosting.get("networks"):
             self.hosting_set = NetSet(hosting["networks"])
+        for name, (cdn, _) in CDN_LISTS.items():
+            entry = load_list(self.folder, name)
+            if entry and entry.get("networks"):
+                self.cdn_sets[cdn] = NetSet(entry["networks"])
         dns = _read_json(self.folder / DNS_FILE)
         self.dns = dns.get("answers", {}) if isinstance(dns, dict) else {}
 
@@ -267,6 +285,8 @@ class Verifier:
         result = "unverified"
         if any(address in self.sets[n] for n in loaded):
             result = "verified"
+        elif self.cdn(address):
+            result = "cdn"                # an edge's address: nothing to check (SKALD-17)
         elif suffixes:
             answer = (self.dns.get(f"{vendor}|{address}") or {}).get("result")
             if answer in ("verified", "spoofed"):
@@ -297,6 +317,21 @@ class Verifier:
             self._memo[key] = address in got
         return bool(self._memo[key])
 
+    def cdn(self, address: str) -> str:
+        """The CDN whose published ranges hold this address ("Cloudflare"), or ""."""
+        if not self.cdn_sets:
+            return ""
+        key = ("cdn", address)
+        got = self._memo.get(key)
+        if got is None:
+            got = self._memo[key] = next(
+                (name for name, nets in self.cdn_sets.items() if address in nets), "")
+        return got
+
+    def cdn_known(self) -> bool | None:
+        """True when a CDN list is loaded; None when not (CDN figures not recorded)."""
+        return True if self.cdn_sets else None
+
     def hosting(self, address: str) -> bool:
         if self.hosting_set is None:
             return False
@@ -308,7 +343,7 @@ class Verifier:
     def lists_summary(self) -> dict:
         """{list: {"fetched","networks","ok","error"}} for bots.json."""
         out = {}
-        for name in [*LISTS, "hosting"]:
+        for name in ALL_LISTS:
             entry = load_list(self.folder, name) if self.folder else None
             out[name] = {"fetched": (entry or {}).get("fetched"),
                          "networks": len((entry or {}).get("networks") or []),
@@ -400,6 +435,15 @@ def refresh_lists(folder: Path, now: datetime | None = None, fetch=_get,
         except Exception as why:          # noqa: BLE001 - any failure keeps the old copy
             _store(folder, name, url, None, f"{type(why).__name__}: {why}"[:200], now)
             done[name] = f"failed: {why}"[:200]
+    for name, (_, urls) in CDN_LISTS.items():
+        source = " and ".join(urls)
+        try:
+            nets = [n for url in urls for n in parse_list(fetch(url))]
+            _store(folder, name, source, nets, None, now)
+            done[name] = "ok"
+        except Exception as why:          # noqa: BLE001 - every file or none: the old copy stays
+            _store(folder, name, source, None, f"{type(why).__name__}: {why}"[:200], now)
+            done[name] = f"failed: {why}"[:200]
     if hosting:
         nets, errors = [], []
         for asn in HOSTING_ASNS:
@@ -417,7 +461,7 @@ def refresh_lists(folder: Path, now: datetime | None = None, fetch=_get,
 def lists_current(folder: Path, now: datetime) -> bool:
     """Every list (and the hosting networks) fetched without error within
     REFETCH_AFTER: another site's run this morning already fetched them."""
-    for name in [*LISTS, "hosting"]:
+    for name in ALL_LISTS:
         entry = load_list(folder, name)
         if not entry or entry.get("error") or not entry.get("networks"):
             return False
@@ -531,7 +575,8 @@ def run(ctx, lists: bool = True, budget_s: float = 30.0) -> int:
     wanted = {(vendor, address) for vendor, address
               in claimed(ctx.config, start, now + timedelta(seconds=1))
               if not any(address in listed.sets[n] for n in VENDORS[vendor][0]
-                         if n in listed.sets)}
+                         if n in listed.sets)
+              and not listed.cdn(address)}          # an edge's name says nothing (SKALD-17)
     added = resolve(folder, wanted, now, budget_s)
     ctx.out(f"dns: {len(wanted)} crawler addresses claimed; looked up "
             + (", ".join(f"{n} {k}" for k, n in sorted(added.items())) or "none new"))

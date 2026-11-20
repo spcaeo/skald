@@ -80,8 +80,9 @@ crawler name not proven its owner's does not keep a probe out of bots).
                                                -> BOTS ("scanner (asked for
                                                    secret or config files)")
 6c. this address and agent asked the site's hosts, in the window, for 5 or
-      more different PROBE paths answered 4xx or 5xx (no asset, nothing
-      under site.legacy_paths)            -> BOTS ("scanner (asked for many
+      more different PROBE paths answered 4xx or 5xx (no asset - a folder,
+      ending in "/", is none - nothing under site.legacy_paths)
+                                             -> BOTS ("scanner (asked for many
                                                    missing probe paths)")
 7.  OTHER_BOT matches, "(compatible; ...)"
       naming no browser engine, no agent at
@@ -91,7 +92,8 @@ crawler name not proven its owner's does not keep a probe out of bots).
       minutes, on the site's hosts) fetched robots.txt, a sitemap, ads.txt
       or security.txt without rendering its pages        -> BOTS
 8b. BROWSER matches, and this visit sent HEAD for 2 or more different
-      documents (no asset, payload or beacon)  -> BOTS ("browser-like link
+      documents (no asset, payload or beacon), or for images 2 or more
+      times                                    -> BOTS ("browser-like link
                                                    checker (HEAD requests)")
 9.  BROWSER matches, and this visit never rendered a page: no own script,
       style or ?_rsc= payload near one of its pages, no beacon event, and
@@ -123,6 +125,15 @@ OpenAI's crawler with a probe flag. Now a claimed crawler that scans is a bot
 unless it is proven its owner's: a verified Googlebot that follows a link to
 `/wp-login.php` is still Googlebot, with the probe flag. A proven fake still
 goes to "claims to be <name>", so the crawler checks keep counting it.
+
+A CDN edge's address is never proof either way (SKALD-17). A site behind a CDN whose server
+logs the edge (not CF-Connecting-IP) has the CDN's address on its lines; a real OAI-SearchBot
+or Googlebot through it is not on its owner's list, and the edge's reverse DNS is the CDN's.
+So a claim from an address in a CDN's published ranges (`bot_verify.CDN_LISTS`, kept with the
+crawler lists) that its owner's list does not hold is checked `cdn`: rules 3 to 5 count it as
+the crawler it names, neither verified nor proven fake, and rule 2b treats it as not proven
+(a scanning one is still a bot). `bots.json` counts it apart (`cdn`); the audit's own road
+reads the stored list itself (`audit_release2.Checks.from_cdn`).
 
 Rule 8 needs to know the whole visit before it files any of its hits, so
 every analysis reads its window twice: once to find the crawler visits
@@ -190,12 +201,33 @@ read, a hosting network or reverse DNS: they work the same with or without
   302s), assets by extension (a page that still embeds an old site's
   `/wp-content/...png` makes a reader's browser ask), and paths under
   `site.legacy_paths`.
+  - **A recon of React and Next.js server actions (SKALD-24, 17 Nov 2026).**
+    A scanner with a browser agent asked `/__flight/`, `/_next/`,
+    `/_next/server-actions/`, `/_next/server/`, `/_react/`, `/_rsc/`,
+    `/actions/`, `/admin/`, `/api/`, `/api/auth/`, `/api/route/`, `/app/` and
+    more, twice each, and the site answered 5xx: 28 of the day's 30 server
+    errors were filed under people. Only `/admin/` was a probe. `PROBE` now
+    has the paths no browser asks for: a bare `/_next/`, `/_next/server/` and
+    `/_next/server-actions/` (the build's server folder), and `/__flight/`,
+    `/_rsc/` and `/_react/` (React's flight and RSC streams travel in a query,
+    `?_rsc=`, or a header, never in a folder of their own). `/api/`, `/app/`,
+    `/actions/` and `/api/auth/` stay out: a site may have them. The asset
+    rule above reads `/_next/` as a file prefix, so a folder (an address
+    ending in `/`) is never an asset here. The scanner's 7 probe paths make
+    it a sweep, and every request it made that day moves to bots with them.
 - **8b, a link checker.** The same site's office ran a checker with a Chrome
   agent: it opened a page with GET, loaded its assets, then sent HEAD for
   every link, 560 page views in one visit. A browser never opens a page with
   HEAD. So a browser-like visit (the visit of rule 9) that sent HEAD for at
   least 2 different documents is a tool, every request of it. Two, not one: a
-  page's own script may check one URL with HEAD.
+  page's own script may check one URL with HEAD. The same checker came back
+  checking images (SKALD-25, 17 Nov 2026): HEAD for each page's pictures
+  through `/_next/image/`, the same one up to 37 times in a second, after
+  pages whose `?_rsc=` payloads passed rule 9. A browser fetches a picture
+  with GET, so HEAD for images (`.png`, `.jpg`, `.webp`, ... or
+  `/_next/image/`) 2 or more times, the same picture or not, is the same
+  tool. Scripts, styles and data files never count: a page's script may
+  check its own build with HEAD.
 
 The audit recounts both on its own road (`audit_tools.py`), sharing only the
 name lists `PROBE` and `OTHER_BOT`. Like 6b, a named crawler, a link

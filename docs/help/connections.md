@@ -105,7 +105,7 @@ The installer only reads the log. It never changes nginx, Apache or the website.
 
 **Include the keys** is ticked by default: the pack then holds this site's sending token and its lead secret (the one the site has, or a new one when it has none), so the person can finish without asking you. Treat that mail like a password: anyone with it can send data for this site. Delete it after the set-up. Untick it to send the pack without keys; the files then say where each key goes. Mailing needs mail set up on the server (**Settings > This site > Mail & reports**); without it, download the pack instead.
 
-**Cloudflare.** Deploy the Skald Worker, give it the send address and the token (as a secret named `SKALD_TOKEN`), and add your site's route to it. The dialog lists each step. When nothing else has reached Skald for the site yet, Skald reads it as edge records.
+**Cloudflare.** Deploy the Skald Worker, give it the send address and the token (as a secret named `SKALD_TOKEN`), and add your site's route to it. The dialog lists each step. When nothing else has reached Skald for the site yet, Skald reads it as edge records. A Worker never sends a record twice: if Skald's server turns posts away (more at once than it takes for a site), those records are lost, and [Site health › Data quality](#site/quality) shows how many each day under **Refused at the log endpoint**.
 
 **Vercel or Netlify.** In the platform's log drain settings, give the address and the header the dialog shows. Vercel needs a Pro or Enterprise plan; Netlify needs Enterprise.
 
@@ -124,6 +124,21 @@ The Test starts by itself when the step opens: Skald says what it received for t
 | Lines arrive, but none could be read | The log's format does not match the site's setting. [Test a sample](connections.md#test-a-sample-of-a-log) says which format the lines are in |
 
 For your own server, a wrong answer also says: run `sudo skald-ship-check` on the web server, which checks each part and names the fix (an older zip kit has `sudo bash check.sh` in its folder instead), and where to see what the shipper says: `sudo docker logs --tail 20 skald-ship` with Docker, or `journalctl -u skald-ship -n 20` without. A set-up saved before 2.30 gets the same advice. Under the answer is a folded table, **Common problems, and the fix**. Every answer and its fix are in [If a connection does not work](troubleshooting-connections.md).
+
+## Behind a CDN: the visitor's real address
+
+When a CDN such as Cloudflare sits in front of your server, your server sees the CDN's address on every request, unless it is told to log the visitor's own. Then most addresses in the log are the CDN's edges: cities and countries are the CDN's data centres, crawlers cannot be checked by their address, one edge looks like many scanners, and blocking it would shut out real visitors. Skald knows Cloudflare's published addresses and says so: **Site health › Data quality** warns when half the lines or more carry them, the **Set up** list shows **Log the visitor's real address**, crawlers through it show **Can't check (CDN)** (counted as the crawler they name, not as impostors), and the **Block list** never offers a CDN's address.
+
+The fix is on your web server. In nginx, in the `http { }` block:
+
+```nginx
+# One set_real_ip_from line for each IPv4 and IPv6 range Cloudflare publishes at
+# https://www.cloudflare.com/ips/ (keep the list up to date):
+set_real_ip_from <a range from that list>;
+real_ip_header CF-Connecting-IP;
+```
+
+Then `sudo nginx -t` and reload nginx. Lines from then on carry the visitor's address. While you are at it, add `$request_time` to the log format, so **Site › Speed** can say how fast each page answered. Apache has the same with `mod_remoteip` (`RemoteIPHeader CF-Connecting-IP` and a `RemoteIPTrustedProxy` line per range).
 
 ## Test a sample of a log
 

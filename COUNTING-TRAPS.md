@@ -530,8 +530,14 @@ rules 0, 6c and 8b):
   address and agent a scanner for the day (rule 6c, `tool_visits.ProbeSweep`).
   Redirects, assets and `site.legacy_paths` never count, so a WordPress admin
   at work and a page embedding an old site's images stay people;
-- a browser-like visit that sends HEAD for 2 or more different documents is a
-  link checker, the whole visit (rule 8b, `tool_visits.HeadChecks`).
+- a browser-like visit that sends HEAD for 2 or more different documents, or
+  for images 2 or more times (SKALD-25), is a link checker, the whole visit
+  (rule 8b, `tool_visits.HeadChecks`). Images count by request, not by
+  picture: the checker asked for one picture many times a second. So on a
+  log written twice without `rid=` (trap 7), one image HEAD from a page's
+  script reads as two; Data quality's duplicate count is where that shows.
+  A `basePath` site (`/blog/_next/image/`) or `/_vercel/image` is no image
+  to either road, and such a checker stays people.
 
 **The trap inside the fix.** The obvious rule was "one page in 3 seconds is
 a bot", and it would have halved the figure. It is not evidence: real people

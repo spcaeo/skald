@@ -75,6 +75,12 @@ dialog.dw.vz-dw { --dw-w: min(660px, 100vw); }
 /* A step seen only in the browser: the same chip, only its border dashed. Never the bare class
    "app": that is the page shell's (app.css: a grid, min-height 100vh), and drew a screen-tall box. */
 .jm-n.pg.jm-app { border-style: dashed; }
+/* Its own time in the visit, under it (SKALD-43): the gaps around it can't say. */
+.jm-at { grid-column: 2; padding-left: 11px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* Its rail spans the chip and the time, the line running on below the chip's height (27px:
+   12.5px × 1.4 + padding and border, plus the gap a loaded page leaves under its dot). */
+.jm-s.timed .jm-rail { grid-row: 1 / span 2; }
+.jm-s.timed .jm-rail::after { content: ""; position: absolute; top: 27px; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--gap); border-radius: 1px; }
 .jm-n.pg.nf { border-color: color-mix(in srgb, var(--bad) 50%, var(--rule)); background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
 .jm-n.end { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 999px; font-size: 12.5px;
   border: 1px solid var(--gap); background: var(--sunk); color: var(--ink-2); }

@@ -4,6 +4,195 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.56.0 (2026-11-20)
+
+A Cloudflare Worker's bursts are no longer refused by nginx, and refused posts are counted and
+shown in Data quality; a log that holds a CDN's addresses instead of the visitors' is said and
+counted right (real crawlers through Cloudflare are no longer called impostors, the block list
+never lists Cloudflare); scanners hunting Next.js server actions and checkers asking for images
+with HEAD are bots; an unknown address shows "No such page"; the visitor drawer shows each
+browser-seen step's time, and "First seen" no longer comes after "First came from".
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting.
+- **Counting changes** (SKALD-21, SKALD-24, SKALD-25): from the upgrade on. Days already stored
+  keep their counts until recounted (`backfill --days 14 --force`, then `audit --day` each day);
+  an audit of an old day recounts it with the rules it was counted under, so none is withheld.
+- The image's nginx changes (SKALD-34). A self-hosted nginx copied from DEPLOY.md needs the new
+  `map` lines, the three `limit_req_zone` lines and the two new `limit_req` lines in
+  `location ^~ /traffic-ingest/`.
+- Cloudflare's published address ranges are fetched with the crawler lists on the next
+  `verify-bots` run (part of the daily run; `docker exec skald skald verify-bots` fetches them
+  at once); until then nothing CDN-related changes.
+
+### Changes
+
+The first five come from the review of a live site's dashboard on 17 Nov (SKALD-19). All were
+checked by an independent code review as well as the tests named below; the whole release was
+reviewed again together.
+
+- **A scanner hunting for React and Next.js server actions is a bot, and its server errors leave
+  the people figures (SKALD-24).** Site › Health on a live site said "Server errors (5xx) 30", 28
+  of them in the People row. One scanner with a browser's user agent had asked `/__flight/`,
+  `/_next/`, `/_next/server-actions/`, `/_next/server/`, `/_react/`, `/_rsc/`, `/actions/`,
+  `/admin/`, `/api/` and more, twice each, and the site answered 5xx. Only `/admin/` was a probe.
+  The probe list now has the paths no browser asks for: a bare `/_next/`, `/_next/server/`,
+  `/_next/server-actions/`, `/__flight/`, `/_rsc/` and `/_react/`. `/api/`, `/app/`, `/actions/`
+  and `/api/auth/` stay out, because a site may have them; a Next.js site's own `/_next/static/`
+  and `?_rsc=` requests are never probes. For rule 6c a folder (an address ending in `/`) is never
+  a file, even under a file prefix such as `/_next/`, `/static/` or `/assets/`, so the scanner's
+  seven probe paths make it a probe sweep, and
+  every request it made that day moves to bots, on both counting roads (`audit_tools.py`, sharing
+  only the name list). Who it affects: sites that scanners probe this way. What to do: nothing;
+  days already stored keep their counts until recounted. Checked: `tests/test_tool_visits.py`
+  (the scanner in its live shape is bots with its errors; four such paths alone are not a sweep;
+  none of a Next.js site's own requests or the made-up sitemap's 475 pages matches; the audit
+  agrees). The probe name lists moved from `classify.py` to `probes.py` (classify.py was at its
+  1000-line limit); `classify.py` still offers them, so nothing else changes.
+- **The visitor drawer's "First seen" no longer comes after "First came from" (SKALD-18).** A
+  visitor drawer said "3 visits over 2 days. First came from Direct, 26 days ago." beside "First
+  seen 16 Nov". The visits shown are the ones linked here and still kept; the first touch is kept
+  longer, and may be a visit from another address. First seen is now the older of the two, and the
+  sentence adds "(that visit is not shown here)" when the first touch is older than every visit
+  shown. The two are compared in the site's time, whatever zone the reader picked. Who it affects:
+  owners and admins opening a returning visitor. What to do: nothing. Checked:
+  `tests/js/visitor-drawer.mjs` (a site behind UTC and one ahead of it, read in UTC).
+- **Data quality says that duplicate lines stay in the figures (SKALD-25).** A live site showed
+  "2,193 duplicate lines" of 15,226, and nothing said whether they were counted. They are, as
+  before: without a request ID (`rid=`) in the log, a line written twice and a real repeat look the
+  same (COUNTING-TRAPS.md 7). The note under Duplicate lines now says "kept in the figures" and how
+  many lines that repeated a request ID were dropped; the help says what many duplicates usually
+  mean. What to do: nothing. Checked: `tests/js/quality-dups.mjs`.
+- **A checker that asks for a page's images with HEAD is a bot, not people (SKALD-25).** The live
+  log behind those duplicates (17 Nov, read on the server) showed no line written twice: 2,794 of
+  the day's 3,011 repeats came from six addresses sending one Chrome name. Each opened blog pages and
+  their Next.js data (so it passed the rendering test), then sent HEAD for each page's images
+  through `/_next/image/`, the same picture up to 37 times in one second. Rule 8b caught a checker
+  sending HEAD for pages only, so these 51 visits a day were counted as people. A browser fetches
+  an image with GET, so a visit that sends HEAD for images twice or more (the same picture or not)
+  is now a link checker, every request of it; one such HEAD stays a person's, and scripts, styles
+  and data files never count. Who it affects: sites a checker crawls this way; on that site's 17
+  Nov, those addresses' people visits go from 51 to 7. Across nine days of every site's log, one
+  other visit is caught: a reader who came from Bing and whose browser (likely an extension, no
+  referrer) then checked the page's images with HEAD; like rule 8b for pages, it now counts as a
+  tool. Stored days keep their counts until recounted. What to do: nothing. Checked:
+  `tests/test_tool_visits.py` (both roads, and the audit catches a main road blind to images), and
+  a recount of those addresses' lines from the live log.
+- **"History backup: never ran" no longer shows on every site but the first (SKALD-26).** On an
+  install of several sites, Site › Data quality › Scheduled jobs said the history backup never
+  ran, in red, on every site but the first. The backup runs once for the whole install (it copies
+  the one history file that holds every site) and recorded its run in the first site's folder
+  only. Every site now reads it there (a newer one made with `backup --site` in the site's own
+  folder still wins). Who it affects: installs with more than one site. What to do: nothing.
+  Checked: `tests/test_quality_jobs.py`.
+
+- **A site whose server logs its CDN's address, not the visitor's, is said and counted right
+  (SKALD-17, 20, 21, 22, 23).** Seen on 17 Nov 2026: on two live sites behind Cloudflare, 98.5%
+  and 98.9% of log lines carried a Cloudflare edge's address, because their servers log the
+  address they see (the CDN's), not the visitor's (CF-Connecting-IP). Skald did not know those
+  addresses, so: a real crawler coming through Cloudflare (OAI-SearchBot, meta-externalagent, and
+  Googlebot by DNS) failed its owner's address check, was judged spoofed and **moved to bots as
+  "claims to be ..."**, out of the crawler's own figures; Security's Block list offered nginx deny
+  lines and a Cloudflare IP list for Cloudflare's own networks, which would shut out real
+  visitors; "Who is scanning us?" listed Cloudflare edges as scanners, in Cloudflare's countries,
+  one edge on many rows; AI & bots › Assistants called visitors "Repeat" by the edge's address; and
+  Data quality said nothing. Now Skald keeps Cloudflare's published ranges with the crawler lists
+  (`bot_verify` `CDN_LISTS`, fetched daily, replaced only when both files arrive) and:
+  - **Crawler checks (SKALD-21):** a crawler's claim from a CDN address its owner's list does not
+    hold is checked `cdn`, "Can't check (CDN)": counted as the crawler it names, neither verified
+    nor called an impostor, on both counting roads; `bots.json` counts it apart (`cdn`); no DNS
+    lookup is spent on such an address. Assistants shows no Repeat for a CDN edge's address.
+  - **Scanners (SKALD-22):** a row from a CDN edge says so ("(Cloudflare edge)") and has no
+    country; scanner countries count its probes as not known; a "Through a CDN" figure; the user
+    agent is shown when one address is on several rows. Both counting roads.
+  - **Block list (SKALD-20):** never a CDN edge's address or network, on any site and for any
+    day (the addresses it loads are marked by today's list; counted apart, and said); when most
+    of the period's probes came through a CDN, it says so and lists only the scanners that came
+    directly.
+  - **Data quality (SKALD-23):** each day counts its lines from a CDN's addresses (`cdn_lines`,
+    recounted by the audit); half or more is worth a look, with the fix; `skald doctor` has a
+    **Visitor addresses** check, and the Set up list **Log the visitor's real address**. The help
+    (Connections, "Behind a CDN: the visitor's real address") gives the nginx lines.
+  **Who it affects:** sites behind a CDN whose server does not log the visitor's address.
+  **What to do:** on such a site, have the web server log the visitor's address (the help's
+  nginx lines); figures from then on are the visitors'. Past days stay as counted unless
+  recounted, and an audit of a day counted before this release (or without the list) recounts
+  it the same way, so it is never withheld for these rules. **How it was checked:** `tests/test_cdn_addresses.py` (the list, the check on both
+  roads, a CDN address over a DNS answer, no DNS lookup, a day collected and audited: 5 real
+  crawler requests through the CDN counted as the crawler, 1 impostor still spoofed, all
+  match; a day counted without the list audited without it), `tests/test_cdn_security.py`,
+  `tests/test_cdn_quality.py` (CDN lines on both roads, a day stored before not withheld, the
+  doctor check) and `tests/js/cdn-screens.mjs`; each failed before the change (the crawler
+  test: "spoofed: 5" before). An independent review found five problems, all fixed with tests.
+
+- **A Worker's burst of posts is no longer refused by nginx, and refused posts are counted
+  and shown (SKALD-34).** Seen on 18 Nov 2026: nginx in front of Skald allowed 5 posts a second
+  per sending address (burst 20) to the log endpoint. A Cloudflare Worker posts once per request
+  from Cloudflare's addresses, which every Worker-fed site shares, so a scanner's sweep of one
+  site went over it and nginx refused 1,157 of that site's posts in two bursts. A Worker never
+  sends a refused post again, so those requests were lost, and nothing in Skald said so. Now
+  nginx limits a Worker's posts (`?format=edge`) per **sending token**, at 40 a second with a
+  burst of 600, above Skald's own edge limit (`ingest.edge_per_minute` 1,200, burst 300), so
+  for a Worker Skald's limit is the one that refuses. The key is the token, not the site's
+  path: anyone may post to a path, and a stranger with no token must not use up the real
+  Worker's budget. One address still has a cap (100 a second, burst 1,000); a post refused by
+  it never reaches Skald and is not counted. A shipper's batches keep 5 a second per address.
+  An edge post over Skald's limit is refused with its own words (reason `edge_limited`: "those
+  records are lost"), every refusal is counted per quarter hour and reason (before, only the
+  last one was kept, at most once a second), and **Site health › Data quality** shows
+  **Refused at the log endpoint** per day: a day with lost records is worth a look, even one
+  with no figures at all; other refusals (a shipper that waits, a stranger's post) are in the
+  column only; days before this release, or past the 35 days kept, say "not recorded".
+  **Who it affects:** sites that send records with the Cloudflare Worker (or another edge
+  function), and anyone reading Data quality. **What to do:** nothing with the image; a
+  self-hosted nginx copied from DEPLOY.md needs the new `map` lines, the three
+  `limit_req_zone` lines and the two new `limit_req` lines in `location ^~ /traffic-ingest/`.
+  **How it was checked:** `tests/test_nginx_ingest_limit.py` against a real nginx 1.22 (150
+  posts with one site's token at once: 124 refused before, none after; two sites at once: 214
+  refused before, none after; 700 posts to a site's path with no token leave its Worker's
+  budget whole, which a path key did not; a shipper's batches and one address with made-up
+  tokens are still limited), the config in DEPLOY.md and docker/nginx.conf;
+  `tests/test_intake_refusals.py` (every refusal counted though the file is written once a
+  second, the edge's own reason and words through the real endpoint, quarter hours added up by
+  the site's own day, a half-hour time zone, "not recorded" before counting and past 35 days,
+  a damaged file, and every site of an install, not only the first, reading the counts the
+  server keeps beside the history: the combined review of this release found the others read
+  their own folder and said "not recorded") and `tests/js/quality-intake.mjs` (the grade and
+  the column); each failed before the change. Measured on the live server first: Worker posts
+  for all sites peak at 152 a second and 1,309 a minute, which the new limits take.
+
+- **An unknown address no longer shows another page (SKALD-28).** A typed or old link could open
+  the wrong screen: `#security` opened Settings › Organisation › People › Sign-in rules (its short
+  name before Security became a section), and `#threats/blocklist` (the tab is `#threats/block`)
+  showed Overview's Summary while the address bar kept `#threats/blocklist`, so the address and
+  the screen disagreed (seen in the SKALD-19 review, 17 Nov). Now `#security` opens Security. A
+  tab that doesn't exist opens its section's first tab, and the address bar is corrected to match.
+  An unknown settings page opens Settings. An address that names no page at all says "No such
+  page", shows the address as typed and links to Overview. `#settings/security` still opens
+  Sign-in rules. Who it affects: anyone opening a typed, old or mistyped link. What to do:
+  nothing. Checked: `tests/test_routes.py` (unknown tabs, settings pages and pages, `#security`,
+  `set()` and page names; no address is still Overview; the old `cmp=1` never hides "No such
+  page"; leaving it redraws), an independent review (its points applied: no drawer or drill-down
+  opens over "No such page"), and every case as a fresh page load in a demo built from the
+  branch, desktop and phone width (the address bar, the screen, the menu's mark, the typed
+  address shown as text).
+
+- **The visitor drawer shows the time of each step seen in the browser (SKALD-43).** On a site
+  that moves between pages without loading them (Next.js and other single-page sites), most
+  steps of a visit are "seen in the browser" (dashed). The gap after such a step says "time not
+  known" (#62), so a visit of 15 steps showed one time in all (seen on a live site, 18 Nov). Each
+  dashed step now shows its own time in the visit under its chip, for example "+46 s". Until now
+  it was only in the tooltip. It is when the first request from that step came (a request whose
+  referrer names it), counted from the visit's first request: often within a second of arriving,
+  at the latest when the person left it. The gaps keep their words, because the log doesn't
+  record when the person moved on. Who it affects: anyone opening a visitor's
+  journey. What to do: nothing; no schema change, no recount. Checked: `tests/js/journey-steps.mjs`
+  (times under dashed steps only, a 404 one too, never inside the chip's button, the row's copy
+  and open icons kept, gaps unchanged), an independent review, and the visitor drawer in a demo
+  built from the branch (light, dark, phone width).
+
 ## 2.55.0 (2026-11-19)
 
 Saves work on a new or just-restored site before its first dashboard build, and a stale save

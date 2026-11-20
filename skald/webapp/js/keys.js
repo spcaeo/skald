@@ -27,8 +27,13 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-19-2.55.0",
+  id: "2026-11-20-2.56.0",
   items: [
+    ["Worker bursts no longer lost", "a Cloudflare Worker's burst of posts is no longer refused in front of Skald; Data quality shows any posts refused at the log endpoint, and a day with lost records is worth a look.", "connections"],
+    ["Logs with a CDN's addresses", "when a site's log holds Cloudflare's addresses instead of the visitors', Data quality says so with the fix; real crawlers are no longer called impostors and the block list never lists Cloudflare.", "connections"],
+    ["Fewer scanners and checkers as people", "scanners hunting Next.js server actions and checkers asking for a page's images with HEAD count as bots, not people.", "ai-and-bots"],
+    ["\"No such page\" for a mistyped link", "a typed or old link opens the page it names, its section's first tab, or says No such page, never another screen.", "getting-started"],
+    ["Each browser-seen step's time", "the visitor drawer shows the time under every step seen only in the browser, and First seen no longer comes after First came from.", "getting-started"],
     ["Saves work on a brand-new site", "a site before its first dashboard build saves your settings like any other; a page left open after a new sign-in tries once more before saying it is out of date.", "settings-and-retention"],
     ["One invite for several new sites", "a person you name on several new sites' set-ups gets one invite for all of them, and every link works; People shows which sites each member sees, with Change.", "sign-in-and-team"],
     ["Google visitors keep their own country", "a visitor from Google Search joined through Chrome's prefetch proxy shows in their own country, also on a site whose log carries none.", "ai-and-bots"],

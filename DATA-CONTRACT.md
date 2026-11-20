@@ -372,7 +372,7 @@ A row:
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
 | `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
 | `utm` | object | `{"source","medium","campaign","term","content"}`, only those present |
-| `verified` | string or null | `verified`, `unverified`, `spoofed` for a named assistant or search crawler; null for everyone else |
+| `verified` | string or null | `verified`, `unverified`, `spoofed` or `cdn` (from a CDN edge's address: cannot be checked; SKALD-17) for a named assistant or search crawler; null for everyone else |
 | `flags` | `[string]` | any of `hosting_network`, `fan_out`, `bare_mozilla` (fake-browser signs), `probe`, `legacy_path` (an old-site URL kept out of the probes), `old_format` (a line in the old log format, no host or country), `duplicate` (byte-identical to an earlier line in the same second) |
 
 ```json

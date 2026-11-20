@@ -8,6 +8,11 @@ One small JSON file per site in the live folder (the history's folder):
      "last_contact": "<when any batch was answered 200>",
      "today":        {"day": "YYYY-MM-DD" (UTC), "lines": N},
      "last_refusal": {"at", "code", "reason", "words"},
+     "refused":      {"YYYY-MM-DDTHH:MM" (UTC, the quarter hour): {reason: count}}, every
+                     refusal, the last KEEP_DAYS only (SKALD-34: Data quality's "Refused at
+                     the log endpoint"; quarter hours, so a site day in a half-hour or
+                     45-minute time zone gets exactly its own)
+     "counting_since": "<when this file first counted refusals>" (SKALD-34; absent before),
      "first_lines":  "<when lines were first kept>" (2.43; absent before),
      "minutes":      {"YYYY-MM-DDTHH:MM": lines}, the last RECENT_MINUTES only
                      (2.43: the set-up's live "N in the last 15 min", setup_live.py)}
@@ -22,7 +27,9 @@ Cheap and never in the way: a write is a temp file and a rename, under a
 per-site lock in this process, and any failure is swallowed. A refusal is
 written only for a site this install knows (its ingest folder exists, or a
 config names it), and at most once a second per site, so a stream of bad
-posts cannot fill the disk or slow the endpoint.
+posts cannot fill the disk or slow the endpoint. Every refusal is still
+counted (SKALD-34): the ones in between wait in memory and are added at the
+next write, or by a timer a second later (`flush`).
 
 skald-ship-check's own probe (check.sh: a POST with no token and the header
 `X-Skald-Check: 1`, which expects the 401) is not a refusal: it is not
@@ -43,9 +50,13 @@ from .files import slug
 FOLDER = "ingest-status"
 REFUSAL_GAP = 1.0              # seconds between two refusals written for one site
 RECENT_MINUTES = 15            # the per-minute counts kept (setup_live.py)
+KEEP_DAYS = 35                 # the hours of refusal counts kept (Data quality's days)
 _LOCKS: dict[str, threading.Lock] = {}
 _GUARD = threading.Lock()
 _LAST_REFUSAL: dict[str, float] = {}
+# (base, site) -> {hour: {reason: count}}: refusals counted, not written yet (SKALD-34).
+_PENDING: dict[tuple[str, str], dict] = {}
+_TIMERS: set[tuple[str, str]] = set()
 
 # reason word -> the plain words the page shows (and what to do about it)
 REASONS = {
@@ -57,6 +68,7 @@ REASONS = {
     "removed": "The site was removed.",
     "not_here": "This server does not process this site.",
     "rate_limited": "Too many batches at once. The shipper slows down and catches up.",
+    "edge_limited": "Too many posts from the edge at once. Those records are lost: a Worker does not send them again.",
     "day_full": "Today's limit of log data is used up. The shipper sends the rest later.",
     "plan_limit": "Over the plan's limit.",
     "read_only": "The organisation is read-only (billing).",
@@ -92,6 +104,8 @@ def reason(code: int, error: str) -> str:
             return "not_verified"
         return "other"
     if code == 429:
+        if "edge posts" in text:          # ingest_drain.EDGE_LIMIT_WORDS (SKALD-34)
+            return "edge_limited"
         if "slow down" in text:
             return "rate_limited"
         if "plan" in text or "month" in text:
@@ -123,10 +137,12 @@ def _lock(key: str) -> threading.Lock:
 
 def _write(base, site: str, change) -> None:
     path = path_for(base, site)
+    if not Path(base).is_dir():
+        return                            # never makes a history folder that is gone
     with _lock(str(path)):
+        path.parent.mkdir(mode=0o750, exist_ok=True)
         got = read(base, site)
         change(got)
-        path.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
         tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
         tmp.write_text(json.dumps(got, separators=(",", ":"), sort_keys=True))
         os.replace(tmp, path)
@@ -148,6 +164,7 @@ def accepted(base, site: str, lines: int, rejected: int, shipper: str,
             today = {"day": day, "lines": 0}
         today["lines"] = int(today.get("lines") or 0) + int(lines)
         got["today"] = today
+        got.setdefault("counting_since", stamp)
         if lines:
             got.setdefault("first_lines", stamp)
             got["minutes"] = _minutes(got.get("minutes"), now, int(lines))
@@ -178,20 +195,80 @@ def recent(base, site: str, now: float | None = None) -> dict:
 
 
 def refused(base, site: str, code: int, error: str, now: float | None = None) -> None:
-    """A refusal: its code and reason word, at most once a second per site."""
+    """A refusal: counted always (by UTC hour and reason); its code and reason word
+    written at most once a second per site, with the counts waiting since."""
     now = time.time() if now is None else now
+    why = reason(code, error)
+    key = (str(base), site)
     with _GUARD:
+        hours = _PENDING.setdefault(key, {})
+        hour = hours.setdefault(quarter(now), {})
+        hour[why] = hour.get(why, 0) + 1
         if now - _LAST_REFUSAL.get(site, 0.0) < REFUSAL_GAP:
+            _later(base, site)
             return
         if len(_LAST_REFUSAL) > 1000:
             _LAST_REFUSAL.clear()
         _LAST_REFUSAL[site] = now
-    why = reason(code, error)
 
     def change(got: dict) -> None:
         got["last_refusal"] = {"at": _stamp(now), "code": int(code), "reason": why,
                                "words": REASONS[why]}
+        _add(got, _take(key), now)
     _write(base, site, change)
+
+
+def quarter(now: float) -> str:
+    """The UTC quarter hour of `now`: "YYYY-MM-DDTHH:MM", minutes 00, 15, 30 or 45."""
+    stamp = _stamp(now)
+    return f"{stamp[:14]}{int(stamp[14:16]) // 15 * 15:02d}"
+
+
+def _take(key) -> dict:
+    with _GUARD:
+        return _PENDING.pop(key, {})
+
+
+def _add(got: dict, hours: dict, now: float) -> None:
+    """Add waiting counts to the file's, and drop hours older than KEEP_DAYS."""
+    got.setdefault("counting_since", _stamp(now))
+    old = got.get("refused") if isinstance(got.get("refused"), dict) else {}
+    for hour, by in hours.items():
+        into = old[hour] = old[hour] if isinstance(old.get(hour), dict) else {}
+        for why, n in by.items():
+            into[why] = int(into.get(why) or 0) + n
+    cut = quarter(now - KEEP_DAYS * 86400)
+    got["refused"] = {h: v for h, v in old.items() if isinstance(h, str) and h >= cut}
+
+
+def flush(base, site: str, now: float | None = None) -> None:
+    """Write the refusals counted since the last write (none: nothing is written)."""
+    key = (str(base), site)
+    with _GUARD:
+        _TIMERS.discard(key)
+        if not _PENDING.get(key):
+            return
+    now = time.time() if now is None else now
+    try:
+        _write(base, site, lambda got: _add(got, _take(key), now))
+    except Exception:                     # noqa: BLE001 - the status never stops anything
+        pass
+
+
+def flush_all() -> None:
+    for base, site in list(_PENDING):
+        flush(base, site)
+
+
+def _later(base, site: str) -> None:
+    """One flush a second from now for this site (called under _GUARD)."""
+    key = (str(base), site)
+    if key in _TIMERS:
+        return
+    _TIMERS.add(key)
+    timer = threading.Timer(REFUSAL_GAP, flush, args=(base, site))
+    timer.daemon = True
+    timer.start()
 
 
 CHECK_HEADER = "X-Skald-Check"      # check.sh's tokenless probe of the send address

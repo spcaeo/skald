@@ -9,9 +9,11 @@
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, short, clock } from "../ui.js";
 import { table } from "../table.js";
-import { blist, panel, fileName } from "./common.js";
+import { blist, panel, fileName, CDN_GUIDE } from "./common.js";
 
-export const BADGE = { verified: "Verified", unverified: "Not verifiable", spoofed: "Spoofed" };
+// "cdn" (SKALD-21): the address is a CDN edge's (the site's log has Cloudflare's address, not
+// the crawler's): nothing to check against, so neither verified nor an impostor.
+export const BADGE = { verified: "Verified", unverified: "Not verifiable", spoofed: "Spoofed", cdn: "Can't check (CDN)" };
 const METHOD = { ranges: "published address ranges", dns: "reverse and forward DNS", network: "the owner's network list", none: "nothing published" };
 const SIGNS = {
   hosting_network: ["From a cloud or hosting network", "People rarely browse from a data centre; crawlers often do."],
@@ -34,8 +36,8 @@ export function verification(m, r) {
   for (const d of days) {
     if (d.verification) seen = true;
     for (const [name, c] of Object.entries(d.verification || {})) {
-      const a = v[name] || (v[name] = { group: c.group, method: c.method, verified: 0, unverified: 0, spoofed: 0 });
-      for (const k of ["verified", "unverified", "spoofed"]) a[k] += c[k] || 0;
+      const a = v[name] || (v[name] = { group: c.group, method: c.method, verified: 0, unverified: 0, spoofed: 0, cdn: 0 });
+      for (const k of ["verified", "unverified", "spoofed", "cdn"]) a[k] += c[k] || 0;
     }
     if (d.fake_browsers) seenSigns = true;
     for (const [k, c] of Object.entries(d.fake_browsers || {})) {
@@ -53,14 +55,18 @@ export function verification(m, r) {
 export function badgeOf(c) {
   if (!c) return null;
   if (c.spoofed) return "spoofed";
-  return c.verified ? "verified" : "unverified";
+  if (c.verified) return "verified";
+  return c.cdn ? "cdn" : "unverified";
 }
 export const badge = (c) => {
   const b = badgeOf(c);
   if (!b) return h("span", { class: "muted" }, "-");
   // The real crawler and impostors using its name: say both, not "spoofed" alone.
-  const words = b === "spoofed" && c.verified ? "Verified, plus impostors" : BADGE[b];
-  return h("span", { class: `vb ${b}`, title: b === "spoofed" ? `${n(c.spoofed)} requests used this name from an address that is not theirs` : BADGE[b] }, words);
+  const words = b === "spoofed" && c.verified ? "Verified, plus impostors"
+    : b === "verified" && c.cdn ? "Verified, plus some through a CDN" : BADGE[b];
+  const title = b === "spoofed" ? `${n(c.spoofed)} requests used this name from an address that is not theirs`
+    : b === "cdn" ? "This site's log has the CDN's address, not the crawler's: it cannot be checked. Counted as the crawler it names." : BADGE[b];
+  return h("span", { class: `vb ${b}`, title }, words);
 };
 
 export function verifySection(m, r) {
@@ -70,23 +76,27 @@ export function verifySection(m, r) {
     out.push(h("section", { class: "s" }, h("h2", null, "Are they who they say they are?"),
       h("p", { class: "empty" }, "Crawler checks are not recorded for this range yet. A crawler's name is what it calls itself; once the server checks addresses, each one is marked verified, not verifiable or spoofed here.")));
   } else {
-    const rows = Object.entries(v.byName).map(([name, c]) => ({ name, ...c, all: c.verified + c.unverified + c.spoofed, badge: badgeOf(c), __k: name }));
+    const rows = Object.entries(v.byName).map(([name, c]) => ({ name, ...c, all: c.verified + c.unverified + c.spoofed + c.cdn, badge: badgeOf(c), __k: name }));
     const spoofed = rows.reduce((a, x) => a + x.spoofed, 0);
+    const cdn = rows.reduce((a, x) => a + x.cdn, 0);
     const ranges = Object.entries(m.x.bots?.ranges || {});
     const stale = ranges.filter(([, x]) => !x.ok);
     out.push(h("section", { class: "s" }, h("h2", null, "Are they who they say they are?"),
       h("p", { class: "sub" }, spoofed ? `${n(spoofed)} requests used a well-known crawler's name from an address that is not theirs. They are counted as bots ("claims to be ..."), not as that crawler.`
         : "Every checked address belonged to the crawler it named."),
+      cdn ? h("p", { class: "note", role: "note" }, `${n(cdn)} requests came from a CDN's address (this site's log has Cloudflare's address, not the crawler's): they cannot be checked, so they are counted as the crawler they name, neither verified nor called impostors. `,
+        h("a", { href: CDN_GUIDE }, "Log the visitor's real address")) : null,
       table([
         { key: "name", label: "Crawler" },
-        { key: "badge", label: "Check", type: "badge", fmt: (_, x) => badge(x), csv: (x) => x.badge, sort: (x) => ["spoofed", "unverified", "verified"].indexOf(x.badge) },
+        { key: "badge", label: "Check", type: "badge", fmt: (_, x) => badge(x), csv: (x) => x.badge, sort: (x) => ["spoofed", "cdn", "unverified", "verified"].indexOf(x.badge) },
         { key: "method", label: "Checked by", fmt: (val) => METHOD[val] || val || "-" },
         { key: "verified", label: "Verified", num: true },
         { key: "unverified", label: "Not verifiable", num: true },
         { key: "spoofed", label: "Spoofed", num: true },
+        ...(cdn ? [{ key: "cdn", label: "Can't check (CDN)", num: true }] : []),
         { key: "all", label: "All", num: true },
       ], { caption: "Crawler verification", rows, file: fileName("crawler-verification", r), sortKey: "spoofed", limit: 12,
-        note: `Verified: the address is on the owner's published list or network, or its DNS points back to the owner. Not verifiable: the owner publishes nothing to check against. Spoofed: the address is not theirs.${ranges.length
+        note: `Verified: the address is on the owner's published list or network, or its DNS points back to the owner. Not verifiable: the owner publishes nothing to check against. Spoofed: the address is not theirs.${cdn ? " Can't check (CDN): the address is a CDN edge's." : ""}${ranges.length
           ? ` Address lists last fetched: ${ranges.map(([k, x]) => `${k} ${x.fetched ? tzTime(x.fetched, { date: true }) : "never"}`).join(", ")}.` : ""}${stale.length ? ` Could not fetch: ${stale.map(([k, x]) => `${k}${x.error ? ` (${x.error})` : ""}`).join(", ")}.` : ""}` })));
   }
   const signRows = Object.entries(v?.signs || {}).filter(([, c]) => c.requests).map(([k, c]) => ({ k, label: SIGNS[k]?.[0] || k, why: SIGNS[k]?.[1] || "", ...c, __k: k }));

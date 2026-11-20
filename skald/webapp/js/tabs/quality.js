@@ -8,7 +8,7 @@ import { h, n, short, long, tip, untip, duration, zoned, ICON } from "../ui.js";
 import { rangeOf } from "../data.js";
 import { rove } from "../place.js";
 import { table } from "../table.js";
-import { head, rangeWords, healthTabs } from "./common.js";
+import { head, rangeWords, healthTabs, CDN_GUIDE } from "./common.js";
 import { quietLimit } from "../notset.js";
 
 const GRADE = { green: "Good", amber: "Worth a look", red: "Not trusted", none: "Not checked" };
@@ -33,9 +33,42 @@ const notPages = (v) => {
     rows.map(([k, x]) => `${k} ${n(x.requests)}`).join(", ")];
 };
 
+// SKALD-17/23: a log whose addresses are mostly a CDN's edges, not the visitors' (the site's
+// server logs Cloudflare's address instead of CF-Connecting-IP). quality.json cdn_lines.
+export const CDN_SHARE = 0.5;
+export const cdnShare = (d) => (d && d.cdn_lines != null && d.lines ? d.cdn_lines / d.lines : null);
+const cdnWhy = (d) => {
+  const k = cdnShare(d);
+  return k != null && k >= CDN_SHARE ? `${fmtPct(k * 100)} of lines carry a CDN's address, not the visitor's: cities, crawler checks, scanners and the block list are not reliable` : null;
+};
+
+// SKALD-34: posts the log endpoint refused on a day (quality.json intake_refused, by
+// ingest_status.py reason). Only a Worker's ("edge_limited") make a day worth a look: those
+// records are lost, as it never sends them again. The rest (a shipper waiting, a stranger's
+// post with no token) are in the column and its hover, not in the grade.
+const INTAKE = { edge_limited: "from the edge, lost", rate_limited: "too many batches at once", no_token: "no token", bad_token: "bad token",
+  wrong_site: "token for another site", not_sending: "not a sending token", not_verified: "site not verified yet", removed: "site removed",
+  not_here: "site not processed here", day_full: "the day's limit used up", plan_limit: "over the plan's limit", read_only: "organisation read-only",
+  disk: "server short of disk", bad_format: "wrong log format", bad_batch: "malformed", too_large: "too large", no_accounts: "accounts off", off: "endpoint off", other: "other" };
+const intakeTotal = (v) => Object.values(v || {}).reduce((t, k) => t + (k || 0), 0);
+// The day's cell: a count, "0" when none, "not recorded" before Skald counted them.
+export const intakeWords = (v) => (v == null ? "not recorded" : n(intakeTotal(v)));
+const lostWhy = (v) => {
+  const k = (v && v.edge_limited) || 0;
+  return k ? `${n(k)} edge post${k === 1 ? "" : "s"} refused at the log endpoint: those records are lost` : null;
+};
+function intakeWhy(v) {
+  const k = intakeTotal(v);
+  if (!k) return null;
+  const parts = Object.entries(v).filter(([, c]) => c).sort(([a, x], [b, y]) => (b === "edge_limited") - (a === "edge_limited") || y - x)
+    .map(([r, c]) => `${n(c)} ${INTAKE[r] || r}`);
+  return `${n(k)} post${k === 1 ? "" : "s"} refused at the log endpoint (${parts.join("; ")})`;
+}
+
 // Why a day is the colour it is: the first reasons are the worst.
 export function grade(d) {
-  if (!d || d.lines == null && d.verify == null) return ["none", []];
+  // A day with no figures may still be one whose every post was refused (SKALD-34).
+  if (!d || d.lines == null && d.verify == null) return lostWhy(d?.intake_refused) ? ["amber", [lostWhy(d.intake_refused)]] : ["none", []];
   const red = [], amber = [];
   if (d.verify === "withheld") red.push(d.problems || "withheld: the figures did not add up");
   if (d.audit?.state === "mismatch") red.push(`the recount did not match${d.audit.problems?.length ? `: ${d.audit.problems.join("; ")}` : ""}`);
@@ -43,9 +76,13 @@ export function grade(d) {
   const long = longGaps(d);
   if (long.length) amber.push(`${long.length} long stretch${long.length === 1 ? "" : "es"} with no log line (longest ${Math.max(...long.map((g) => g.minutes))} min; ${quietLimit(d)} min or more is long for this site)`);
   if ((share(d) ?? 0) >= UNREADABLE_AMBER) amber.push(`${fmtPct(share(d))} of lines unreadable`);
-  if (d.duplicates) amber.push(`${n(d.duplicates)} duplicate lines`);
+  const cdn = cdnWhy(d);
+  if (cdn) amber.push(cdn);
+  if (d.duplicates) amber.push(`${n(d.duplicates)} duplicate lines (kept in the figures)`);
   if (d.old_format) amber.push(`${n(d.old_format)} lines in the old log format`);
   if (AUDITS && d.audit && d.audit.state === "not run" && d.verify !== "withheld") amber.push("the audit did not run");
+  const lost = lostWhy(d.intake_refused);
+  if (lost) amber.push(lost);
   if (d.clock_skew_s != null && Math.abs(d.clock_skew_s) > 600) red.push(`the newest log line is ${duration(Math.abs(d.clock_skew_s))} old: logging may have stopped`);
   return red.length ? ["red", [...red, ...amber]] : amber.length ? ["amber", amber] : ["green", []];
 }
@@ -92,6 +129,14 @@ function strip(days) {
 
 // 2.41: the verdict is today's log lines'; a scheduled job that is late, failed or never ran is
 // named beside it, so "Good" never sits above red jobs with no word (the UX audit's count rule).
+/* SKALD-25: what a duplicate line is, and that it stays in the figures (COUNTING-TRAPS.md 7): with
+   no request ID (rid=) in the log, a line written twice and a real repeat look the same. Lines
+   that repeat a request ID are the same request, and were dropped. */
+export function dupNote(t) {
+  const gone = t?.duplicates_removed;
+  return `the same line twice in one second: kept in the figures${gone ? `; ${n(gone)} more repeated a request ID and were dropped` : ""}`;
+}
+
 function todayCard(t, tz, jobsOff = 0) {
   if (!t) return h("p", { class: "empty" }, "Today has not been checked yet: the live count writes it every few minutes.");
   const [g, why] = grade(t);
@@ -103,10 +148,22 @@ function todayCard(t, tz, jobsOff = 0) {
     h("div", { class: "kpis" },
       cell("Lines read", n(t.lines), t.first_line ? `from ${t.first_line} to ${t.last_line}${files(t.files)}` : ""),
       cell("Unreadable lines", n(t.unparsed), fmtPct(share(t))),
-      cell("Duplicate lines", n(t.duplicates), "a log read twice would show here"),
+      cell("Duplicate lines", n(t.duplicates), dupNote(t)),
       cell("Newest line", t.newest_line ? tzTime(t.newest_line) : "-", t.clock_skew_s != null ? `${duration(Math.abs(t.clock_skew_s))} before the server's clock` : ""),
       cell("Silent stretches", n(t.gaps?.length ?? null), "more than 10 minutes with no line at all"),
-      cell("Browser-like requests moved to bots", n(t.not_rendered?.requests ?? null), movedNote(t.not_rendered))));
+      cell("Browser-like requests moved to bots", n(t.not_rendered?.requests ?? null), movedNote(t.not_rendered)),
+      cdnShare(t) != null ? cell("Lines from a CDN's addresses", fmtPct(cdnShare(t) * 100), "the edge's address, not the visitor's") : null,
+      t.intake_refused != null ? cell("Refused at the log endpoint", intakeWords(t.intake_refused), "posts Skald's server turned away today") : null));
+}
+
+/* The fix, said once above the days (SKALD-23): the site's server must log the visitor's real
+   address (nginx real_ip from the CDN's ranges and its client-address header). */
+function mostlyCdn(f, r) {
+  const seen = [f.today, ...(f.days || []).filter((d) => d.day >= r.first && d.day <= r.last)].filter((d) => cdnShare(d) != null);
+  if (!seen.some((d) => cdnShare(d) >= CDN_SHARE)) return null;
+  return h("p", { class: "q-cdn note", role: "note" }, h("span", { class: "q-tag q-amber" }, GRADE.amber), " ",
+    "Most addresses in this log are a CDN's (Cloudflare's), not the visitors': cities and countries, crawler checks, scanners and the block list are not reliable. Ask the site's admin to log the visitor's real address. ",
+    h("a", { href: CDN_GUIDE }, "How"));
 }
 
 // A job is late when it has not succeeded for twice its interval (the measured one when known, #54); failed when its last run failed.
@@ -141,6 +198,8 @@ export default function quality(m, s) {
   // Today's card belongs to Today; a range shows its days.
   const jobsOff = Object.values(f.runs || {}).filter((j) => jobState(j, Date.now()) !== "ok").length;
   if (r.kind === "today") out.push(h("section", { class: "s" }, todayCard(f.today, m.tz, jobsOff)));
+  const cdnNote = mostlyCdn(f, r);
+  if (cdnNote) out.push(cdnNote);
   const byDay = new Map((f.days || []).map((d) => [d.day, d]));
   const days = r.kind === "today" ? [] : r.days.filter((d) => d.state !== "before").map((d) => byDay.get(d.day) || { day: d.day, state: "missing" });
   if (days.length) {
@@ -174,6 +233,10 @@ export default function quality(m, s) {
         { key: "first_line", label: "Log covers (site time)", type: "date", fmt: (v, x) => (v ? `${v} to ${x.last_line}` : "-") },
         { key: "gaps", label: "Silent stretches", num: true, sort: (x) => x.gaps?.length ?? null, fmt: (v) => (v == null ? "-" : v.length ? h("span", { class: "gaps", title: v.map((g) => `${g.from}-${g.to}`).join(", ") }, v.length > 2 ? `${n(v.length)}: ${v[0].from}-${v[0].to} and ${n(v.length - 1)} more` : v.map((g) => `${g.from}-${g.to}`).join(", ")) : "0"), csv: (x) => (x.gaps || []).map((g) => `${g.from}-${g.to}`).join(" ") },
         { key: "audit", label: "Audit", fmt: (v) => (v ? AUDIT[v.state] || v.state : "-"), csv: (x) => x.audit?.state || "" },
+        // SKALD-34: only for a site that sends to the log endpoint (some day recorded).
+        ...(days.some((d) => d.intake_refused != null) ? [{ key: "intake_refused", label: "Refused at the log endpoint", num: true, sort: (x) => (x.intake_refused == null ? null : intakeTotal(x.intake_refused)),
+          fmt: (v) => (v == null ? h("span", { class: "muted", title: "Not recorded on this day" }, "not recorded") : h("span", { title: intakeWhy(v) || "None" }, intakeWords(v))),
+          csv: (x) => (x.intake_refused == null ? "" : intakeTotal(x.intake_refused)) }] : []),
       ], { caption: "Data quality by day", rows: days.slice().reverse().map((d) => ({ ...d, __k: d.day })), file: `data-quality-${r.first}-to-${r.last}.csv`, sortKey: "day", dir: -1, limit: 10,
         rowClass: (x) => (grade(x)[0] === "red" ? "withheld" : null) })));
   }

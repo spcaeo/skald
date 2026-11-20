@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.56.0: a Cloudflare Worker's bursts are no longer refused and refused posts are shown; a log holding a CDN's addresses is said and counted right; Next.js scanners and image checkers are bots; unknown addresses say No such page; each browser-seen step shows its time** ([changelog](CHANGELOG.md#2560-2026-11-20)).
 - **2.55.0: saves work on a site before its first build; a person named on several new sites gets all of them; People shows which sites each member sees** ([changelog](CHANGELOG.md#2550-2026-11-19)).
 - **2.54.1: a visitor joined from Chrome's prefetch proxy keeps their own country on a log with no country; every audit road counts the join** ([changelog](CHANGELOG.md#2541-2026-11-19)).
 - **2.54.0: Add a site says why an address can't be added at its first step; an invite limited to some sites lands on one of them; Google visitors on Android Chrome are counted again** ([changelog](CHANGELOG.md#2540-2026-11-19)).

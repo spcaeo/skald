@@ -249,6 +249,7 @@ td.rq-ms { white-space: nowrap; font-size: 12px; color: var(--ink-3); }
 td .vb:first-child { margin-left: 0; }
 .vb.verified { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--rule)); }
 .vb.unverified { color: var(--ink-3); }
+.vb.cdn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
 .vb.spoofed { color: #fff; background: var(--bad); border-color: var(--bad); }
 .pv { font-size: 10.5px; font-weight: 650; color: var(--g-people); margin-left: 6px; }
 .ai-tag { font-size: 11px; font-weight: 650; color: var(--g-answer_engines); margin-right: 6px; }

@@ -582,7 +582,8 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
     from . import audit
     try:
         figures = audit.recount(ctx.config, day, ctx.tz,
-                                [Path(p) for p in logs] if logs else None, ctx.now)
+                                [Path(p) for p in logs] if logs else None, ctx.now,
+                                cdn=audit.stored_with_cdn(ctx.db_path, ctx.site, day))
     except ValueError as why:
         ctx.err(f"audit {day}: {why}")
         return 2
@@ -654,7 +655,9 @@ def audit_live(ctx: Context) -> int:
     try:
         figures = audit.recount(ctx.config, day, ctx.tz,
                                 [Path(p) for p in ctx.args.log] if ctx.args.log else None,
-                                ctx.now, until=until, upto=upto)
+                                ctx.now, until=until, upto=upto,
+                                cdn=audit.counted_with_cdn(
+                                    (snap.get("extras") or {}).get("quality")))
     except ValueError as why:
         ctx.err(f"audit --live: {why}")
         return 2

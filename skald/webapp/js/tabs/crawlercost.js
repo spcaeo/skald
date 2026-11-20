@@ -88,7 +88,7 @@ export function botDetail(m, s, r, name) {
     const msSum = one.rows.reduce((a, x) => a + (x.mean_ms == null ? 0 : x.mean_ms * x.timed), 0);
     const errors = one.rows.reduce((a, x) => a + x.errors, 0);
     const check = verification(m, r)?.byName?.[name];
-    const checked = check ? check.verified + check.unverified : 0;
+    const checked = check ? check.verified + check.unverified + (check.cdn || 0) : 0;
     const kpis = h("div", { class: "dd-kpis" },
       h("div", null, h("b", null, n(requests)), h("span", null, "requests")),
       h("div", null, h("b", null, bytesWords(bytes)), h("span", null, sized && sized < requests ? `bytes sent (partial: ${n(sized)} of ${n(requests)} lines had a size)` : "bytes sent")),
@@ -102,7 +102,7 @@ export function botDetail(m, s, r, name) {
     const listNote = d.listed < d.days ? `Pages, countries and user agents: from the ${d.listed} of these ${d.days} day${d.days === 1 ? "" : "s"} within the last ${f.detail_days} days.` : null;
     return [
       kpis, chart,
-      check ? h("p", { class: "sub" }, "Address check: ", badge(check), ` ${n(check.verified)} verified, ${n(check.unverified)} not verifiable${check.spoofed ? `, and ${n(check.spoofed)} more used its name from an address that is not theirs (counted as "claims to be ${name}")` : ""}.`) : null,
+      check ? h("p", { class: "sub" }, "Address check: ", badge(check), ` ${n(check.verified)} verified, ${n(check.unverified)} not verifiable${check.cdn ? `, ${n(check.cdn)} through a CDN's address (can't check)` : ""}${check.spoofed ? `, and ${n(check.spoofed)} more used its name from an address that is not theirs (counted as "claims to be ${name}")` : ""}.`) : null,
       h("div", { class: "cols three", style: { marginTop: "12px" } },
         panel("Paths it requested", null, blist(ranked(d.lists.pages), { drill: "path", from: "drill", limit: 10, color: "var(--views)", empty: "Not recorded for these days." })),
         panel("Status mix", null, blist(ranked(d.status), { limit: 6, color: "var(--g-bots)" })),

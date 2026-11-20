@@ -18,9 +18,10 @@ A **probe** is a request for a path no real site serves, or with an attack strin
 - database dumps and backups: `backup.sql`, `site.zip`;
 - admin panels and consoles: `/phpmyadmin/`, `/admin`, `/owa/`, Jenkins, Solr;
 - PHP scripts: `/phpinfo.php`, `/config/auth.php`, `/storage/logs/laravel.log`;
+- a framework's insides no browser asks for: a bare `/_next/`, `/_next/server/`, `/_next/server-actions/`, `/__flight/`, `/_rsc/`, `/_react/` (scanners hunting for React and Next.js server actions; a Next.js site's own `/_next/static/` and `?_rsc=` requests are never probes);
 - path tricks and injection in the address: `../`, `/etc/passwd`, `${jndi:`, `<script`, `union select`, read even when encoded twice (`%252e%252e` for `..`).
 
-A **scanner** is one address with one user agent that made at least one probe that day. All its requests of the day are counted on its row, not only the probes. A site's own old paths (`site.legacy_paths`) are never probes.
+A **scanner** is one address with one user agent that made at least one probe that day. All its requests of the day are counted on its row, not only the probes. A site's own old paths (`site.legacy_paths`) are never probes. One that asked for five or more different probe paths your site answered with an error (4xx or 5xx) is a bot on every request of the day, even with a browser's name: its server errors then leave the **people** figures on Site › Health.
 
 ## Is anything exposed?
 

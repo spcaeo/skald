@@ -467,6 +467,9 @@ def summarise_views(
         t.extras.ai_status = None
         t.extras.security = None
     whole.extras.security.verifier = getattr(classifier, "verifier", None)
+    verifier = whole.extras.security.verifier
+    if verifier is not None and getattr(verifier, "cdn_known", lambda: None)():
+        whole.quality.cdn = verifier.cdn                # lines from a CDN edge (SKALD-17)
     proxied = getattr(classifier, "proxied", None)
     for hit in hits:
         whole.quality.add(hit)

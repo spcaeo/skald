@@ -196,3 +196,7 @@ export function fileName(base, r) {
    possible), its legend entry. Previous period, last year or a custom B: the
    global mode's (2.7.0, js/mode-compare.js); the tab's banner says why not. */
 export { compareFor } from "../mode-compare.js";
+
+// SKALD-17: the help on a log that holds a CDN's addresses, not the visitors' (Data quality,
+// the crawler check, scanners, the block list link to it).
+export const CDN_GUIDE = "#help?part=connections&hs=behind-a-cdn-the-visitor-s-real-address";

@@ -20,10 +20,13 @@ import { ranked } from "../data.js";
 import { optionsRow, select, choice, emptyState } from "./sa-options.js";
 import { merge } from "../sec-data.js";
 import { secTab, loadAddresses, addressWords, spanOf, at, flagOf, answered, topOf, LOOKED, missingNote } from "./sec-common.js";
+import { CDN_GUIDE } from "./common.js";
 
 const HELP_TEXT = "A scanner is an address and user agent that asked for at least one path no real site serves (.env, wp-login.php, phpinfo.php...) or sent an attack string. All its requests of the day are on its row. Scanners and addresses are counted per day: one that came back on three days is three. A forged referrer: it claimed to come from one of the site's own pages (or a subdomain) but never loaded the site's files. Sent to the bare IP: it asked the server's address, not the site's name, which only scanners do.";
 
-export const label = (r) => (r.ip ? r.ip : r.removed ? "(removed)" : `Not shown (${short(r.days[0])} #${r.refs[0].split("#")[1]})`);
+export const label = (r) => `${r.ip ? r.ip : r.removed ? "(removed)" : `Not shown (${short(r.days[0])} #${r.refs[0].split("#")[1]})`}${r.cdn ? ` (${r.cdn} edge)` : ""}`;
+// SKALD-22: one address on several rows (one per user agent): show the agent that splits them.
+const shared = (rows) => { const seen = new Map(); for (const r of rows) if (r.ip) seen.set(r.ip, (seen.get(r.ip) || 0) + 1); return [...seen.values()].some((k) => k > 1); };
 const agentShort = (ua) => (ua ? String(ua).slice(0, 60) + (String(ua).length > 60 ? "…" : "") : "-");
 
 export function flags(r) {
@@ -64,9 +67,9 @@ export function detail(r, f) {
 
 export function rowsTable(rows, f, s) {
   return table([
-    { key: "ip", label: "Address", fmt: (v, r) => label(r), sort: (r) => r.ip || "~", csv: (r) => label(r) },
-    { key: "agent", label: "User agent", fmt: (v) => agentShort(v), hide: true },
-    { key: "country", label: "Country", fmt: (v) => flagOf(v), csv: (r) => r.country || "" },
+    { key: "ip", label: "Address", fmt: (v, r) => label(r), sort: (r) => r.ip || "~", csv: (r) => r.ip || label(r) },
+    { key: "agent", label: "User agent", fmt: (v) => agentShort(v), hide: !shared(rows) },
+    { key: "country", label: "Country", fmt: (v, r) => (r.cdn ? h("span", { class: "muted", title: "The CDN's data centre, not the scanner's country" }, "– CDN edge") : flagOf(v)), csv: (r) => (r.cdn ? "" : r.country || "") },
     { key: "first", label: "First seen", type: "date", fmt: (v) => at(v) },
     { key: "last", label: "Last seen", type: "date", fmt: (v) => at(v), hide: true },
     { key: "requests", label: "Requests", num: true },
@@ -93,7 +96,10 @@ export default function scanners(m, s) {
         { label: "Sent to the bare IP", value: t.bare_ip, info: "Probes that asked the server's address instead of the site's name." },
         { label: "Forged referrers", value: t.forged, info: "Suspects that claimed to come from the site's own pages but never loaded its files." },
         t.hosting != null ? { label: "From hosting networks", value: t.hosting, info: "Probes from cloud and hosting networks (the list Skald keeps for crawler checks)." } : null,
+        t.cdn ? { label: "Through a CDN", value: t.cdn, info: "Probes whose address is a CDN's edge (Cloudflare's), not the scanner's: its country is the data centre's, and one edge carries many scanners." } : null,
       ])];
+      if (t.cdn) parts.push(h("p", { class: "note", role: "note" }, `${n(t.cdn)} of ${n(t.probes)} probes came through a CDN's edges. Their rows show the edge's address, not the scanner's, and no country; one edge carries many scanners, one row per user agent. `,
+        h("a", { href: CDN_GUIDE }, "Log the visitor's real address")));
       const days = (r.kind === "today" ? [{ day: m.today, state: "ok" }] : r.days || []).map((d) => {
         const got = t.perDay.find((x) => x.day === d.day);
         return { ...d, state: got ? "ok" : d.state === "before" ? "before" : "missing", probes: got?.probes || 0, scanners: got?.scanners || 0 };

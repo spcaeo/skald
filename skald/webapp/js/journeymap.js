@@ -54,8 +54,8 @@ function withTip(el, head, rows) {
 }
 
 /* One step of the timeline: a dot on the rail and its node. */
-function step(kind, node) {
-  return h("li", { class: `jm-s ${kind}` }, h("span", { class: "jm-rail", "aria-hidden": "true" }, h("span", { class: "jm-dot" })), node);
+function step(kind, node, below = null) {
+  return h("li", { class: `jm-s ${kind}` }, h("span", { class: "jm-rail", "aria-hidden": "true" }, h("span", { class: "jm-dot" })), node, below);
 }
 /* The line between two steps, with the time between them when known. */
 function gap(words) {
@@ -95,13 +95,19 @@ function steps(v) {
     const between = i ? gapWords(prev, p) : "";
     // #66: where the day changed inside a visit joined across midnight.
     out.push(gap(p.midnight ? [between, "past midnight"].filter(Boolean).join(" · ") : between));
-    const at = p.at != null ? `+${p.at < 1 ? "0 s" : duration(p.at)} from the first request` : "time in the visit not kept";
+    const plus = p.at != null ? `+${p.at < 1 ? "0 s" : duration(p.at)}` : "";
+    const at = plus ? `${plus} from the first request` : "time in the visit not kept";
     const btn = withTip(h("button", { type: "button", class: `jm-n pg${p.page === false ? " jm-app" : ""}${p.nf ? " nf" : ""}`,
       "aria-label": `Page ${p.path}, ${at}. Opens its page detail.` }, mark("path", p.path), h("span", { class: "jm-w" }, p.path), p.times > 1 ? h("small", null, `×${p.times}`) : null),
     p.path, [{ label: at }, ...(p.page === false ? [{ label: "seen in the browser: moved inside the site, no page loaded from the server" }] : []), ...(p.nf ? [{ label: "page not found (404)" }] : [])]);
     btn.addEventListener("click", () => { untip(); open("path", p.path); });
     // Copy and open in a new tab beside the chip (urlactions.js), never inside its button.
-    out.push(step(`pg${p.nf ? " nf" : ""}`, withUrl(btn, p.path, { cls: "ua-after jm-ua" })));
+    const chip = withUrl(btn, p.path, { cls: "ua-after jm-ua" });
+    // SKALD-43: a step seen in the browser shows its own time under its chip: when the first
+    // request from it came (its referrer), not when the move was, so its gaps stay "time not
+    // known" (#62). In the step's own grid, so the chip stays the step's child (row hover icons).
+    const below = p.page === false && plus ? h("small", { class: "jm-at", "aria-hidden": "true" }, plus) : null;
+    out.push(step(`pg${p.nf ? " nf" : ""}${below ? " timed" : ""}`, chip, below));
   });
   out.push(gap(""));
   const end = v.endNode || { kind: "left", words: v.active ? "still here" : "left" };

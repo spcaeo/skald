@@ -25,7 +25,7 @@
 // guesses: a visit with no earlier one known says "first visit we know of".
 
 import { h, n, duration, dayDiff } from "../ui.js";
-import { when, time as tzTime } from "../tz.js";
+import { when, time as tzTime, siteZone } from "../tz.js";
 import { openDrawer } from "../drawer.js";
 import { withUrl } from "../urlactions.js";
 import { shown } from "../labels.js";
@@ -221,8 +221,30 @@ function spanDays(model) {
   return times.length ? { first: times[0], last: times[times.length - 1], days: dayDiff(times[0].day, times[times.length - 1].day) + 1 } : null;
 }
 
+/* SKALD-18: when this visitor was first seen. The visits shown are the ones linked here (by
+   address or visitor ID) and still kept; the first touch is kept longer and may be a visit from
+   another address. So the older of the two, never "First seen 16 Nov" beside "First came from
+   Direct, 26 days ago". A first touch's `day` is the site's day and its `start` the site's wall
+   time (to the minute), whatever zone the reader picked: compared as instants when it has a time, else as site
+   days (by the 30-day code: then a first touch earlier the same day is not told apart).
+   {day, words, touch: whether it is the first touch, not a visit shown}. */
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const siteDay = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: siteZone(), year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
+export function firstSeen(model) {
+  const span = spanDays(model), ft = model.firstTouch;
+  const day = ft && LINKS.includes(ft.by) && /^\d{4}-\d\d-\d\d$/.test(String(ft.day || "")) ? ft.day : "";
+  const begun = day && ft.start ? when(ft.start) : null;
+  // Its start is kept to the minute: older only when that whole minute ended before the first visit shown began.
+  const older = day && (!span || (begun ? begun.t + 60e3 <= span.first.t : day < siteDay(span.first.t)));
+  if (older) {
+    const words = ft.start ? at(ft.start) : `${+day.slice(8)} ${MON[+day.slice(5, 7) - 1]}`;
+    return { day, words, touch: true };
+  }
+  return span ? { day: span.first.day, words: at(span.first.t), touch: false } : null;
+}
+
 function summary(model) {
-  const span = spanDays(model);
+  const span = spanDays(model), first = firstSeen(model);
   const latest = latestOf(model);
   const ft = model.firstTouch;
   const oldest = model.visits[model.visits.length - 1];
@@ -239,7 +261,7 @@ function summary(model) {
       cell("Outcome", h("span", { title: end.detail || null }, end.words), end.lead ? "vz-out lead" : "vz-out"));
   }
   return h("dl", { class: "vz-sum" },
-    cell("First seen", span ? at(span.first.t) : "-"),
+    cell("First seen", first ? first.words : "-"),
     cell("Visits", [`${n(nv)}${model.visits.some((v) => v.kind === "touch") ? " shown" : ""}${span && span.days > 1 ? ` over ${n(span.days)} days` : ""}`,
       h("small", null, span && span.days > 1 ? `last ${at(span.last.t)}` : "on one day")]),
     cell("First came from", touch),
@@ -350,7 +372,7 @@ export function stateLine(model) {
   const nv = visitCount(model), span = spanDays(model), ft = model.firstTouch;
   const bits = [`${n(nv)} visit${nv === 1 ? "" : "s"}${model.visits.some((v) => v.kind === "touch") ? " shown" : ""}${span && span.days > 1 ? ` over ${n(span.days)} days` : span ? ", on one day" : ""}.`];
   const oldest = model.visits[model.visits.length - 1];
-  if (ft && LINKS.includes(ft.by)) bits.push(`First came from ${touchName(ft)}, ${ago(ft.day)}.`);
+  if (ft && LINKS.includes(ft.by)) bits.push(`First came from ${touchName(ft)}, ${ago(ft.day)}${firstSeen(model)?.touch ? " (that visit is not shown here)" : ""}.`);
   else if (oldest && model.firstKnown && nv > 1) bits.push(`The oldest visit kept came from ${sourceWords(oldest)}.`);
   else if (oldest && nv === 1) bits.push(`Came from ${sourceWords(oldest)}.`);
   return bits.join(" ");
@@ -358,12 +380,12 @@ export function stateLine(model) {
 
 function stateCard(model, extra) {
   const latest = latestOf(model);
-  const span = spanDays(model);
+  const first = firstSeen(model);
   const place = latest.city ? withCopy(h("span", { class: "named", title: cityName(latest.city) }, flagEl(latest.country), h("span", { class: "nm" }, city(latest.city))), cityName(latest.city) || city(latest.city), { label: "Copy the city", cls: "ua-after" })
     : latest.country && countryCell(latest.country) !== "Not recorded" ? copyIf("text", countryCell(latest.country), latest.country, { label: "country" }) : null;
   const dev = latest.device ? copyIf("text", h("span", null, shown(latest.device), latest.browser ? `, ${latest.browser}${latest.os ? ` on ${latest.os}` : ""}` : ""),
     `${shown(latest.device)}${latest.browser ? `, ${latest.browser}${latest.os ? ` on ${latest.os}` : ""}` : ""}`, { label: "device" }) : null;
-  const seen = span ? h("span", null, "First seen ", at(span.first.t)) : null;
+  const seen = first ? h("span", null, "First seen ", first.words) : null;
   const facts = [place, dev, seen].filter(Boolean);
   const how = howWords(model, extra);
   return h("section", { class: "ui-card vz-state" },

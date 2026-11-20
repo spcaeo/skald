@@ -10,11 +10,12 @@ The rules it recounts (CLASSIFICATION.md):
 
   6c  an address and agent that asked the site's hosts, in the window, for
       at least 5 different paths matching PROBE that were answered 4xx or
-      5xx - no asset, nothing under site.legacy_paths - is a bot on every
-      line of the window.
+      5xx - no asset (a folder, ending in "/", is none), nothing under
+      site.legacy_paths - is a bot on every line of the window.
   8b  a browser-like visit (address and agent, no gap longer than the
       session gap, on the site's hosts) that sent HEAD for at least 2
-      different documents (no asset, payload or beacon) is a bot: every
+      different documents (no asset, payload or beacon), or for images at
+      least 2 times, the same picture or not (SKALD-25), is a bot: every
       line of it, from its first to its last.
 """
 from __future__ import annotations
@@ -27,10 +28,17 @@ from .classify import OTHER_BOT, PROBE
 _LIKE_A_BROWSER = re.compile(r"Mozilla/|Opera/|Safari/|Chrome/|Firefox/", re.I)
 MISSING_PROBES = 5
 HEAD_DOCUMENTS = 2
+# The audit's own image test: a picture by its extension, or Next.js's image address.
+_PICTURE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif", ".ico")
 
 
 def _on_site(line, hosts: set) -> bool:
     return not (hosts and line.host and line.host.lower() not in hosts)
+
+
+def _picture(path: str) -> bool:
+    low = path.lower()
+    return low.endswith(_PICTURE_EXT) or low in ("/_next/image", "/_next/image/")
 
 
 def sweepers(lines: list, hosts: set, legacy: tuple, is_asset) -> set:
@@ -41,7 +49,8 @@ def sweepers(lines: list, hosts: set, legacy: tuple, is_asset) -> set:
         if not line.status or line.status[0] not in "45" or not _on_site(line, hosts):
             continue
         path = line.path
-        if is_asset(line) or any(path.startswith(p) for p in legacy):
+        # The audit's own reading: an address ending in "/" asks for a folder, never a file.
+        if (is_asset(line) and path[-1:] != "/") or any(path.startswith(p) for p in legacy):
             continue
         if PROBE.search(path):
             asked.setdefault((line.address, line.agent), set()).add(path)
@@ -51,7 +60,7 @@ def sweepers(lines: list, hosts: set, legacy: tuple, is_asset) -> set:
 def link_checkers(lines: list, gap: timedelta, hosts: set, is_asset, is_payload,
                   is_beacon) -> dict:
     """{(address, agent): [(first, last)]} of the browser-like visits that
-    sent HEAD for HEAD_DOCUMENTS different documents."""
+    sent HEAD for HEAD_DOCUMENTS different documents, or for images that many times."""
     by_pair: dict[tuple, list] = {}
     for line in lines:
         agent = line.agent
@@ -67,8 +76,10 @@ def link_checkers(lines: list, gap: timedelta, hosts: set, is_asset, is_payload,
         cut = [0] + [k for k in range(1, len(seen)) if seen[k].when - seen[k - 1].when > gap]
         for a, b in zip(cut, cut[1:] + [len(seen)]):
             visit = seen[a:b]
-            heads = {l.path for l in visit if l.method == "HEAD" and not is_asset(l)
-                     and not is_payload(l) and not is_beacon(l)}
-            if len(heads) >= HEAD_DOCUMENTS:
+            asked = [l for l in visit if l.method == "HEAD" and not is_payload(l)
+                     and not is_beacon(l)]
+            pages = {l.path for l in asked if not is_asset(l)}
+            pictures = sum(1 for l in asked if is_asset(l) and _picture(l.path))
+            if len(pages) >= HEAD_DOCUMENTS or pictures >= HEAD_DOCUMENTS:
                 found.setdefault(pair, []).append((visit[0].when, visit[-1].when))
     return found

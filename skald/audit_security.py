@@ -124,6 +124,7 @@ def short_address(address: str) -> str:
 class Recount:
     def __init__(self, config: dict, day, tz, own: set) -> None:
         self.config, self.day = config, day
+        self.cdn_on = False                        # set by build (SKALD-22)
         self.own = {h.lower() for h in own}
         self.rules = N.settings(config)
         raw = ((config or {}).get("site") or {}).get("legacy_paths") or []
@@ -172,11 +173,13 @@ class Recount:
         from .audit import is_page
         return is_page(line)
 
-    def build(self) -> tuple[dict, list]:
-        """(the blob, [(seq, address, agent)])."""
+    def build(self, cdn: bool = True) -> tuple[dict, list]:
+        """(the blob, [(seq, address, agent)]). `cdn`: apply the CDN rules (SKALD-22) when
+        a CDN list is kept; False for a day stored before them, recounted as it was."""
         from .audit_release2 import Checks
         checks = Checks(self.config, datetime.now(timezone.utc))
         known = bool(checks.hosting)
+        self.cdn_on = cdn and bool(checks.cdn)
         rows = {}
         answered = []                              # (host, path, when, status, size, cat, pair)
         sizes = defaultdict(list)                  # host -> [(size, path)]
@@ -269,11 +272,15 @@ class Recount:
         scanners = [k for k, r in rows.items() if r["probes"]]
         cats, stat, where, paths = Counter(), Counter(), Counter(), Counter()
         hosting = 0 if known else None
+        through = 0 if self.cdn_on else None
         for k in scanners:
             r = rows[k]
             cats += r["cats"]
             stat += r["pstatus"]
-            where[r["country"] or N.UNKNOWN] += r["probes"]
+            edge = self.cdn_on and checks.from_cdn(k[0])
+            where[N.UNKNOWN if edge else (r["country"] or N.UNKNOWN)] += r["probes"]
+            if edge:
+                through += r["probes"]
             paths += r["paths"]
             if known and checks.from_hosting(k[0]):
                 hosting += r["probes"]
@@ -288,6 +295,7 @@ class Recount:
             "requests": sum(rows[k]["requests"] for k in scanners),
             "categories": _plain(cats), "status": _plain(stat),
             "countries": _ranked(where, N.TOP_COUNTRIES), "hosting": hosting,
+            **({"cdn": through} if self.cdn_on else {}),
             "forged": sum(1 for k in suspect if rows[k]["own_ref"] and not rows[k]["rendered"]),
             "bare_ip": bare_probes, "paths": _ranked(paths, N.TOP_PATHS),
             "exposure": self._exposure(answered, sizes, seq, query_only),
@@ -298,7 +306,7 @@ class Recount:
                      "pairs": sum(1 for r in rows.values() if r["fakes"]),
                      "kinds": _plain(fakes), "pages": _ranked(fake_pages, N.FAKE_PAGES)},
             "signs": self._signs(),
-            "who": [self._row(i, k, rows[k], checks if known else None)
+            "who": [self._row(i, k, rows[k], checks, known)
                     for i, k in enumerate(top)],
             "who_folded": len(suspect) - len(top),
         }
@@ -330,7 +338,15 @@ class Recount:
                                                      "max": biggest,
                                                      "paths": _ranked(paths, N.SIGN_PATHS)}}
 
-    def _row(self, i, key, r, checks) -> dict:
+    def _where(self, address, country, checks, known: bool) -> dict:
+        """Country and networks: a CDN edge's country is not the scanner's (SKALD-22).
+        `known`: the hosting list is kept (else hosting is not known)."""
+        edge = checks.cdn_name(address) if self.cdn_on else None
+        return {"country": None if edge else (country or None),
+                "hosting": checks.from_hosting(address) if known else None,
+                **({} if edge is None else {"cdn": edge})}
+
+    def _row(self, i, key, r, checks, known: bool) -> dict:
         fake = min(r["fakes"].items(), key=lambda kv: (-kv[1], kv[0]))[0] if r["fakes"] else None
         return {"seq": i,
                 "kinds": [name for name, on in (("scanner", r["probes"]),
@@ -341,8 +357,7 @@ class Recount:
                 "categories": _plain(r["cats"]), "status": _plain(r["status"]),
                 "probe_status": _plain(r["pstatus"]),
                 "forged": bool(r["own_ref"]) and not r["rendered"], "bare_ip": r["bare"],
-                "country": r["country"] or None,
-                "hosting": None if checks is None else checks.from_hosting(key[0]),
+                **self._where(key[0], r["country"], checks, known),
                 "fake": fake, "fake_requests": sum(r["fakes"].values()),
                 "injection": r["injection"], "login": r["login"], "burst": r["burst"],
                 "paths": _ranked(r["paths"], N.ROW_PATHS), "pages": _ranked(r["pages"], N.ROW_PATHS)}
@@ -475,7 +490,8 @@ class Recount:
         blob = stored.get("security")
         if blob is None:
             return
-        mine, who = self.build()
+        # A day stored before the CDN rules (no "cdn" total) is recounted as it was.
+        mine, who = self.build(cdn="cdn" in blob)
         _leaves("security", blob, mine, same, problems)
         self._kept(who, same, problems)
 

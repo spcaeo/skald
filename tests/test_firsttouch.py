@@ -409,6 +409,18 @@ class DrawerOutcome(unittest.TestCase):
         done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("visitor-drawer: all passed", done.stdout)
+        self.assertIn("visitor-drawer: first seen passed", done.stdout, "SKALD-18")
+
+    def test_data_quality_says_duplicate_lines_are_kept(self):
+        """SKALD-25: the Data quality note under Duplicate lines (tests/js/quality-dups.mjs)."""
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node not installed")
+        js = Path(__file__).resolve().parent / "js" / "quality-dups.mjs"
+        done = subprocess.run(["node", str(js)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("quality-dups: all passed", done.stdout)
 
     def test_a_browser_seen_step_is_a_normal_chip(self):
         """2.20.1: the dashed step carried the shell's class "app" (a full-window

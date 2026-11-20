@@ -359,11 +359,7 @@ or relay locations), and only after the map file exists:
 if ($skald_block) { return 403; }
 ```
 
-robots.txt is never refused (the map exempts `/robots.txt`), so a blocked
-crawler can still read the rules; `GET <page>/bot-policy` also gives the
-robots.txt lines matching the policy, as a suggestion to copy by hand. The
-403s per crawler are in `bots.json` (`blocked`). nginx route, inside the
-`/traffic/` location:
+robots.txt is never refused (the map exempts `/robots.txt`), so a blocked crawler can still read the rules; `GET <page>/bot-policy` also gives the robots.txt lines matching the policy, as a suggestion to copy by hand. The 403s per crawler are in `bots.json` (`blocked`). nginx route, inside the `/traffic/` location:
 
 ```nginx
 location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?bot-policy$ {
@@ -376,23 +372,16 @@ location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?bot-policy$ {
 
 ### In-page event beacon (optional)
 
-Button clicks, form steps and demo bookings, posted by the site's own pages
-to `POST /traffic-beacon` (docs/BEACON.md has the fields, the events and the
-website side). A second helper, public but same-origin only:
+Button clicks, form steps and demo bookings, posted by the site's own pages to `POST /traffic-beacon` (docs/BEACON.md has the fields, the events and the website side). A second helper, public but same-origin only:
 
 ```sh
 cp systemd/skald-beacon.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now skald-beacon     # 127.0.0.1:8766
 ```
 
-Run it even without the beacon: it is also the receiver of the signed tool hooks
-(docs/INTEGRATIONS.md). With no `beacon.origins` it takes hooks only (2.2.2).
+Run it even without the beacon: it is also the receiver of the signed tool hooks (docs/INTEGRATIONS.md). With no `beacon.origins` it takes hooks only (2.2.2).
 
-Set `beacon.enabled`, `beacon.origins` and `beacon.log` in the config, and
-add the nginx `limit_req_zone`, `log_format` and `location = /traffic-beacon`
-from docs/BEACON.md to the site's HTTPS server. run-daily then collects,
-verifies and audits yesterday's events (step "events", which never stops the
-run); the spool is `/var/lib/skald/beacon/` (no addresses, 400 days).
+Set `beacon.enabled`, `beacon.origins` and `beacon.log` in the config, and add the nginx `limit_req_zone`, `log_format` and `location = /traffic-beacon` from docs/BEACON.md to the site's HTTPS server. run-daily then collects, verifies and audits yesterday's events (step "events", which never stops the run); the spool is `/var/lib/skald/beacon/` (no addresses, 400 days).
 
 ## 6. nginx: serve the dashboard privately
 
@@ -516,8 +505,14 @@ upstream skald_beacon {
 # set real_ip first so $binary_remote_addr is the visitor's address.
 map $request_method $skald_auth_post { POST $binary_remote_addr; default ""; }
 limit_req_zone $skald_auth_post zone=skald_auth:10m rate=10r/m;
-# Shipped log batches (docs/INGEST.md), per sending address.
-limit_req_zone $binary_remote_addr zone=skald_ingest:10m rate=5r/s;
+# Shipped log batches (docs/INGEST.md) per sending address. A CDN Worker's posts (?format=edge) come from addresses every Worker-fed site shares:
+# per sending token (only the Worker has it), above Skald's own edge limit (1200 a minute, burst 300), and per address as a cap. An empty key is not limited.
+map $arg_format $skald_ingest_addr { edge ""; default $binary_remote_addr; }
+map "$arg_format $http_authorization" $skald_ingest_site { "~*^edge Bearer\s+(?<skald_ingest_tok>skald_[A-Za-z0-9_-]{20,120})$" $skald_ingest_tok; default ""; }
+map $arg_format $skald_ingest_edge_addr { edge $binary_remote_addr; default ""; }
+limit_req_zone $skald_ingest_addr zone=skald_ingest:10m rate=5r/s;
+limit_req_zone $skald_ingest_site zone=skald_ingest_site:10m rate=40r/s;
+limit_req_zone $skald_ingest_edge_addr zone=skald_ingest_edge:10m rate=100r/s;
 # In-page events (docs/BEACON.md): 60 a minute per address; a log with no address in it.
 limit_req_zone $binary_remote_addr zone=skald_beacon:1m rate=60r/m;
 log_format skald_beacon '$time_iso8601 $status $upstream_http_x_skald_site';
@@ -724,7 +719,9 @@ location ^~ /traffic-ingest/ {
     access_log off;
     limit_except POST { deny all; }
     client_max_body_size 6m;
-    limit_req zone=skald_ingest burst=20 nodelay;
+    limit_req zone=skald_ingest burst=20 nodelay;         # a shipper's batches, per address
+    limit_req zone=skald_ingest_site burst=600 nodelay;   # a Worker's posts, per sending token (SKALD-34)
+    limit_req zone=skald_ingest_edge burst=1000 nodelay;  # a Worker's posts, per address: a cap
     limit_req_status 429;
     add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
     add_header Cache-Control "no-store" always;
