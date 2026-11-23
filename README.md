@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.56.1: a missing picture in a site's own asset folder no longer withholds the day; a withheld day no longer sends a failure mail that calls it a crash** ([changelog](CHANGELOG.md#2561-2026-11-23)).
 - **2.56.0: a Cloudflare Worker's bursts are no longer refused and refused posts are shown; a log holding a CDN's addresses is said and counted right; Next.js scanners and image checkers are bots; unknown addresses say No such page; each browser-seen step shows its time** ([changelog](CHANGELOG.md#2560-2026-11-20)).
 - **2.55.0: saves work on a site before its first build; a person named on several new sites gets all of them; People shows which sites each member sees** ([changelog](CHANGELOG.md#2550-2026-11-19)).
 - **2.54.1: a visitor joined from Chrome's prefetch proxy keeps their own country on a log with no country; every audit road counts the join** ([changelog](CHANGELOG.md#2541-2026-11-19)).

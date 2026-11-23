@@ -4,6 +4,41 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.56.1 (2026-11-23)
+
+Two fixes after 2.56.0: a missing picture under a site's own asset folder no longer makes the
+audit withhold the day (SKALD-45), and a withheld day in a long multi-site run no longer sends a
+failure mail that calls it a crash (SKALD-46).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting. The count itself did not change, only the audit's recount.
+  A day the audit withheld for this reason is counted again with `backfill --day <day> --force`,
+  then checked with `audit --day <day>`.
+
+### Changes
+
+- **A missing file in a site's own asset folder no longer withholds the day** (SKALD-45). On
+  22 Nov the daily run withheld skaldanalytics.com's 21 Nov: a crawler sent a Chrome agent from
+  17 addresses, one request each, for picture lists read as one address
+  (`/img/x-700.webp%20700w,%20/img/x.webp%201400w`, 404). The count took each one as a drawing
+  under the site's own asset folder (`/img/`) with no page, so a bot; the audit's recount took
+  it as both the page and its drawing, so a person, and 17 requests, 17 visits and the security
+  rows that follow them disagreed. The recount now treats a request under an own asset folder as
+  a drawing only, as the count always did. Who: sites that name asset folders whose files a bot
+  asks for under a broken name. What to do: nothing; recount a withheld day after the upgrade
+  (`backfill --day <day> --force`, then `audit --day <day>`). Checked: a test with the live
+  lines' shape fails before and passes after; the fixed recount on the live 21 Nov day matches.
+- **The failure mail no longer calls a withheld day a crash** (SKALD-46). Each site writes its
+  run record when it ends, and the mail took a record older than 15 minutes for none at all; a
+  run over every site now takes about an hour, so when the first site's day was withheld, the
+  mail said "left no record of this run: ... a crash" and was sent, though a withheld day sends
+  no mail by design. The scheduler now passes when the run started (`notify-failure
+  --started`), and a record since then is this run's. Who: installs with several sites. What to
+  do: nothing. Checked: tests for a record 59 minutes old in a 60-minute run (no mail) and one
+  from the day before (mailed), and that the scheduler passes the start.
+
 ## 2.56.0 (2026-11-20)
 
 A Cloudflare Worker's bursts are no longer refused by nginx, and refused posts are counted and

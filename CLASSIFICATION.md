@@ -268,6 +268,11 @@ that a browser drew the page, any one of:
   A Next.js navigation (above) is a page request and a payload at once, so
   a visit whose only pages are navigations (a tab left open, a page restored
   from the cache) drew: the page's running script asked for it.
+  A request under `site.asset_prefixes` is a drawing and never a page
+  request, whatever its name ends in (SKALD-45, 2.56.1): a crawler that read
+  a picture list as one address (`/img/a-700.webp%20700w,%20/img/a.webp%201400w`,
+  404) from many addresses, one request each, has no page and no drawing of
+  one, so it is a bot on both roads.
 - **beacon**: an event from the page's own script (the beacon spool) was
   sent from one of its pages, opened within the same window. The spool
   holds no address, so the match is by path and time: one page opening

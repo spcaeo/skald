@@ -27,8 +27,9 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-20-2.56.0",
+  id: "2026-11-23-2.56.1",
   items: [
+    ["Fewer days held back by mistake", "a missing picture in a site's own asset folder no longer holds back the day, and a held-back day no longer sends a failure mail that says the run crashed.", "getting-started"],
     ["Worker bursts no longer lost", "a Cloudflare Worker's burst of posts is no longer refused in front of Skald; Data quality shows any posts refused at the log endpoint, and a day with lost records is worth a look.", "connections"],
     ["Logs with a CDN's addresses", "when a site's log holds Cloudflare's addresses instead of the visitors', Data quality says so with the fix; real crawlers are no longer called impostors and the block list never lists Cloudflare.", "connections"],
     ["Fewer scanners and checkers as people", "scanners hunting Next.js server actions and checkers asking for a page's images with HEAD count as bots, not people.", "ai-and-bots"],

@@ -174,6 +174,7 @@ class Job:
         self.proc: subprocess.Popen | None = None
         self.out = None
         self.started = 0.0
+        self.started_at: datetime | None = None   # wall clock, for notify-failure --started
         self.next: datetime | None = None
 
 
@@ -234,6 +235,7 @@ class Scheduler:
                                     stderr=subprocess.STDOUT,
                                     preexec_fn=lower_priority(min(19, job_nice() + job.nicer)))
         job.started = time.monotonic()
+        job.started_at = datetime.now(UTC)
 
     def finish(self, job: Job, code: int) -> None:
         took = time.monotonic() - job.started
@@ -249,8 +251,9 @@ class Scheduler:
             return                      # every 15 minutes: quiet unless a send failed
         say(f"{job.name}: exit {code} after {took:.0f} s")
         if code != 0 and job.notify:
+            when = (job.started_at or datetime.now(UTC)).isoformat(timespec="seconds")
             got = subprocess.run(self.ti + ["notify-failure", "--job", job.name, "--exit", str(code),
-                                            "--log", str(self.log_path(job))],
+                                            "--log", str(self.log_path(job)), "--started", when],
                                  cwd=str(APP), capture_output=True, text=True, timeout=120)
             say(f"{job.name}: failure mail: {(got.stdout or got.stderr).strip()[:200] or got.returncode}")
 

@@ -209,6 +209,32 @@ class TestBeaconAndAudit(RenderingBox):
         self.assertEqual(moved["readers"], 1)
         self.audit()
 
+    def test_a_missing_file_in_an_own_asset_folder_is_no_page_on_either_road(self):
+        """SKALD-45: skaldanalytics.com names /img/ an asset folder. A crawler sent a
+        Chrome agent from 17 addresses, one request each, for a picture list read as one
+        address (/img/a-700.webp%20700w,%20/img/a.webp%201400w, 404): no file ending.
+        The count took it as a file the page draws, so the visit had no page and was a
+        bot; the audit took it as the page and its own drawing, people, and the day was
+        withheld. A file under an own asset folder is never the page, on both roads."""
+        text = self.box.config.read_text().replace(
+            "  hosts: [example.com]\n", "  hosts: [example.com]\n"
+            "  asset_prefixes: [/_next/static/, /img/]\n")
+        self.box.config.write_text(text)
+        broken = "/img/realtime-700.webp%20700w,%20/img/realtime.webp%201400w"
+        self.box.log([
+            line(at(11, 3, 1), "203.0.113.70", broken, referrer="https://example.com/",
+                 status=404),
+            line(at(11, 3, 3), "203.0.113.71", broken, referrer="https://example.com/",
+                 status=404),
+            line(at(12), "203.0.113.72", "/"),                      # a real reader
+            line(at(12, 0, 1), "203.0.113.72", "/img/hero.webp", referrer="https://example.com/"),
+        ])
+        self.collect()
+        (hits, visits, readers), moved = self.stored()
+        self.assertEqual((hits, visits, readers), (2, 1, 1))
+        self.assertEqual(moved["requests"], 2)
+        self.audit()
+
     def test_the_audit_catches_a_changed_figure(self):
         self.box.log([line(at(10), "203.0.113.12", "/"),
                       line(at(11), "203.0.113.11", "/"), asset(at(11, 0, 1), "203.0.113.11")])
