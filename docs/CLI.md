@@ -290,6 +290,7 @@ One short mail when a scheduled run failed (cron, after run-daily); never for a 
 | `--job` | the job that failed (default `run-daily`) |
 | `--exit` CODE | its exit status (cron passes $?) |
 | `--log` | its log; the last lines go in the mail |
+| `--started` ISO-TIME | when the run began (the scheduler passes it): a record written since then is this run's, however long it took |
 | `--dry-run` | print the mail, send nothing |
 | `--force` | mail even if one went for this job within the cooldown |
 

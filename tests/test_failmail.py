@@ -156,6 +156,27 @@ class TestFailuresAreMailedOnce(FailCase):
         self.assertEqual(len(sent), 1)
         self.assertIn("left no record of this run", sent[0].get_content())
 
+    def test_a_long_run_whose_first_site_was_withheld_an_hour_ago_sends_nothing(self):
+        """SKALD-46: on 22 Nov the run took 60 minutes for every site; the first site's
+        audit withheld its day at 12:16, the run ended 13:15. The record was older than
+        15 minutes, so the mail said "left no record ... a crash" and was sent. The
+        scheduler passes when the run started: a record since then is this run's."""
+        now = datetime.now(timezone.utc)
+        runs.record(self.box.root, "run-daily", 1, now=now - timedelta(minutes=59),
+                    outcome="withheld")
+        started = (now - timedelta(minutes=60)).isoformat(timespec="seconds")
+        code, out, sent = self.notify("--started", started)
+        self.assertEqual((code, sent), (0, []))
+        self.assertIn("by design", out)
+
+    def test_a_record_from_before_the_run_started_is_still_no_record(self):
+        old = datetime.now(timezone.utc) - timedelta(days=1)
+        runs.record(self.box.root, "run-daily", 1, now=old, outcome="withheld")
+        started = (datetime.now(timezone.utc) - timedelta(minutes=60)).isoformat()
+        code, out, sent = self.notify("--started", started)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("left no record of this run", sent[0].get_content())
+
     def test_an_exit_code_that_disagrees_with_the_record_is_mailed(self):
         runs.record(self.box.root, "run-daily", 1, outcome="withheld")
         self.assertEqual(len(self.notify(code=2)[2]), 1)
@@ -278,6 +299,30 @@ class TestStillMailsWhenThePackageIsBroken(unittest.TestCase):
             self.assertIn("Daily run failed", got.stdout)
             self.assertIn("SyntaxError: invalid syntax", got.stdout)
             self.assertNotIn(SECRETS["TI_TEST_SMTP_PASSWORD"], got.stdout)
+
+
+class TestSchedulerSaysWhenTheRunStarted(unittest.TestCase):
+
+    def test_a_failed_job_passes_its_start_to_notify_failure(self):
+        """SKALD-46: the scheduler hands notify-failure the run's start, so a site's
+        record written an hour before the run ended is still this run's."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("skald_scheduler_t46",
+                                                      ROOT / "docker" / "scheduler.py")
+        sched = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sched)
+        job = sched.Job("run-daily", ["true"], None, notify=True)
+        job.started = 0.0
+        job.started_at = datetime(2026, 11, 22, 12, 15, 21, tzinfo=timezone.utc)
+        box = sched.Scheduler.__new__(sched.Scheduler)
+        box.ti = ["ti"]
+        with mock.patch.object(sched.subprocess, "run") as run, \
+                mock.patch.object(sched, "say"), \
+                mock.patch.object(sched.Scheduler, "log_path", return_value=Path("run.log")):
+            run.return_value = subprocess.CompletedProcess([], 0, "mailed", "")
+            box.finish(job, 1)
+        args = run.call_args[0][0]
+        self.assertEqual(args[args.index("--started") + 1], "2026-11-22T12:15:21+00:00")
 
 
 if __name__ == "__main__":

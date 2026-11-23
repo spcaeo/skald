@@ -181,14 +181,16 @@ def never_drawn(config: dict, lines: list, gap: timedelta, hosts: set, start: da
             group.append(line)
         visits.append((pair, group))
 
+    def draws(line) -> bool:
+        return line.path.startswith(own) or bool(_RSC.search(line.url))
+
     def page_request(line) -> bool:
         if is_navigation is not None and is_navigation(line):
             return True
-        return (line.method in ("GET", "HEAD") and not _RSC.search(line.url)
+        # A request under an own asset folder is a drawing, never the page, whatever its
+        # name ends in (SKALD-45: a crawler's /img/a.webp%20700w,... was both, so people).
+        return (line.method in ("GET", "HEAD") and not draws(line)
                 and not is_asset(line) and not is_beacon(line.path))
-
-    def draws(line) -> bool:
-        return line.path.startswith(own) or bool(_RSC.search(line.url))
 
     drew = set()
     for n, (_, group) in enumerate(visits):
@@ -246,7 +248,7 @@ def _proxy_pages(visits: list, hosts: set, is_proxy, draws, is_asset, is_beacon,
         return bool(host) and (not hosts or host in hosts) and (parts.path or "/") == path
 
     def document(line) -> bool:
-        return (line.method in ("GET", "HEAD") and not _RSC.search(line.url)
+        return (line.method in ("GET", "HEAD") and not draws(line)
                 and not is_asset(line) and not is_beacon(line.path))
 
     # The draws of the agents a proxy address sent, from other addresses,

@@ -62,6 +62,9 @@ RUNS = "runs.json"                  # runs.py's file
 STATE = "failmail-state.json"
 COOLDOWN_HOURS = 12                 # at most one mail per job in this time
 FRESH_MINUTES = 15                  # run-daily's record is seconds old when cron calls us
+# With --started (the scheduler's), a record from this long before the start still counts:
+# runs.json may keep times to the minute.
+START_SLACK_MINUTES = 2
 TAIL_LINES = 20
 NAMES = {"run-daily": "Daily run"}
 
@@ -235,11 +238,16 @@ def _records(directory: Path, job: str) -> list[dict | None]:
     return out
 
 
-def verdict(directory: Path, job: str, code: int | None, now: datetime) -> str | None:
+def verdict(directory: Path, job: str, code: int | None, now: datetime,
+            started: datetime | None = None) -> str | None:
     """None when this run stopped by design (a withheld day: no mail);
-    otherwise what went wrong, in words, for the mail."""
+    otherwise what went wrong, in words, for the mail. `started` is when the run
+    began: each site writes its record when it ends, and a run over every site of
+    an install takes an hour, so the first site's record is that old (SKALD-46).
+    Without it, a record must be FRESH_MINUTES old at most (cron calls at once)."""
     entries = _records(directory, job)
-    oldest = now - timedelta(minutes=FRESH_MINUTES)
+    oldest = (started - timedelta(minutes=START_SLACK_MINUTES) if started
+              else now - timedelta(minutes=FRESH_MINUTES))
     exits, withheld = [], False
     for entry in entries:
         at = entry and _when(entry.get("last_ok") if entry.get("last_exit") == 0
@@ -386,7 +394,8 @@ def notify(args, out=print) -> int:
         return 2
     directory = state_dir(config, config_path)
     now = _now()
-    why = verdict(directory, job, code, now)
+    began = getattr(args, "started", None)
+    why = verdict(directory, job, code, now, _when(began) if began else None)
     if why is None:
         out(f"notify-failure: {job} stopped by design (a withheld day); no mail")
         return 0
@@ -429,6 +438,9 @@ def add_command(sub) -> None:
     p.add_argument("--exit", type=int, default=None, metavar="CODE",
                    help="its exit status (cron passes $?)")
     p.add_argument("--log", help="its log; the last lines go in the mail")
+    p.add_argument("--started", metavar="ISO-TIME",
+                   help="when the run began (the scheduler passes it): a record written "
+                        "since then is this run's, however long it took")
     p.add_argument("--dry-run", action="store_true", help="print the mail, send nothing")
     p.add_argument("--force", action="store_true",
                    help="mail even if one went for this job within the cooldown")
