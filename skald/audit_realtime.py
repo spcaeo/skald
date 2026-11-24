@@ -59,6 +59,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
+from .classify import AI_ASKED
 from .path_names import PATH_CHARS
 
 OTHER = "(all others)"
@@ -86,7 +87,7 @@ class Recount:
         # A city file set (logs.city_db): cities are recounted.
         self.cities = bool(((config or {}).get("logs") or {}).get("city_db"))
         self.end = None
-        self.lines: list[tuple] = []          # (when, group, name) of the last minutes
+        self.lines: list[tuple] = []          # (when, group, name, tier) of the last minutes
         self.visits: list[tuple] = []         # (first, last, labels, pages, page lines)
 
     def set_window(self, start: datetime, end: datetime) -> None:
@@ -96,7 +97,11 @@ class Recount:
         if self.end is None or line.when >= self.end:
             return
         if _minute(line.when) > _last(self.end) - MINUTES - 1:
-            self.lines.append((line.when, group, info.get("name") or "(unnamed)"))
+            name = info.get("name") or "(unnamed)"
+            # SKALD-53: the tier from the name lists, as audit.py tells them apart.
+            tier = ("asked" if AI_ASKED.search(name) else "training") \
+                if group == "answer_engines" else ""
+            self.lines.append((line.when, group, name, tier))
 
     def visit(self, lines: list, is_page, labels: dict | None) -> None:
         if labels is None or not lines:
@@ -143,7 +148,8 @@ class Recount:
             for when, path in seen:
                 if since <= when < end:
                     pages[path] += 1
-        for when, group, name in self.lines:
+        tiers = {"asked": Counter(), "training": Counter()}
+        for when, group, name, tier in self.lines:
             if when >= end:
                 continue
             i = _minute(when) - (last - MINUTES + 1)
@@ -153,6 +159,7 @@ class Recount:
                 continue
             if group == "answer_engines":
                 ai[name] += 1
+                tiers[tier][name] += 1
             elif group == "search_engines":
                 search[name] += 1
             elif group == "bots":
@@ -162,7 +169,7 @@ class Recount:
         return {"doing": doing,"active": active, "under": under, "started": started, "requests": requests,
                 "starts": starts, "countries": countries, "cities": cities,
                 "sources": sources,
-                "devices": devices, "pages": pages, "ai": ai, "search": search, "bots": bots,
+                "devices": devices, "pages": pages, "ai": ai, "tiers": tiers, "search": search, "bots": bots,
                 "visits": len(self.visits), "newest": newest}
 
     def compare(self, stored: dict, same, problems: list) -> None:
@@ -210,6 +217,13 @@ class Recount:
         machines = part.get("machines") or {}
         _folded("real time: AI assistant requests,",
                 Counter(machines.get("answer_engines") or {}), got["ai"], same)
+        # SKALD-53: a snapshot from before the split has no tiers; nothing to recount.
+        if "answer_tiers" in machines:
+            kept = machines.get("answer_tiers") or {}
+            for tier, words in (("asked", "AI reading for someone"),
+                                ("training", "AI collecting for training")):
+                _folded(f"real time: {words} requests,", Counter(kept.get(tier) or {}),
+                        got["tiers"][tier], same)
         _folded("real time: search crawler requests,",
                 Counter(machines.get("search_engines") or {}), got["search"], same)
         same("real time: bot and scanner requests", int(machines.get("bots", 0)), got["bots"])

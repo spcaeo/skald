@@ -116,6 +116,9 @@ class Observer:
         self.requests: dict[int, Counter] = {}
         self.pages: Counter = Counter()
         self.ai: Counter = Counter()
+        # SKALD-53: the same AI requests by why they came (classify.Tier), so the
+        # card names them as AI & bots does: read for someone, or training.
+        self.tiers: dict[str, Counter] = {"asked": Counter(), "training": Counter()}
         self.search: Counter = Counter()
         self.bots = 0
 
@@ -130,7 +133,10 @@ class Observer:
             return
         group = verdict.group
         if group is Group.ANSWER_ENGINE:
-            self.ai[verdict.engine or "(unnamed)"] += 1
+            name = verdict.engine or "(unnamed)"
+            self.ai[name] += 1
+            tier = verdict.tier.value if verdict.tier else "training"
+            self.tiers.setdefault(tier, Counter())[name] += 1
         elif group is Group.SEARCH_ENGINE:
             self.search[verdict.engine or "(unnamed)"] += 1
         elif group is Group.BOTS:
@@ -262,6 +268,8 @@ def part(totals, observer: Observer, tz, minutes: int = MINUTES) -> dict:
         "pages": dict(dim.fold(observer.pages, TOP_PAGES)),
         "page_views": sum(observer.pages.values()),
         "machines": {"answer_engines": dict(dim.fold(observer.ai, TOP_NAMES)),
+                     "answer_tiers": {t: dict(dim.fold(c, TOP_NAMES))
+                                      for t, c in observer.tiers.items()},
                      "search_engines": dict(dim.fold(observer.search, TOP_NAMES)),
                      "bots": observer.bots},
         "newest": newest,

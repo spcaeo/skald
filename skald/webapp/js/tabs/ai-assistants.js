@@ -34,6 +34,7 @@ import { urlFold } from "../ui/fold.js";
 import { help } from "../ui/help.js";
 import { showAll } from "../ui/showall.js";
 import { readsOf, notYet, requestsWords, READ_WORDS } from "./ai-reads.js";
+import { aiSplit, filesWords, FILE_WORDS } from "./ai-split.js";
 
 const LEDE = "AI assistants at work for someone waiting on an answer: the pages they fetched for a question, the visitors who then came from their answers, and changes in how they read the site. Fetched is not read. Crawlers with nobody waiting (training, search, bots) are on Crawlers.";
 
@@ -68,10 +69,16 @@ function aiTiles(m, s, r, t) {
   const read = tile("Pages AI read for someone", x.known ? x.reads : null, bx?.known ? bx.reads : null,
     `Pages an assistant fetched because someone asked it a question just then. ${READ_WORDS} Fetched is not read by a person.`);
   read.line = h("span", { class: "t-c t-wrap" }, x.known ? requestsWords(x) : `${notYet(x)}; ${requestsWords(x)}`, read.line ? [" · ", read.line] : null);
+  // SKALD-49: pages, files beside them; requests when the range cannot split them.
+  const xs = aiSplit(t, "training"), bs = b ? aiSplit(b, "training") : null;
+  const train = xs
+    ? tile("AI collecting for training", xs.pages, bs ? bs.pages : null, `Pages fetched to train a model or feed AI search; nobody is waiting on these. Their other requests (${FILE_WORDS}) are counted apart as files. By name on Crawlers.`)
+    : tile("AI collecting for training", t.tiers?.training ?? null, b ? b.tiers?.training ?? null : null, "Requests made to train a model or feed AI search, pages and files together: not told apart for days before 18 Oct 2026. By name on Crawlers.");
+  train.line = h("span", { class: "t-c t-wrap" }, xs ? `pages · ${filesWords(xs, n)}` : "requests, pages and files together", train.line ? [" · ", train.line] : null);
   return h("section", { class: "s" }, tiles([
     tile("Visitors sent by AI", t.cited ?? null, b ? b.cited ?? null : null, "Visitors who followed a link in an AI assistant's answer, counted once per visitor. The true number is higher: many assistants hide the link they came from, and Google AI Overview clicks look like ordinary Google clicks."),
     read,
-    tile("AI collecting for training", t.tiers?.training ?? null, b ? b.tiers?.training ?? null : null, "Pages fetched to train a model or feed AI search; nobody is waiting on these. By name on Crawlers."),
+    train,
   ]));
 }
 
@@ -96,7 +103,7 @@ export default function assistants(m, s) {
   // Live: every AI event today so far, with its address.
   if (r.kind === "today") {
     out.push(h("section", { class: "s ai-feed" }, h("h2", null, "All AI activity today"),
-      h("p", { class: "sub" }, "Every assistant fetch and every visitor an assistant sent, newest first. Training crawls are listed too, marked as such."),
+      h("p", { class: "sub" }, "Every page an assistant fetched and every visitor an assistant sent, newest first. Training crawls are listed too, marked as such. Files (robots.txt, sitemaps, images, styles, scripts) are counted under the list, not listed."),
       notBuiltNote(m, "ai_activity", "Today's AI activity"), aiFeed(m, { limit: 6 })));
   }
   // The fold's open state is in the address (ai_view=open); the list's filter (arw) opens it too.

@@ -4,6 +4,8 @@
 // history), whether that visitor has been seen before, and how often.
 // An assistant's repeat requests for a page and the files the page loaded (styles,
 // scripts: `role` from ai_reads.py) fold under the read's own row, "with 2 files".
+// SKALD-49: pages only. Any other fetch (robots.txt, a sitemap, an image a crawler took on its
+// own) is not a row; the feed says how many it left out. AI & bots counts them as files.
 
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { h, n, clock, short, ICON } from "../ui.js";
@@ -14,6 +16,7 @@ import { assistantName } from "../labels.js";
 import { mark } from "../icons.js";
 import { withUrl, copyIf } from "../urlactions.js";
 import { foldReads, foldWords } from "./ai-reads.js";
+import { isPageFetch, FILE_WORDS } from "./ai-split.js";
 
 const KIND = { asked: "asked", training: "training", referred: "referred visitor" };
 const KIND_LONG = { asked: "Fetched to answer a question someone just asked", training: "Fetched to train or index", referred: "A visitor who came from this assistant" };
@@ -65,14 +68,19 @@ export function aiFeed(m, { limit = 12, globalCountry = "" } = {}) {
   const list = h("ul", { class: "feed" });
   const more = h("button", { type: "button", class: "btn more-rows" });
   const count = h("span", { class: "tbl-count", "aria-live": "polite" });
+  const left = h("p", { class: "note f-files" });
   const dl = h("button", { type: "button", class: "btn", html: ICON.download, "aria-label": "Download the AI activity as CSV" }, "CSV");
   let rows = events;
   const draw = () => {
     rows = events.filter((e) => (!st.name || e.name === st.name) && (!st.kind || e.kind === st.kind) && (!st.country || e.country === st.country));
-    const folded = foldReads(rows);
+    const all = foldReads(rows);
+    const folded = all.filter((it) => it.row.kind === "referred" || isPageFetch(it.row.path));
+    const files = all.filter((it) => !folded.includes(it)).reduce((a, it) => a + 1 + it.again + it.files.length, 0);
     list.replaceChildren(...folded.slice(0, st.shown).map(row));
-    if (!rows.length) list.append(h("li", { class: "empty" }, events.length ? "Nothing matches these filters." : "No assistant activity yet today."));
-    count.textContent = `${n(rows.length)} of ${n(events.length)} latest${file.today.total > events.length ? ` (${n(file.today.total)} today in all)` : ""}`;
+    if (!folded.length) list.append(h("li", { class: "empty" }, events.length ? (rows.length ? "Only files match these filters." : "Nothing matches these filters.") : "No assistant activity yet today."));
+    count.textContent = `${n(rows.length - files)} of ${n(events.length)} latest${file.today.total > events.length ? ` (${n(file.today.total)} today in all)` : ""}`;
+    left.textContent = files ? `${n(files)} file fetch${files === 1 ? "" : "es"} among these not listed (${FILE_WORDS}). They are counted as files, not pages.` : "";
+    left.hidden = !files;
     more.hidden = folded.length <= st.shown;
     more.textContent = `Show ${n(Math.min(20, folded.length - st.shown))} more`;
   };
@@ -84,6 +92,6 @@ export function aiFeed(m, { limit = 12, globalCountry = "" } = {}) {
   return h("div", null,
     h("div", { class: "feed-tools" }, sel("Assistant", names, "name", assistantName), sel("Kind", Object.keys(KIND), "kind", (k) => KIND[k]),
       sel("Country", countries, "country", (c) => withFlag(c, country(c))), h("span", { class: "grow", style: { flex: "1" } }), count, dl),
-    list, more,
+    list, more, left,
     h("p", { class: "note" }, "Addresses are shown on this private page only. They are read from today's log and never stored in history. Repeat means the same visitor (a keyed hash of the address and the assistant's name) was seen on an earlier day in the last 30."));
 }

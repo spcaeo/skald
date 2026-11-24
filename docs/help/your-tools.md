@@ -4,7 +4,7 @@ Skald counts from your server's log. Your other tools count in their own way: Go
 
 ## Where to find it
 
-- **Overview**, under **What changed**: the card **From your tools**, one line per tool you connected, with its key figures, the tool's own period and when it last answered. Owners and admins also see **Sources: Leads & tools**, which opens the group that feeds it. With no tool connected it is one quiet line, **From your tools: none connected**, with **Connect** (or, for a viewer, "Ask an admin to connect it").
+- **Overview**, under **What changed** on 7, 30 or 90 days, and at the foot of **Today**: the card **From your tools**, one line per tool you connected, with its key figures, the tool's own period and when it last answered. On Today it says so: these are the tool's own days, never today's. When the tool gave more than its totals, **All figures from <tool>** opens a drawer with every table it gave (in the address: `ytool=ga4`). Owners and admins also see **Sources: Leads & tools**, which opens the group that feeds it. With no tool connected it is one quiet line, **From your tools: none connected**, with **Connect** (or, for a viewer, "Ask an admin to connect it").
 - **Settings › This site › Leads & tools**, in the group **Your own tools**: each tool is a row with its state (Connected, Waiting, Failing, Not connected), when it last answered and one action. Open the row for its details: where its key is kept, its settings and one main button (**Sync now**, or **Save** once you change a setting). **Pause** and **Remove the key** sit in a quieter row under it. In the address: `tool=your-<tool>`, such as `tool=your-ga4`.
 
 Only owners and admins of the site connect or change a tool. Anyone on the site sees the figures on Overview.
@@ -23,11 +23,14 @@ Skald asks the tool within a few minutes, then every 6 hours, at a lower priorit
 
 ## Google Analytics
 
-Skald reads your Google Analytics 4 property, read-only, every 6 hours:
+Skald reads your Google Analytics 4 property, read-only, every 6 hours, over the property's own last 28 whole days, in the property's own time zone:
 
-- **Sessions**, **Users**, **Engaged sessions** and **Key events** over the property's own last 28 whole days, in the property's own time zone.
-- The **top 10 landing pages** and the **top 10 sources** (source / medium), with their sessions and key events.
+- **Totals**: **Sessions**, **Users**, **New users**, **Engaged sessions**, **Engagement rate** (engaged sessions out of all), **Average session** (time), **Views**, **Key events** and **Sessions with a key event** (a share of all sessions).
+- **The 28 days before**, the same totals, so each figure says how it changed: a count in percent (**▲ +12%**), a share in points (**+2.4 pts**, from 54.4% to 56.8%). Nothing before, or not given: no change shown.
+- The **top 10** of each: **channels** (Google's default channel groups: Organic Search, Direct, Referral...), **sources** (source / medium), **landing pages**, **devices**, **countries**, each with its sessions and key events; and **events**, key events first, then the most fired, with each event's key events and count.
 - What Google said about its answer: **Thresholded** (Google hid some small numbers), **Sampled** (Google counted part of the data), or rows folded into "(other)". Skald shows it beside the figures.
+
+**Where it shows.** On Overview's **From your tools**, the line **Google Analytics** has Sessions, Users, New users, Engagement rate, Average session and Key events, each with its change. **All figures from Google Analytics** opens the drawer: the totals beside the 28 days before, then each table in Google's own order, each row with its share of Google's own total (the rows are the top 10, so they may add up to less). The Monday marketing mail and the AI assistant's `your_tools` say the same figures the same way.
 
 Users are Google's own total for the 28 days. Skald never adds up users across days or rows.
 

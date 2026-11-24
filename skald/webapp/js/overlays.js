@@ -151,6 +151,8 @@ const RESTORE = {
   lines: async (v) => (await import("./tabs/agent-many.js")).openLinesKey(v),
   // Settings › Leads & tools: one tool's details, or Send each lead out, Search Console, Every check.
   tool: async (v, m) => (await import("./tabs/set-leads.js")).openToolKey(v, m),
+  // SKALD-55: Overview's From your tools, one tool's figures in full (js/tabs/ov-tools-drawer.js).
+  ytool: async (v) => (await import("./tabs/ov-tools-drawer.js")).openToolKey(v),
   // 2.43: recorded journeys, a session the site sent (rj) and Connect (rjc) (js/tabs/recorded.js).
   rj: async (v, m) => (await import("./tabs/recorded.js")).openSessionKey(v, m),
   rjc: async (v, m) => (await import("./tabs/recorded.js")).openConnectKey(v, m),

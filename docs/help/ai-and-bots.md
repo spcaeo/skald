@@ -21,6 +21,18 @@ When an assistant fetches a page for someone, it may ask for the page twice in a
 
 **Pages AI read for someone**, **Which assistant read for someone**, the assistants table (its **Reads** column; the column once called Fetches is now **Requests**), the chart per day, Overview's AI card, **AI reads** on Traffic › Pages, **Reads followed by a visit**, AI answers' "From an answer to a lead", the client reports and the daily mail count reads, and show the requests as the second, smaller number. Request figures (status, bytes, cost) still count every request. Days collected before reads were counted say **Reads counted from** and the first day that has them; they never show 0.
 
+## Pages, and files counted apart
+
+A crawler collecting for training does not only fetch pages. It also asks for robots.txt, sitemaps and llms.txt, and often for images, style sheets and scripts on their own, with no page around them. Every one of those is a request in the server's log. So that a page count is a page count:
+
+- **AI collecting for training** (on Assistants, on Crawlers and in Overview's **Who else came**) is **pages fetched**. The other requests are one number beside it: "+ 63 files (robots.txt, sitemaps, llms.txt, images, styles and scripts)".
+- **AI collecting for training, by name** on Crawlers has a **Pages** column and a **Files** column. A crawler that only fetched robots.txt or files still has its row, with 0 pages. Share is the share of pages.
+- The chart per day on Crawlers counts pages.
+- **All AI activity today** lists pages only. Under the list it says how many file fetches it left out. The CSV keeps every row.
+- Pages plus files is exactly the requests. **What they fetch** under **Open the details** breaks the files down: robots.txt, sitemaps, llms.txt, Markdown, text and other files.
+
+The address decides, not what the server answered: a request for a page's address that was redirected or not found is still a page. Days counted before 18 October 2026 did not keep pages and files apart. A period that includes one shows **requests**, pages and files together, never a page count of some of the days.
+
 What a read means for each assistant (also behind **?** in its detail):
 
 | Fetcher | It fetches a page when |

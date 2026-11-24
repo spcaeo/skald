@@ -51,6 +51,7 @@ def tools(config: dict, folder, site: str, now: datetime) -> list[dict]:
 
 def _tool_lines(t: dict) -> tuple[list[tuple[str, str]], str]:
     """(label, value) rows and the note under them."""
+    from .yourtools import api
     if t.get("withheld"):
         return [], t["withheld"]
     period = t.get("period") or {}
@@ -64,7 +65,8 @@ def _tool_lines(t: dict) -> tuple[list[tuple[str, str]], str]:
                          else "Not answering yet."),
              "waiting": "Waiting for its first answer.",
              "no_key": "Needs its key."}.get(state, t.get("words", ""))
-    rows = [(h["label"], _value(h["value"])) for h in t.get("headline") or []]
+    rows = [(h["label"], api.shown(h["value"], h.get("unit")) if h.get("unit") else _value(h["value"]))
+            for h in t.get("headline") or []]
     return rows, " ".join(x for x in (f"The tool's own period: {when}." if when else "", fresh,
                                       "Never added to Skald's figures.") if x)
 

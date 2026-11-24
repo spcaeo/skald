@@ -4,6 +4,92 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.57.0 (2026-11-24)
+
+Google Analytics on Overview › Today, with more of its own figures and a drawer with every
+table (SKALD-55); AI training figures count pages, with files apart (SKALD-49); Overview's AI
+card split the way AI & bots names it (SKALD-53); and a compact Requests per minute chart
+(SKALD-48).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount: no stored figure changes. Google Analytics' new
+  figures arrive with each site's next sync (every 6 hours; 8 read-only calls instead of 3),
+  and the answers kept before still pass `tools audit`. Overview's AI card shows one list
+  until the next live run (about 30 seconds).
+
+### Added
+
+- **Google Analytics: on Overview › Today, with more of its own figures (SKALD-55).** Google
+  Analytics' figures showed only at the foot of Overview on 7, 30 or 90 days, as three numbers;
+  the landing pages and sources Skald already read were never drawn. **From your tools** is now
+  on Today too (saying these are the tool's own days, never today's). Skald now also asks
+  Google Analytics for new users, views, engagement rate, average session time and the share
+  of sessions with a key event; the same totals over the 28 days before, so each figure shows
+  its change (a share in points); and its top channels, devices, countries and events (key
+  events first). **All figures from Google Analytics** opens a drawer (`ytool=ga4`) with the
+  totals beside the 28 days before and every table in Google's own order, each row with its
+  share of Google's own total. Every figure is still Google's, labelled so, rechecked by
+  `ti.py tools audit`, and never added to Skald's counts. Eight read-only calls every 6 hours
+  instead of three. The recheck now judges each stored answer by what Skald asked for then,
+  so the answers kept before the upgrade still match. The Monday marketing mail and MCP's
+  `your_tools` say a share as a percent and a time in minutes. Affects every site with Google
+  Analytics connected; nothing to do: the new figures come with the next sync.
+
+### Fixed
+
+- **AI & bots: "AI collecting for training" counts pages, with files apart (SKALD-49).** The
+  figure said "pages fetched" but counted every request a training crawler made: robots.txt,
+  sitemaps, images, styles and scripts too. On one site on 22 Nov it showed 1,522: 789 pages
+  and 733 files (628 images, styles and scripts, 54 Markdown, 41 robots.txt, 10 sitemaps).
+  ClaudeBot alone made 175 requests there that day, 27 of them pages. The figure is now **pages**, with "+ N files" beside it, on Assistants, Crawlers
+  and Overview's **Who else came**. **AI collecting for training, by name** has **Pages** and
+  **Files** columns, the chart per day counts pages, and **All AI activity today** lists pages
+  only and says how many file fetches it left out. The split comes from `ai_formats` (stored
+  since 18 Oct 2026, recounted by `audit_ai_formats.py`): pages + files is exactly the requests,
+  so no new count and no audit change. A period with a day before 18 Oct shows **requests**, as
+  before but named so. With Compare on, a compared day before 18 Oct is no point on the dashed line, never
+  0 pages. People's figures never counted files and are unchanged. Affects
+  everyone who reads AI & bots; nothing to do. Checked with tests (the split, the figures, the
+  table, the tile, the feed, and the page rule in the browser matching the server's) and on a
+  local Skald with crawler traffic.
+
+- **AI & bots: alignment and spacing in the bot drawer and on Assistants (SKALD-49).** In a
+  bot's drawer, **Back** sat 5px below the breadcrumbs, a request's path sat 3px above the
+  rest of its line ("200 GET /favicon.ico AI page file: ..."), the gap under "Open in
+  Crawlers" and under the first figures was 44px instead of 26px, the rows of figures did not
+  line up, and "User agents it sent" touched the cards above it. On Assistants, "All AI
+  activity today" began on the edge of the "pages AI can't read well" card. The drawer's
+  breadcrumbs were cut at 260px ("Claude-User user fetc..."): they now show the whole name up
+  to 80 characters, and a longer one ends in "…" with the whole name on hover
+  (`drillview.js` `crumbWords`). When every request listed in a drawer has the same label
+  ("AI training: GPTBot"), it is said once above the list instead of on each row. In a bot's
+  own drawer, whose title already names it, rows with different labels keep only their kind
+  ("AI asked", "AI page file") without the name; in any other drawer (a page's) every row keeps
+  its whole label, which says who made it (`sharedRule`). Checked in Chrome on a local Skald, measured before and
+  after, light and dark; the 80-character rule has a test.
+- **Overview, AI and crawlers now: AI split the way AI & bots names it (SKALD-53).** The card
+  listed every AI crawler under "AI assistants", so a training crawl (PerplexityBot fetching
+  11 pages on 23 Nov) looked like an assistant answering someone, while AI & bots > Crawlers
+  called the same fetches "AI collecting for training". The card now has two lists, **AI reading
+  for someone** and **AI collecting for training**, from the same tier the AI & bots tabs use.
+  The live snapshot carries the split (`machines.answer_tiers`) beside the old list, and
+  `audit --live` recounts each list on its own road. A snapshot from before the upgrade shows
+  one list headed "AI assistants and AI crawlers" until the next live run (30 seconds). Affects
+  everyone who reads Overview; nothing to do. No count changed. Checked with tests (the split,
+  an audit catching a moved crawler, the card with both lists, one empty and an old snapshot).
+- **Overview: "Requests per minute" is compact again (SKALD-48).** On Overview (Today) the chart
+  stood about 300px high, with axis numbers and times about twice the dashboard's text size. It was
+  drawn for half the page's width, as on the Real time tab where it sits beside the visitors chart,
+  but on Overview it is alone and spans the row, so the browser stretched it. It is now drawn for
+  the width it is shown at: 120px high when alone, 150px beside the visitors chart, axis text at
+  11px. A line beside its title gives the window's requests, the busiest minute and the average a
+  minute (finished minutes only). Its bars are the sky blue of Right now's minute bars, not grey
+  (the running minute paler). Same data, same 15-second refresh. Affects everyone who opens
+  Overview; nothing to do. Checked by tests/js/rpm-chart.mjs (fails on the old drawing) and in a
+  local Skald on a wide screen.
+
 ## 2.56.1 (2026-11-23)
 
 Two fixes after 2.56.0: a missing picture under a site's own asset folder no longer makes the
@@ -14,8 +100,8 @@ failure mail that calls it a crash (SKALD-46).
 
 - **Back up first** (`docker exec skald skald backup`).
 - No schema change, no setting. The count itself did not change, only the audit's recount.
-  A day the audit withheld for this reason is counted again with `backfill --day <day> --force`,
-  then checked with `audit --day <day>`.
+  A day the audit withheld for this reason is counted again with `collect --day <day>`
+  (only that day), then checked with `audit --day <day>`.
 
 ### Changes
 
@@ -28,7 +114,7 @@ failure mail that calls it a crash (SKALD-46).
   rows that follow them disagreed. The recount now treats a request under an own asset folder as
   a drawing only, as the count always did. Who: sites that name asset folders whose files a bot
   asks for under a broken name. What to do: nothing; recount a withheld day after the upgrade
-  (`backfill --day <day> --force`, then `audit --day <day>`). Checked: a test with the live
+  (`collect --day <day>`, then `audit --day <day>`). Checked: a test with the live
   lines' shape fails before and passes after; the fixed recount on the live 21 Nov day matches.
 - **The failure mail no longer calls a withheld day a crash** (SKALD-46). Each site writes its
   run record when it ends, and the mail took a record older than 15 minutes for none at all; a

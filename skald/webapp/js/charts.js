@@ -112,6 +112,17 @@ function slots(el, items, describe) {
   rove(items);  // one Tab stop per chart; the arrow keys move between its slots
 }
 
+/* The previous period's total under each day, or null where there is none. A compared day
+   every series calls not known (null: e.g. no page/file split before 18 Oct 2026, SKALD-49)
+   leaves the line, never drawn as 0. */
+export function ghostValues(days, series, prev) {
+  return days.map((d) => {
+    const p = d.state === "before" ? null : prev(d);
+    if (!p || series.every((x) => x.get(p) === null)) return null;
+    return series.reduce((s, x) => s + (x.get(p) || 0), 0);
+  });
+}
+
 /* Columns per day, stacked by series.
    days: [{day, state: ok|partial|withheld|missing|before, partial?: "from 14:05", ...}]
    series: [{name, color, get(day) -> number}] */
@@ -121,7 +132,7 @@ export function columns(days, series, { label, H = 250, unit = "requests", onPic
   const drawn = days.filter((d) => d.state === "ok" || d.state === "partial");
   const sumOf = (d) => series.reduce((s, x) => s + (x.get(d) || 0), 0);
   // The previous period, as one dashed line of its totals over the columns.
-  const ghost = prev ? days.map((d) => { const p = d.state === "before" ? null : prev(d); return p ? sumOf(p) : null; }) : null;
+  const ghost = prev ? ghostValues(days, series, prev) : null;
   const top = Math.max(0, ...drawn.map(sumOf), ...(ghost || []).filter((v) => v != null));
   const f = frame({ top, days, H, L, R, T, B });
   const hid = `h${++uid}`, out = [hatchDef(hid), f.svg, markLines(days, L, T, f.ph, f.slot)];

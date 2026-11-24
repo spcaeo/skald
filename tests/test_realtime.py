@@ -94,6 +94,9 @@ class TestSnapshotPart(Case):
         self.assertEqual(rt["page_views"], 5)
         self.assertEqual(rt["pages"]["/"], 2)
         self.assertEqual(rt["machines"]["answer_engines"], {"GPTBot": 1, "ChatGPT-User": 1})
+        # SKALD-53: the same AI split by why it came, as AI & bots names them.
+        self.assertEqual(rt["machines"]["answer_tiers"],
+                         {"asked": {"ChatGPT-User": 1}, "training": {"GPTBot": 1}})
         self.assertEqual(sum(rt["machines"]["search_engines"].values()), 1)
         self.assertEqual(rt["machines"]["bots"], 1)
 
@@ -180,6 +183,20 @@ class TestAudit(Case):
         self.assertIn("visits under way", err)
         self.assertIn("visits today from FR", err)
         self.assertIn("bot and scanner requests", err)
+
+    def test_ai_tier_tampered(self):
+        """SKALD-53: the card's two AI lists are recounted on their own: a
+        training crawl moved into "reading for someone" is caught."""
+        self.live()
+        code, _, err = self.audit()
+        self.assertEqual(code, 0, err)
+
+        def move(rt):
+            rt["machines"]["answer_tiers"] = {"asked": {"ChatGPT-User": 1, "GPTBot": 1}, "training": {}}
+        code, _, err = self.tamper(move)
+        self.assertEqual(code, 1)
+        self.assertIn("AI reading for someone requests, GPTBot", err)
+        self.assertIn("AI collecting for training requests,", err)
 
     def test_tail_recounted(self):
         self.live()

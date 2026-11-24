@@ -111,11 +111,33 @@ class Node(unittest.TestCase):
         read beside them; the drill-down narrowing the list, and its line when it cannot."""
         self.assertIn("live-doing: all passed", self.run_js("live-doing.mjs"))
 
+    def test_ai_pages_and_files(self):
+        """SKALD-49: AI collecting for training is pages, with files (robots.txt, sitemaps,
+        images, styles, scripts) counted apart; requests where the range cannot split them;
+        the AI feed lists pages only and counts what it left out."""
+        self.assertIn("ai-pages-files: all passed", self.run_js("ai-pages-files.mjs"))
+
     def test_right_now_card(self):
         """Overview (#43): Right now on top. The people on the site now, the page each is on,
         New / Returning / Lead / Customer, time on the site, the count's age, the fold for the
         rest, and Refresh now running the recount."""
         self.assertIn("right-now: all passed", self.run_js("right-now.mjs"))
+
+    def test_requests_per_minute_is_drawn_for_its_width(self):
+        """SKALD-48: Requests per minute is drawn for the width it is shown at (half only beside
+        the visitors chart), 120px high when alone, with its figures in one line."""
+        self.assertIn("rpm-chart: all passed", self.run_js("rpm-chart.mjs"))
+
+    def test_ai_card_split_by_tier(self):
+        """SKALD-53: Overview's AI and crawlers now names AI as AI & bots does: reading for
+        someone, or collecting for training; a snapshot from before the split still shows."""
+        self.assertIn("ai-card-tiers: all passed", self.run_js("ai-card-tiers.mjs"))
+
+    def test_google_analytics_figures_card_and_drawer(self):
+        """SKALD-55: Google Analytics' figures read as GA means them (a share, seconds), each
+        with its change against GA's own 28 days before; the card on Today too; the drawer
+        (ytool=ga4) with the totals and every table, each row's share of GA's own total."""
+        self.assertIn("ga-figures: all passed", self.run_js("ga-figures.mjs"))
 
     def test_security_sums_verdict_addresses_block_list_and_tabs(self):
         """Security (2.21): the period's sums, the verdict, rows joined to addresses (an admin

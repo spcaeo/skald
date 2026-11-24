@@ -16,7 +16,10 @@ every answer kept in `yourtools.sqlite` (by its own SQL):
   3. Google Analytics answers (tool "ga4"), recounted whole: from the answer's
      own headers and rows, every metric of names.GA4_REPORTS the answer holds
      gives exactly one figure per row (and per total), and no figure is shown
-     that the answer does not hold. A total GA4 did not give is NULL.
+     that the answer does not hold. A total GA4 did not give is NULL. "Asked"
+     is the stored request's metrics (SKALD-55): an answer kept before Skald
+     asked for more is judged by what it asked then, and a metric outside
+     names.GA4_REPORTS is a problem.
      Vercel (visits/count's two figures, each aggregate row's two), Calendly
      (names.py's CALENDLY_* counting rules over the meetings and invitees the
      answer holds) and Resend (contacts, each segment's, the emails' states) are
@@ -139,12 +142,25 @@ def _by_pointer(body, fig: dict, where: str, problems: list, counted: bool = Fal
             problems.append(f"{label}: shown as {want!r}, the answer says {got!r}")
 
 
-def _ga4(body: dict, report: str, figs: list[dict], where: str, problems: list) -> None:
+def _asked(request, metrics: tuple, where: str, problems: list) -> tuple:
+    """The metrics the stored request asked GA4 for (names.GA4_REPORTS when it names
+    none); one Skald never asks for is a problem."""
+    named = [str((m or {}).get("name") or "") for m in (request or {}).get("metrics") or []
+             if isinstance(m, dict)] if isinstance(request, dict) else []
+    for metric in named:
+        if metric not in metrics:
+            problems.append(f"{where}: Skald never asks GA4 for {metric!r}")
+    return tuple(m for m in named if m in metrics) or metrics
+
+
+def _ga4(body: dict, report: str, figs: list[dict], where: str, problems: list,
+         request=None) -> None:
     """Check 3: GA4's answer recounted whole, by its own reading of runReport."""
     if report not in GA4_REPORTS:
         problems.append(f"{where}: Skald never asks GA4 for a {report!r} report")
         return
     dims, metrics = GA4_REPORTS[report]
+    metrics = _asked(request, metrics, where, problems)
     heads = [str((m or {}).get("name") or "") for m in body.get("metricHeaders") or []]
     names = [str((d or {}).get("name") or "") for d in body.get("dimensionHeaders") or []]
     if names and tuple(names) != tuple(dims):
@@ -298,6 +314,14 @@ def _resend(body: dict, report: str, figs: list[dict], where: str, problems: lis
 
 RECOUNTS = {"ga4": _ga4, "vercel": _vercel, "calendly": _calendly, "resend": _resend}
 COUNTED = ("calendly", "resend")        # figures that are counts of the answer's records
+ASKED = ("ga4",)                        # recounted by what the stored request asked for
+
+
+def _json(text):
+    try:
+        return json.loads(text) if text else None
+    except ValueError:
+        return None
 
 
 def webhook_match(conv_path, site: str, uris) -> int | None:
@@ -328,11 +352,11 @@ def check(history_folder, site: str, tool: str | None = None) -> dict:
         return {}
     out: dict = {}
     try:
-        sql = "SELECT id, tool, report, period, body, sha256 FROM answers WHERE site = ?"
+        sql = "SELECT id, tool, report, period, body, sha256, request FROM answers WHERE site = ?"
         args: tuple = (site,)
         if tool:
             sql, args = sql + " AND tool = ?", (site, tool)
-        for aid, name, report, period, text, sha in db.execute(sql + " ORDER BY id", args):
+        for aid, name, report, period, text, sha, asked in db.execute(sql + " ORDER BY id", args):
             part = out.setdefault(name, {"ok": True, "problems": [], "answers": 0,
                                          "figures": 0, "shas": []})
             part["answers"] += 1
@@ -352,7 +376,8 @@ def check(history_folder, site: str, tool: str | None = None) -> dict:
                 _by_pointer(body, fig, where, problems, counted=name in COUNTED)
             if name in RECOUNTS and isinstance(body, dict):
                 try:
-                    RECOUNTS[name](body, report, figs, where, problems)
+                    extra = {"request": _json(asked)} if name in ASKED else {}
+                    RECOUNTS[name](body, report, figs, where, problems, **extra)
                 except (ValueError, TypeError, AttributeError, IndexError) as why:
                     problems.append(f"{where}: the answer cannot be recounted "
                                     f"({type(why).__name__})")

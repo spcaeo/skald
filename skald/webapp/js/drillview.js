@@ -98,13 +98,25 @@ function series(dim, v) {
   return null;
 }
 
+// SKALD-49 (Palak): a crumb shows its whole name up to CRUMB_MAX characters; a longer one is
+// cut there with "…", and the whole name is its hover title. Never cut by width.
+export const CRUMB_MAX = 80;
+export function crumbWords(text, max = CRUMB_MAX) {
+  const t = String(text);
+  return [...t].length > max ? { text: `${[...t].slice(0, max - 1).join("").trimEnd()}…`, title: t } : { text: t, title: null };
+}
+
 function crumbs(m, s, chain) {
   const tab = S.nameOf(s.tab);
   const nav = h("nav", { class: "crumbs", "aria-label": "Drill-down trail" },
     h("ol", null, h("li", null, h("button", { type: "button", class: "crumb", onclick: closeDrill }, tab)),
-      chain.map(([d, v], i) => h("li", null, i === chain.length - 1
-        ? h("span", { class: "crumb now", "aria-current": "page" }, `${DIMS[d].name}: `, label(d, v))
-        : h("button", { type: "button", class: "crumb", title: d === "country" ? titled(d, v) : null, onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, `${DIMS[d].name}: ${said(d, v)}`)))));
+      chain.map(([d, v], i) => {
+        const w = crumbWords(`${DIMS[d].name}: ${said(d, v)}`);
+        return h("li", null, i === chain.length - 1
+          // The current step keeps its icon and kind ("user fetcher") while it fits.
+          ? h("span", { class: "crumb now", "aria-current": "page", title: w.title }, ...(w.title ? [w.text] : [`${DIMS[d].name}: `, label(d, v)]))
+          : h("button", { type: "button", class: "crumb", title: w.title || (d === "country" ? titled(d, v) : null), onclick: () => S.set({ dd: encode(chain.slice(0, i + 1)) }) }, w.text));
+      })));
   return nav;
 }
 
@@ -147,6 +159,18 @@ function visitList(js) {
 }
 const visitRowOf = (j, li) => { drillRow(li, () => openVisitor(j)); return li; };
 
+// SKALD-49 (Palak): a rule reads "<kind>: <name>" ("AI training: GPTBot", "AI asked: Claude-User").
+//   every listed rule the same -> said once above the list; rows say nothing more
+//   the drawer is the bot's own (`bot`, its title names it) -> rows keep only their kind
+//   ("AI asked", "AI page file"), the name is not repeated on each one
+//   otherwise (or one row)      -> each row its whole rule
+export function sharedRule(items, bot = "") {
+  const rules = items.map((it) => it.row.rule || "");
+  const kindOf = (r) => { const i = r.indexOf(": "); return i > 0 && r.slice(i + 2) === bot ? r.slice(0, i) : r; };
+  if (items.length > 1 && rules.every(Boolean) && new Set(rules).size === 1) return { head: rules[0], row: () => "" };
+  return { head: null, row: bot ? kindOf : (r) => r };
+}
+
 function requestPart(m, s, chain, holder) {
   if (chain.some(([d]) => d === "city")) { holder.replaceChildren(h("p", { class: "empty" }, "The request log carries no city; the visits above do.")); return; }
   holder.replaceChildren(h("p", { class: "empty" }, "Loading the recent requests…"));
@@ -163,15 +187,18 @@ function requestPart(m, s, chain, holder) {
       ["bot", "Agents", (r) => (r.group !== "people" && r.group !== "ours" ? r.agent : "")], ["country", "Countries", (r) => r.country]].filter(([d]) => !has.has(d));
     const toTab = { ip: "ip", path: "path", country: "country", device: "device", browser: "browser", referrer: "referrer", campaign: "campaign", source: "source" };
     const patch = { tab: "site/requests", dd: "", ...Object.fromEntries(chain.filter(([d]) => toTab[d]).map(([d, v]) => [toTab[d], v])) };
+    const shown = foldReads(rows.map((x) => ({ ...x, role: x.ai_role, of: x.ai_of })), (x) => x.agent).slice(0, 12);
+    const same = sharedRule(shown, (chain.find(([d]) => d === "bot") || [])[1] || "");
     holder.replaceChildren(
       h("p", { class: "sub" }, `${n(rows.length)} of the ${n(f.rows.length)} requests kept from ${tzTime(f.from, { label: false })} to ${tzTime(f.until)}.`),
       band(parts, rows.length, false),
       h("ul", { class: "legend", style: { marginTop: "8px" } }, parts.map((x) => h("li", null, h("span", { class: "sw", style: { background: x.color } }), `${x.name} ${n(x.value)}`))),
       h("div", { class: "cols three", style: { marginTop: "14px" } }, lists.map(([d, title, get]) => { const r = count(get); return r.length ? panel(title, null, blist(r, { drill: d, from: "drill", limit: 6, color: "var(--g-bots)" })) : null; })),
+      ...(same.head ? [h("p", { class: "dd-rule" }, "Every request below: ", h("b", null, same.head))] : []),
       // An assistant's repeat requests and the files its page loaded fold under the read (ai-reads.js).
-      h("ul", { class: "stream" }, foldReads(rows.map((x) => ({ ...x, role: x.ai_role, of: x.ai_of })), (x) => x.agent).slice(0, 12).map((it) => { const r = it.row; return h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
+      h("ul", { class: "stream" }, shown.map((it) => { const r = it.row; return h("li", null, h("span", { class: "s-t" }, tzTime(r.at, { seconds: true, label: false })),
         h("span", { class: "s-d", style: { background: color(r.group) }, "aria-hidden": "true" }),
-        h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), ` ${r.rule}${foldWords(it)}`,
+        h("span", { class: "s-w" }, `${r.status} ${r.method || ""} `, link("path", r.path, { from: "drill" }), same.row(r.rule || "") ? ` ${same.row(r.rule || "")}` : "", foldWords(it),
           it.files.length ? h("small", { class: "dd-files" }, it.files.map((f, i) => [i ? ", " : "", `${f.status} ${f.path}`])) : null,
           h("small", null, r.ip && r.ip !== "(removed)" ? copyIf("ip", link("ip", r.ip, { from: "drill" }), r.ip, { label: "address" }) : "", r.country ? [" ", label("country", r.country)] : ""))); })),
       h("button", { type: "button", class: "btn", onclick: () => S.set(patch) }, "Open these in the Requests tab"));
