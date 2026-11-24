@@ -41,7 +41,7 @@ from ..auth_api import answer, csrf_ok, read_json, text
 from ..conversions import secrets_store
 from . import adapters, conn, get, keys, store
 from .base import BadKey
-from .names import COUNTED_FROM, TOOL_FLAGS
+from .names import COUNTED_FROM, TOOL_FLAGS, TOOL_REPORTS, TOOL_UNITS
 
 PATH = re.compile(base.PAGE + r"(?P<act>integrations/yourtools"
                               r"(?:/(?:figures|key|set|pause|remove|sync))?)$")
@@ -121,8 +121,27 @@ def _flags(flags: dict) -> list[str]:
 
 
 def _figure(f: dict) -> dict:
-    return {"name": f["name"], "label": f["label"] or f["name"], "dim": f["dim"],
-            "value": f["value"]}
+    """A figure for the screen: its unit when it is not a plain count (a share, seconds:
+    names.TOOL_UNITS) and its row's place in the tool's own order (SKALD-55)."""
+    out = {"name": f["name"], "label": f["label"] or f["name"], "dim": f["dim"],
+           "value": f["value"], "rank": f.get("rank")}
+    if f["name"] in TOOL_UNITS:
+        out["unit"] = TOOL_UNITS[f["name"]]
+    return out
+
+
+def shown(value, unit: str | None = None) -> str:
+    """A tool's figure in words, as every screen and mail says it (SKALD-55): a share
+    as a percent (0.568 is 56.8%), seconds as minutes and seconds, a count with its
+    commas; nothing given is "Not given", never 0."""
+    if value is None:
+        return "Not given"
+    if unit == "share":
+        return f"{value * 100:.1f}%"
+    if unit == "seconds":
+        whole = int(round(value))
+        return f"{whole // 60}m {whole % 60:02d}s" if whole >= 60 else f"{whole}s"
+    return f"{value:,.0f}" if float(value).is_integer() else f"{value:,.2f}"
 
 
 def tool_view(config: dict, folder, site: str, tool: str, part: dict, db, admin: bool,
@@ -149,7 +168,8 @@ def tool_view(config: dict, folder, site: str, tool: str, part: dict, db, admin:
     totals = []
     for r in got:
         figs = [_figure(f) for f in r["figures"]]
-        out["reports"][r["report"]] = {"start": r["start"], "end": r["end"], "note": r["note"],
+        out["reports"][r["report"]] = {"title": TOOL_REPORTS.get(r["report"], r["report"]),
+                                       "start": r["start"], "end": r["end"], "note": r["note"],
                                        "fetched_at": r["fetched_at"],
                                        "flags": _flags(r["flags"]), "figures": figs}
         if r["report"] == "totals":
@@ -157,8 +177,14 @@ def tool_view(config: dict, folder, site: str, tool: str, part: dict, db, admin:
     from .base import Figure
     picked = adapter.headline([Figure(name=f["name"], value=f["value"], label=f["label"],
                                       dim=f["dim"]) for f in totals])
-    out["headline"] = [{"name": f.name, "label": f.label or f.name, "value": f.value}
+    out["headline"] = [{"name": f.name, "label": f.label or f.name, "value": f.value,
+                        **({"unit": TOOL_UNITS[f.name]} if f.name in TOOL_UNITS else {})}
                        for f in picked]
+    # SKALD-55: the same totals over the days before ("previous"), for each figure's change.
+    before = out["reports"].get("previous")
+    if before:
+        out["before"] = {f["name"]: f["value"] for f in before["figures"] if f["dim"] is None}
+        out["before_period"] = {"start": before["start"], "end": before["end"]}
     first = out["reports"].get("totals") or next(iter(out["reports"].values()), None)
     if first:
         out["period"] = {"start": first["start"], "end": first["end"], "note": first["note"]}

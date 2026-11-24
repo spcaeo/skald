@@ -1,15 +1,20 @@
 {
-  "_about": "Recorded-shape answers of the Google Analytics Data API v1beta runReport, one per report Skald asks for (yourtools/tool_ga4.py). Made up for tests: sample figures, sample pages and sources, no real property.",
+  "_about": "Recorded-shape answers of the Google Analytics Data API v1beta runReport, one per report Skald asks for (yourtools/tool_ga4.py). Made up for tests: sample figures, sample pages and sources, no real property. SKALD-55 added previous (the 28 days before), channels, devices, countries and events, and the totals' new metrics, in the same recorded shape (made-up values).",
   "totals": {
     "dimensionHeaders": [],
     "metricHeaders": [
       {"name": "sessions", "type": "TYPE_INTEGER"},
       {"name": "totalUsers", "type": "TYPE_INTEGER"},
+      {"name": "newUsers", "type": "TYPE_INTEGER"},
       {"name": "engagedSessions", "type": "TYPE_INTEGER"},
-      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+      {"name": "engagementRate", "type": "TYPE_FLOAT"},
+      {"name": "averageSessionDuration", "type": "TYPE_SECONDS"},
+      {"name": "screenPageViews", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"},
+      {"name": "sessionKeyEventRate", "type": "TYPE_FLOAT"}
     ],
     "rows": [
-      {"metricValues": [{"value": "1234"}, {"value": "980"}, {"value": "701"}, {"value": "37"}]}
+      {"metricValues": [{"value": "1234"}, {"value": "980"}, {"value": "812"}, {"value": "701"}, {"value": "0.5680713128"}, {"value": "94.27"}, {"value": "3105"}, {"value": "37"}, {"value": "0.0218800648"}]}
     ],
     "rowCount": 1,
     "metadata": {"currencyCode": "USD", "timeZone": "America/New_York", "subjectToThresholding": true},
@@ -61,6 +66,104 @@
       {"name": "keyEvents", "type": "TYPE_FLOAT"}
     ],
     "metadata": {"currencyCode": "USD", "timeZone": "Europe/Berlin"},
+    "kind": "analyticsData#runReport"
+  },
+  "previous": {
+    "dimensionHeaders": [],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "totalUsers", "type": "TYPE_INTEGER"},
+      {"name": "newUsers", "type": "TYPE_INTEGER"},
+      {"name": "engagedSessions", "type": "TYPE_INTEGER"},
+      {"name": "engagementRate", "type": "TYPE_FLOAT"},
+      {"name": "averageSessionDuration", "type": "TYPE_SECONDS"},
+      {"name": "screenPageViews", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"},
+      {"name": "sessionKeyEventRate", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"metricValues": [{"value": "1100"}, {"value": "901"}, {"value": "760"}, {"value": "598"}, {"value": "0.5436363636"}, {"value": "88.4"}, {"value": "2890"}, {"value": "29"}, {"value": "0.0190909091"}]}
+    ],
+    "rowCount": 1,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York"},
+    "kind": "analyticsData#runReport"
+  },
+  "channels": {
+    "dimensionHeaders": [{"name": "sessionDefaultChannelGroup"}],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "Organic Search"}], "metricValues": [{"value": "610"}, {"value": "21"}]},
+      {"dimensionValues": [{"value": "Direct"}], "metricValues": [{"value": "402"}, {"value": "9"}]},
+      {"dimensionValues": [{"value": "Referral"}], "metricValues": [{"value": "121"}, {"value": "4"}]},
+      {"dimensionValues": [{"value": "Organic Social"}], "metricValues": [{"value": "64"}, {"value": "2"}]},
+      {"dimensionValues": [{"value": "Unassigned"}], "metricValues": [{"value": "37"}, {"value": "1"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "1234"}, {"value": "37"}]}
+    ],
+    "rowCount": 5,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York"},
+    "kind": "analyticsData#runReport"
+  },
+  "devices": {
+    "dimensionHeaders": [{"name": "deviceCategory"}],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "desktop"}], "metricValues": [{"value": "702"}, {"value": "26"}]},
+      {"dimensionValues": [{"value": "mobile"}], "metricValues": [{"value": "498"}, {"value": "10"}]},
+      {"dimensionValues": [{"value": "tablet"}], "metricValues": [{"value": "34"}, {"value": "1"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "1234"}, {"value": "37"}]}
+    ],
+    "rowCount": 3,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York"},
+    "kind": "analyticsData#runReport"
+  },
+  "countries": {
+    "dimensionHeaders": [{"name": "country"}],
+    "metricHeaders": [
+      {"name": "sessions", "type": "TYPE_INTEGER"},
+      {"name": "keyEvents", "type": "TYPE_FLOAT"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "United States"}], "metricValues": [{"value": "540"}, {"value": "19"}]},
+      {"dimensionValues": [{"value": "India"}], "metricValues": [{"value": "210"}, {"value": "3"}]},
+      {"dimensionValues": [{"value": "United Kingdom"}], "metricValues": [{"value": "98"}, {"value": "5"}]},
+      {"dimensionValues": [{"value": "Canada"}], "metricValues": [{"value": "61"}, {"value": "2"}]},
+      {"dimensionValues": [{"value": "(not set)"}], "metricValues": [{"value": "12"}, {"value": "0"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "1234"}, {"value": "37"}]}
+    ],
+    "rowCount": 48,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York"},
+    "kind": "analyticsData#runReport"
+  },
+  "events": {
+    "dimensionHeaders": [{"name": "eventName"}],
+    "metricHeaders": [
+      {"name": "keyEvents", "type": "TYPE_FLOAT"},
+      {"name": "eventCount", "type": "TYPE_INTEGER"}
+    ],
+    "rows": [
+      {"dimensionValues": [{"value": "generate_lead"}], "metricValues": [{"value": "22"}, {"value": "22"}]},
+      {"dimensionValues": [{"value": "sign_up"}], "metricValues": [{"value": "15"}, {"value": "15"}]},
+      {"dimensionValues": [{"value": "page_view"}], "metricValues": [{"value": "0"}, {"value": "3105"}]},
+      {"dimensionValues": [{"value": "session_start"}], "metricValues": [{"value": "0"}, {"value": "1234"}]},
+      {"dimensionValues": [{"value": "scroll"}], "metricValues": [{"value": "0"}, {"value": "860"}]}
+    ],
+    "totals": [
+      {"dimensionValues": [{"value": "RESERVED_TOTAL"}], "metricValues": [{"value": "37"}, {"value": "6420"}]}
+    ],
+    "rowCount": 14,
+    "metadata": {"currencyCode": "USD", "timeZone": "America/New_York"},
     "kind": "analyticsData#runReport"
   }
 }

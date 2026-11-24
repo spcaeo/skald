@@ -11,6 +11,8 @@
 // "What converted today" and "Where today's visitors came from" left the page in #43 (the
 // owner found them confusing there); both answers stay on Leads & sales and Traffic › Sources.
 // The set-up checklist is one line (ov-setup.js); the footnote is behind the "?".
+// SKALD-55: last, "From your tools" (ov-tools.js, { today: true }): Google Analytics and the
+// other tools of your own, each over its own days (never today's), as on a period.
 //
 // Nothing here counts anything new except "vs yesterday at this hour", which
 // by_now.py and conversions_leads.by_now count and audit_by_now.py and
@@ -29,6 +31,7 @@ import { comparisons, delta, running } from "../by-now.js";
 import { time as tzTime, label as tzLabel } from "../tz.js";
 import { flowCard } from "./ov-today-more.js";
 import { hrefTo } from "./ov-today-bits.js";
+import { toolsCard } from "./ov-tools.js";
 
 const TILE = {
   visitors: ["Visitors", "Visits that read at least one page today so far, counted only when the browser loaded the page's scripts and styles.", "traffic/visitors", "var(--g-people)"],
@@ -107,8 +110,10 @@ export default function today(m, s, o = {}) {
   const shownKeys = convFile(m) ? cs : cs.filter((c) => c.key !== "leads");
   out.push(h("section", { class: "td-strip td-today", "aria-label": "Today so far" },
     h("div", { class: "td-kpis", role: "list", "data-n": String(shownKeys.length) }, shownKeys.map((c) => tile(c, first)))));
-  if (!t) return [...out, nothing(m, r)];
+  const tools = toolsCard(m, { today: true });
+  if (!t) return [...out, nothing(m, r), tools].filter(Boolean);
   out.push(realtimeBlock(m, s, { merged: true }));
   if (m.live) out.push(flowCard(m));
+  if (tools) out.push(tools);
   return out;
 }

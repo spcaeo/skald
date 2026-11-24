@@ -28,6 +28,12 @@
 .rt .tiles { margin-top: 0; }
 .rt-charts { margin-bottom: 14px; }
 .rt-charts .sheet h3, .rt-geo .sheet h3 { margin: 0 0 2px; font-size: 13.5px; }
+/* Requests per minute (SKALD-48): the title and its figures on one line when there is room. */
+.rt-rq-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 4px 18px; margin-bottom: 6px; }
+.rt-rq-head .card-m { margin-bottom: 0; }
+.rt-rq-sum { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 1px 0 0; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rt-rq-sum b { color: var(--ink); font-weight: 600; }
+.rt-rq .note { margin: 6px 0 0; }
 
 /* The map and its table: side by side when there is room, else one under the other. */
 .rt-geo { display: grid; gap: 14px; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-bottom: 14px; align-items: start; }

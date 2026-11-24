@@ -10,18 +10,43 @@ COUNTED_FROM = "Counted from"
 LOG_SOURCE = "your server log"
 
 # Google Analytics 4 (tool_ga4.py): the reports Skald asks for, each one runReport
-# with these dimensions and metrics, in this order (docs/TOOLS.md).
-GA4_METRICS = ("sessions", "totalUsers", "engagedSessions", "keyEvents")
+# with these dimensions and metrics, in this order (docs/TOOLS.md). One dimension at
+# most per report, so every row is one figure per metric and the recount reads it back.
+# SKALD-55: totals ask for more of GA4's own figures, "previous" is the same totals over
+# the 28 days before (GA4_WINDOWS), and four more tables: channels, devices, countries,
+# and events (key events first).
+GA4_METRICS = ("sessions", "totalUsers", "newUsers", "engagedSessions", "engagementRate",
+               "averageSessionDuration", "screenPageViews", "keyEvents", "sessionKeyEventRate")
 GA4_ROW_METRICS = ("sessions", "keyEvents")
 GA4_REPORTS = {
     "totals": ((), GA4_METRICS),
+    "previous": ((), GA4_METRICS),
     "landing": (("landingPage",), GA4_ROW_METRICS),
     "sources": (("sessionSourceMedium",), GA4_ROW_METRICS),
+    "channels": (("sessionDefaultChannelGroup",), GA4_ROW_METRICS),
+    "devices": (("deviceCategory",), GA4_ROW_METRICS),
+    "countries": (("country",), GA4_ROW_METRICS),
+    "events": (("eventName",), ("keyEvents", "eventCount")),
 }
-GA4_TOP = 10                       # rows asked for in landing and sources
+GA4_TOP = 10                       # rows asked for in each report with a dimension
 GA4_DAYS = 28                      # the window: the last 28 whole days, GA4's own days
-GA4_LABELS = {"sessions": "Sessions", "totalUsers": "Users",
-              "engagedSessions": "Engaged sessions", "keyEvents": "Key events"}
+# Each report's days, as GA4's "NdaysAgo": (first, last). The others: (GA4_DAYS, 1),
+# "28daysAgo" to "yesterday". "previous" is the 28 days before those.
+GA4_WINDOWS = {"previous": (2 * GA4_DAYS, GA4_DAYS + 1)}
+GA4_LABELS = {"sessions": "Sessions", "totalUsers": "Users", "newUsers": "New users",
+              "engagedSessions": "Engaged sessions", "engagementRate": "Engagement rate",
+              "averageSessionDuration": "Average session", "screenPageViews": "Views",
+              "keyEvents": "Key events", "sessionKeyEventRate": "Sessions with a key event",
+              "eventCount": "Events"}
+# How a figure reads (the dashboard formats it): a share (0.62 is 62%) or seconds.
+TOOL_UNITS = {"engagementRate": "share", "sessionKeyEventRate": "share",
+              "averageSessionDuration": "seconds"}
+# Each report's name on the screen (every tool's; a report not named keeps its key).
+TOOL_REPORTS = {"totals": "Totals", "previous": "The 28 days before",
+                "landing": "Landing pages", "sources": "Sources (source / medium)",
+                "channels": "Channels", "devices": "Devices", "countries": "Countries",
+                "events": "Events, key events first", "pages": "Pages",
+                "referrers": "Referrers", "segments": "Segments", "emails": "Recent emails"}
 # What GA4 says about its own answer (runReport's metadata), shown beside its figures.
 GA4_FLAGS = {"subjectToThresholding": "Thresholded: Google hid some small numbers",
              "samplingMetadatas": "Sampled: Google counted part of the data",

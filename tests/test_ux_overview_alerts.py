@@ -49,6 +49,9 @@ class Layout(unittest.TestCase):
         self.assertIn('help("Today so far"', today)
         self.assertLess(today.index("rightNow(m, s, o)"), today.index("realtimeBlock(m, s, { merged: true })"))
         self.assertIn("flowCard(m)", today, "how today's visits moved, under the map")
+        # SKALD-55: From your tools on Today too, last, saying they are the tools' own days.
+        self.assertIn("toolsCard(m, { today: true })", today)
+        self.assertLess(today.index("flowCard(m)"), today.index("out.push(tools)"))
         summary = code(TABS / "ov-summary.js")
         self.assertIn("setupStrip(m)", summary)
         self.assertNotIn("setupChecklist", summary)

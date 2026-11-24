@@ -108,12 +108,32 @@ function perMinute(P) {
   { label: "Visitors on the site, minute by minute", unit: "visitors on the site", every: 5, H: 150, half: true });
 }
 
-function requestsChart(rows, fromCount) {
+/* Requests per minute (SKALD-48). `half` only when the visitors chart stands beside it (the
+   Real time tab): the chart is drawn for the width it really gets, so its 11px text and its
+   height stay as drawn. Alone (Overview's Right now, or no live count yet) it spans the row,
+   and is drawn shorter there. Its bars are the sky blue of Right now's minute bars (--td-bar,
+   today.css), the running minute paler. */
+export function requestsChart(rows, fromCount, { half = false } = {}) {
   const last = rows.length - 1;
   return bars(rows.map((r, i) => ({ label: hhmm(r.at), value: r.requests || 0,
     title: `${hhmm(r.at)} ${tzLabel()}${i === last ? " (still running)" : ""}`,
-    color: i === last ? "color-mix(in srgb, var(--ink-3) 50%, var(--surface))" : "var(--ink-3)" })),
-  { label: `Requests per minute${fromCount ? ", from the live count" : ""}`, unit: "requests (every kind, not people)", every: 5, H: 150, half: true });
+    color: i === last ? "color-mix(in srgb, var(--td-bar) 50%, var(--surface))" : "var(--td-bar)" })),
+  { label: `Requests per minute${fromCount ? ", from the live count" : ""}`, unit: "requests (every kind, not people)", every: 5, H: half ? 150 : 120, half });
+}
+
+/* The chart's figures in one line: all requests in the window, the busiest minute, and the
+   average of the minutes that are over (the last one is still running). */
+export function requestsSummary(rows) {
+  if (!rows.length) return null;
+  const done = rows.length > 1 ? rows.slice(0, -1) : rows;
+  const total = rows.reduce((a, r) => a + (r.requests || 0), 0);
+  const peak = done.reduce((a, r) => ((r.requests || 0) > (a.requests || 0) ? r : a), done[0]);
+  const avg = Math.round(done.reduce((a, r) => a + (r.requests || 0), 0) / done.length);
+  const one = (b, ...rest) => h("span", null, h("b", null, b), ...rest);
+  return h("p", { class: "rt-rq-sum" },
+    one(n(total), ` in ${rows.length} min`),
+    peak?.requests ? one(n(peak.requests), ` at ${hhmm(peak.at)}, the busiest minute`) : null,
+    one(n(avg), " a minute on average"));
 }
 
 // The countries table beside the map: the same figures, for a screen reader and a phone.
@@ -163,11 +183,19 @@ function card(title, unit, ...body) {
   return h("div", { class: "sheet card" }, h("div", { class: "card-h" }, h("h3", null, title)), h("p", { class: "card-m" }, unit), ...body);
 }
 
-function machines(M = {}) {
-  const ai = pairs(M.answer_engines), search = pairs(M.search_engines);
+// SKALD-53: AI split by why it came, in AI & bots' words (classify.Tier): asked just
+// then by a person, or crawling for training. A snapshot from before the split has one list.
+const AI_TIERS = [["asked", "AI reading for someone"], ["training", "AI collecting for training"]];
+
+export function machines(M = {}) {
+  const search = pairs(M.search_engines);
+  const aiList = (rows, limit) => blist(rows, { color: "var(--g-answer_engines)", drill: "bot", limit, empty: "None in the last 30 minutes." });
+  const T = M.answer_tiers;
+  const ai = T
+    ? AI_TIERS.flatMap(([k, words]) => [h("p", { class: "rt-sub" }, words), aiList(pairs(T[k]), 4)])
+    : [h("p", { class: "rt-sub" }, "AI assistants and AI crawlers"), aiList(pairs(M.answer_engines), 6)];
   return card("AI and crawlers now", "requests in the last 30 minutes: machines, never visitors",
-    h("p", { class: "rt-sub" }, "AI assistants"),
-    blist(ai, { color: "var(--g-answer_engines)", drill: "bot", limit: 6, empty: "None in the last 30 minutes." }),
+    ...ai,
     h("p", { class: "rt-sub" }, "Search crawlers"),
     blist(search, { color: "var(--g-search_engines)", drill: "bot", limit: 4, empty: "None in the last 30 minutes." }),
     h("p", { class: "rt-line" }, h("i", { class: "rtm-k", style: { background: "var(--g-bots)" } }), "Other bots and scanners: ", h("b", null, n(M.bots || 0)), " requests"));
@@ -235,6 +263,7 @@ export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
   function draw() {
     const B = st.body || { people_state: "empty" };
     const P = B.people_state === "ok" || B.people_state === "stale" ? B.people : null;
+    const pair = !!P && !merged;    // the visitors chart stands beside the requests chart
     const reqRows = B.requests?.per_minute || (P?.per_minute || []).map((r) => ({ at: r.at, requests: Object.values(r.requests || {}).reduce((a, b) => a + b, 0) }));
     const top = h("div", { class: "card-h start rt-top" },
       tab ? null : h("h2", null, "Real time"),
@@ -247,10 +276,14 @@ export function realtimeBlock(m, s, { tab = false, merged = false } = {}) {
       words ? h("div", { class: `state${B.people_state === "withheld" ? " bad" : ""}`, role: B.people_state === "withheld" ? "alert" : "status" }, h("div", null, words)) : null,
       P && !merged ? people(P, s) : null,
       h("div", { class: "cols rt-charts" },
-        P && !merged ? h("div", { class: "sheet" }, h("h3", null, "Visitors on the site, minute by minute"),
+        pair ? h("div", { class: "sheet" }, h("h3", null, "Visitors on the site, minute by minute"),
           h("p", { class: "card-m" }, "a visitor is on the site from their first request to their last; the last minute is still running"), perMinute(P)) : null,
-        reqRows.length ? h("div", { class: "sheet" }, h("h3", null, "Requests per minute"),
-          h("p", { class: "card-m" }, "every request the server logged: pages, files, bots and people alike. Not visitors."), requestsChart(reqRows, !B.requests), merged ? h("p", { class: "note" }, clockR) : null) : null),
+        reqRows.length ? h("div", { class: `sheet rt-rq${pair ? "" : " alone"}` },
+          h("div", { class: "rt-rq-head" },
+            h("div", null, h("h3", null, "Requests per minute"),
+              h("p", { class: "card-m" }, "every request the server logged: pages, files, bots and people alike. Not visitors.")),
+            requestsSummary(reqRows)),
+          requestsChart(reqRows, !B.requests, { half: pair }), merged ? h("p", { class: "note" }, clockR) : null) : null),
       P ? h("div", { class: "rt-geo" },
         h("div", { class: "sheet rt-mapcard" }, h("h3", null, "Where visitors are"),
           h("p", { class: "card-m" }, P.cities ? "shaded by visits today; a pulsing dot on each city with visitors active in the last 30 minutes (a country's bubble: active visitors whose city is not recorded). Select a country or a city for its detail."

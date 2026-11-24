@@ -18,10 +18,20 @@ def _number(v) -> str:
     return f"{v:,.0f}" if float(v).is_integer() else f"{v:,.2f}"
 
 
+def _said(f: dict) -> str:
+    """A figure as the screen says it: a share as a percent, seconds as minutes (SKALD-55)."""
+    if f.get("unit") and f.get("value") is not None:
+        from ..yourtools.api import shown
+        return shown(f["value"], f["unit"])
+    return _number(f.get("value"))
+
+
 @tool("your_tools", "Figures from the user's own tools (Google Analytics...)",
       "The figures Skald keeps from the site's own marketing tools, connected with the "
-      "user's own keys (Google Analytics 4: sessions, users, engaged sessions, key events, "
-      "top landing pages and sources, over the tool's own last 28 days; Vercel Web Analytics: "
+      "user's own keys (Google Analytics 4: sessions, users, new users, engaged sessions, "
+      "engagement rate, average session, views, key events and the sessions with one, over "
+      "the tool's own last 28 days and the 28 days before; its top landing pages, sources, "
+      "channels, devices, countries and events, key events first; Vercel Web Analytics: "
       "visitors, page views, top pages, referrers, countries; Calendly: bookings, upcoming, "
       "canceled, no-shows; Resend: contacts, segments, email delivery states), and Search "
       "Console's and Bing's sync state (their figures: search_performance). Each tool with its "
@@ -62,12 +72,14 @@ def your_tools(ctx, args):
             figs = rep["figures"]
             totals = [f for f in figs if f["dim"] is None]
             rows = [f for f in figs if f["dim"] is not None]
+            title = rep.get("title") or name
+            if rep.get("start") and rep.get("start") != period.get("start"):
+                title += f" ({rep['start']} to {rep['end']})"
             if totals:
-                out.append(f"  {name}: " + ", ".join(f"{f['label']} {_number(f['value'])}"
-                                                     for f in totals))
+                out.append(f"  {title}: " + ", ".join(f"{f['label']} {_said(f)}" for f in totals))
             seen: dict = {}
             for f in rows:
-                seen.setdefault(f["dim"], []).append(f"{f['label']} {_number(f['value'])}")
+                seen.setdefault(f["dim"], []).append(f"{f['label']} {_said(f)}")
             for dim, vals in list(seen.items())[:10]:
                 out.append(f"    {dim}: {', '.join(vals)}")
             if rep.get("flags"):

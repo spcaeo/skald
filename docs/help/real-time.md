@@ -61,7 +61,7 @@ Countries too small for the map's outlines (Singapore, Malta and others) are dra
 - **Pages being read**: page views in the last 30 minutes, by page.
 - **Newest visits**: the ten newest visits, with time, city (or country, when no city is recorded), device, where they came from, the page they landed on and how many pages they have read so far. **active now** means a request in the last 5 minutes. No address and no browser string is shown here.
 - **Sources now** and **Devices now**: visitors active in the last 30 minutes, by where they came from and by device.
-- **AI and crawlers now**: requests in the last 30 minutes by AI assistants and search crawlers, by name, and other bots and scanners as one count. These are machines, counted in requests, never as visitors.
+- **AI and crawlers now**: requests in the last 30 minutes, by name, in three lists: **AI reading for someone** (an assistant such as ChatGPT-User or Claude-User fetching a page because a person asked it a question just then), **AI collecting for training** (crawlers such as GPTBot or PerplexityBot that train a model or feed AI search; nobody is waiting on these), and **Search crawlers**. Other bots and scanners are one count. The two AI lists use the same words as **AI & bots**. These are machines, counted in requests, never as visitors.
 
 Select any page, source, device or crawler to open its detail.
 

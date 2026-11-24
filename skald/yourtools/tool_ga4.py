@@ -1,5 +1,6 @@
-"""Google Analytics 4: sessions, users, engaged sessions and key events over the
-property's own last 28 days, and its top landing pages and sources (docs/TOOLS.md).
+"""Google Analytics 4: its own totals over the property's last 28 days and the 28
+days before, and its top landing pages, sources, channels, devices, countries and
+events (docs/TOOLS.md).
 
 The key, read-only, one of:
   * a Google service-account key file (JSON, "type": "service_account"): the
@@ -11,11 +12,20 @@ The key, read-only, one of:
     cannot make a service account. Skald trades the refresh token for an access
     token at Google's token address, scope analytics.readonly.
 
-Three runReport calls (Google Analytics Data API v1beta), names in names.py:
-  totals   no dimension: sessions, totalUsers, engagedSessions, keyEvents
-  landing  landingPage: sessions, keyEvents, the top GA4_TOP, with GA4's TOTAL
-  sources  sessionSourceMedium: the same
-Dates are GA4's own: "28daysAgo" to "yesterday" in the property's time zone,
+One runReport call per report (Google Analytics Data API v1beta), names in names.py:
+  totals    no dimension: sessions, totalUsers, newUsers, engagedSessions,
+            engagementRate, averageSessionDuration, screenPageViews, keyEvents,
+            sessionKeyEventRate
+  previous  the same, over the 28 days before (SKALD-55: each figure's change)
+  landing   landingPage: sessions, keyEvents, the top GA4_TOP, with GA4's TOTAL
+  sources   sessionSourceMedium: the same
+  channels  sessionDefaultChannelGroup: the same (SKALD-55)
+  devices   deviceCategory: the same (SKALD-55)
+  countries country: the same (SKALD-55)
+  events    eventName: keyEvents, eventCount, key events first (SKALD-55)
+A report with a dimension is ordered by its metrics in turn, largest first.
+Dates are GA4's own: "28daysAgo" to "yesterday" in the property's time zone
+("56daysAgo" to "29daysAgo" for previous, names.GA4_WINDOWS),
 which the answer names (metadata.timeZone); the window kept is worked out in
 that zone. Users are never added up across rows or days: GA4's own TOTAL (or
 the no-dimension row) is the total. GA4's values are strings; a metric GA4 did
@@ -34,13 +44,15 @@ from datetime import datetime, timedelta, timezone
 from ..search import google, http
 from .base import Adapter, Answer, BadKey, Figure, Option, Unreachable, plain_key_words, \
     pointer
-from .names import GA4_DAYS, GA4_LABELS, GA4_REPORTS, GA4_TOP
+from .names import GA4_DAYS, GA4_LABELS, GA4_REPORTS, GA4_TOP, GA4_WINDOWS
 
 SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 DATA_API = "https://analyticsdata.googleapis.com/v1beta"
 TOKEN_URL = google.TOKEN_URL
 MEASUREMENT = re.compile(r"(?:gtag/js\?id=|gtag\(\s*['\"]config['\"]\s*,\s*['\"])(G-[A-Z0-9]{4,15})")
-HEADLINE = ("sessions", "totalUsers", "keyEvents")
+# The card's figures (SKALD-55): who came, how many were new, how engaged, what converted.
+HEADLINE = ("sessions", "totalUsers", "newUsers", "engagementRate", "averageSessionDuration",
+            "keyEvents")
 
 
 def _number(text):
@@ -227,9 +239,9 @@ class GA4(Adapter):
         bearer, who = self._bearer(key, opener, sleep)
         out = []
         for report, (dims, metrics) in GA4_REPORTS.items():
-            body = request_body(dims, metrics)
+            body = request_body(dims, metrics, report)
             got = self._run(bearer, who, prop, body, opener, sleep)
-            start, end, note = window(got, now)
+            start, end, note = window(got, now, report)
             out.append(Answer(report=report, period=f"{start}..{end}", start=start, end=end,
                               request={"property": prop, **body}, body=got,
                               flags=flags(got), note=note))
@@ -275,18 +287,25 @@ class GA4(Adapter):
         return [by[n] for n in HEADLINE if n in by]
 
 
-def request_body(dims, metrics) -> dict:
-    body = {"dateRanges": [{"startDate": f"{GA4_DAYS}daysAgo", "endDate": "yesterday"}],
+def days_of(report: str = "") -> tuple[int, int]:
+    """The report's days as GA4's "NdaysAgo": (first, last); 1 is yesterday."""
+    return GA4_WINDOWS.get(report, (GA4_DAYS, 1))
+
+
+def request_body(dims, metrics, report: str = "") -> dict:
+    first, last = days_of(report)
+    body = {"dateRanges": [{"startDate": f"{first}daysAgo",
+                            "endDate": "yesterday" if last == 1 else f"{last}daysAgo"}],
             "metrics": [{"name": m} for m in metrics]}
     if dims:
         body.update(dimensions=[{"name": d} for d in dims], limit=GA4_TOP,
                     metricAggregations=["TOTAL"],
-                    orderBys=[{"metric": {"metricName": metrics[0]}, "desc": True}])
+                    orderBys=[{"metric": {"metricName": m}, "desc": True} for m in metrics])
     return body
 
 
-def window(got: dict, now: datetime) -> tuple[str, str, str]:
-    """The 28 days as GA4 counted them: in the property's own time zone."""
+def window(got: dict, now: datetime, report: str = "") -> tuple[str, str, str]:
+    """The report's days as GA4 counted them: in the property's own time zone."""
     zone = str((got.get("metadata") or {}).get("timeZone") or "")
     tz, note = timezone.utc, "the property's own days"
     if zone:
@@ -297,8 +316,9 @@ def window(got: dict, now: datetime) -> tuple[str, str, str]:
         except Exception:                       # noqa: BLE001 - no tz data: say so
             note = f"the property's own days ({zone}; read here as UTC)"
     today = now.astimezone(tz).date()
-    return (today - timedelta(days=GA4_DAYS)).isoformat(), \
-        (today - timedelta(days=1)).isoformat(), note
+    first, last = days_of(report)
+    return (today - timedelta(days=first)).isoformat(), \
+        (today - timedelta(days=last)).isoformat(), note
 
 
 def flags(got: dict) -> dict:

@@ -33,14 +33,20 @@ export const LONG = 12;
 
 /* A {label: n} breakdown: label, any extra columns, the count and its share of the
    rows the filter keeps (as common.js countTable). A long one is a Data Grid, its
-   search, sort and page in the address under `ns`; a short one a plain table. */
-export function countGrid(ns, obj, { caption, file, key, value, keep, drill, empty, extra = [] }) {
-  const rows = ranked(obj, keep).map(([k, v]) => ({ k, v, __k: k }));
+   search, sort and page in the address under `ns`; a short one a plain table.
+   `files` ({label: n}, SKALD-49): a Files column after the count, and a row with files
+   only (no pages) is kept; Share stays the count's. */
+export function countGrid(ns, obj, { caption, file, key, value, keep, drill, empty, extra = [], files = null }) {
+  const named = files ? { ...Object.fromEntries(Object.keys(files).map((k) => [k, 0])), ...obj } : obj;
+  const rows = (files ? Object.entries(named || {}).filter(([k, v]) => (v || files[k]) && (!keep || keep(k)))
+    .sort((a, b) => b[1] - a[1] || (files[b[0]] || 0) - (files[a[0]] || 0) || a[0].localeCompare(b[0]))
+    : ranked(obj, keep)).map(([k, v]) => ({ k, v, __k: k, files: files ? files[k] || 0 : undefined }));
   const sum = rows.reduce((a, x) => a + x.v, 0);
   const columns = [
     { key: "k", label: key, ...(drill ? { drill } : {}) },
     ...extra,
     { key: "v", label: value, num: true },
+    ...(files ? [{ key: "files", label: "Files", num: true }] : []),
     { key: "share", label: "Share", num: true, sort: (x) => x.v, fmt: (_, x) => share(x.v, sum), csv: (x) => (share(x.v, sum) ? (x.v / sum).toFixed(4) : "") },
   ];
   if (rows.length <= LONG) return table(columns, { caption, rows, file, sortKey: "v", search: false, empty });

@@ -113,24 +113,46 @@ the agent (409), and the pages say so.
   refresh_token): Skald trades the refresh token at `oauth2.googleapis.com/token`. "Who": the
   service account's address, or "a Google sign-in (OAuth client ...)".
 - **Option.** `property`: the property ID's digits (not the `G-` measurement ID).
-- **Calls.** Three `POST analyticsdata.googleapis.com/v1beta/properties/<id>:runReport`, dates
-  `28daysAgo` to `yesterday` (GA4's own days):
+- **Calls.** One `POST analyticsdata.googleapis.com/v1beta/properties/<id>:runReport` per
+  report (eight, every 6 hours), dates `28daysAgo` to `yesterday` (GA4's own days), except
+  `previous` (`names.GA4_WINDOWS`). One dimension at most per report, so the recheck reads
+  every row back:
 
   | Report | Dimensions | Metrics | Also |
   |---|---|---|---|
-  | `totals` | none | sessions, totalUsers, engagedSessions, keyEvents | the one row is the total |
-  | `landing` | landingPage | sessions, keyEvents | limit 10, by sessions, `metricAggregations: TOTAL` |
+  | `totals` | none | sessions, totalUsers, newUsers, engagedSessions, engagementRate, averageSessionDuration, screenPageViews, keyEvents, sessionKeyEventRate | the one row is the total |
+  | `previous` | none | the same | `56daysAgo` to `29daysAgo`: the 28 days before, for each figure's change (SKALD-55) |
+  | `landing` | landingPage | sessions, keyEvents | limit 10, ordered by each metric in turn, `metricAggregations: TOTAL` |
   | `sources` | sessionSourceMedium | sessions, keyEvents | the same |
+  | `channels` | sessionDefaultChannelGroup | sessions, keyEvents | the same (SKALD-55) |
+  | `devices` | deviceCategory | sessions, keyEvents | the same (SKALD-55) |
+  | `countries` | country | sessions, keyEvents | the same (SKALD-55) |
+  | `events` | eventName | keyEvents, eventCount | the same: key events first, then the most fired (SKALD-55) |
 
 - **The window.** The answer names the property's time zone (`metadata.timeZone`); the 28 days
   kept are worked out in it (`zoneinfo`; without tz data, UTC, and the note says so).
 - **Figures.** GA4's string values as numbers. Totals come from GA4 (the no-dimension row or
   its TOTAL), never by adding rows: users are not additive. A metric GA4 did not give, or an
-  answer with no rows: NULL. Headline: sessions, users, key events.
+  answer with no rows: NULL. Headline: sessions, users, new users, engagement rate, average
+  session, key events. A share (engagementRate, sessionKeyEventRate: 0.568 is 56.8%) and
+  seconds (averageSessionDuration) carry their unit (`names.TOOL_UNITS`) to every screen,
+  the mail and MCP, which say them the same way (`api.shown`, `ov-tools.js said`).
 - **Flags.** `subjectToThresholding`, `samplingMetadatas`, `dataLossFromOtherRow`, shown in
   plain words (`names.GA4_FLAGS`).
 - **Recheck.** `recount._ga4` recounts every answer whole from its headers, rows and totals
   and finds a figure changed, missing or extra, besides the pointer check every tool gets.
+  "Asked" is the stored request's metrics (SKALD-55): GA4 keeps an answer a day, and one kept
+  before Skald asked for more is judged by what it asked then, never withheld for the
+  metrics it did not ask for; a request naming a metric outside `names.GA4_REPORTS` is a
+  problem.
+- **On the screen** (SKALD-55). Overview's **From your tools** (a period, and Today, where it
+  says these are the tool's own days): the headline, each with its change against
+  `previous` (a share's in points), and **All figures from Google Analytics**: a drawer
+  (`ytool=ga4`, `ov-tools-drawer.js`) with the totals beside the 28 days before, then
+  channels, sources, landing pages, devices, countries and events, GA4's rows in its order,
+  each row's share of GA4's own total, and what GA4 said about each answer. The figures API
+  (`integrations/yourtools/figures`) gives each report's `title`, each figure's `unit` and
+  `rank`, and `before` / `before_period` from `previous`.
 - **Refusals.** 403: add the robot as a Viewer, or turn on the Data API; 400/404: no such
   property (use the digits); 429: quota; a token refused: the key was deleted or the refresh
   token revoked. Never a token or secret in the words.

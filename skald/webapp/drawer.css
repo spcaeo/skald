@@ -26,6 +26,12 @@ html.dw-lock { overflow: hidden; scrollbar-gutter: stable; }
   border-bottom: 1px solid var(--rule); background: var(--page); }
 .dw-titles { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .dw-pre { display: flex; align-items: center; gap: 10px; min-width: 0; margin-bottom: 6px; }
+/* SKALD-49: the breadcrumbs' own bottom margin (crumbs.css) lifted them 5px above Back. */
+.dw-pre > .crumbs { margin: 0; }
+.dw-pre > .btn { flex: none; }
+/* SKALD-49: in the drawer a crumb is cut by length (drillview.js crumbWords), not at 260px. */
+.dw-pre .crumbs .crumb { max-width: none; white-space: normal; overflow: visible; }
+.dw-pre .crumbs .crumb .nm { overflow: visible; }
 .dw-title { margin: 0; font-size: 21px; line-height: 1.25; font-weight: 680; letter-spacing: -.018em; overflow-wrap: anywhere; }
 .dw-title.mono, .dw-title .mono { font-family: var(--mono); font-size: 17px; letter-spacing: 0; font-weight: 600; }
 .dw-title .ic { width: 18px; height: 18px; } .dw-title .ic svg { width: 18px; height: 18px; }
@@ -85,6 +91,15 @@ dialog.dw.dw-under { transform: translateX(-28px); transition: transform .3s var
 .dw.dd .dw-body section.s { margin: 0; }
 .dw.dd .dw-body section.s > h3 { font-size: 14px; font-weight: 650; margin: 0 0 10px; }
 .dw.dd .dw-body .dd-kpis { margin: 0 0 14px; }
+/* SKALD-49: the body's 26px gap already spaces its parts; their own margins doubled it
+   (Open in ..., then the figures). Figures keep one column width, so two rows line up. */
+.dw.dd .dw-body > .dd-jumps, .dw.dd .dw-body > .dd-kpis { margin: 0; }
+.dw.dd .dw-body .dd-kpis > div { min-width: 140px; }
+/* SKALD-49: a box after a row of cards (User agents it sent) touched them. */
+.dw.dd .dw-body .cols + .sheet { margin-top: 12px; }
+/* SKALD-49: the one rule every listed request shares, said once above them. */
+.dw.dd .dw-body .dd-rule { margin: 14px 0 0; font-size: 13px; color: var(--ink-2); }
+.dw.dd .dw-body .dd-rule b { color: var(--ink); font-weight: 600; }
 .dw.dd .dw-body .cols.three { margin-top: 14px; }
 
 /* request detail */

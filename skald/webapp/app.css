@@ -184,6 +184,9 @@ h3 { font-size: 14px; font-weight: 620; margin: 0 0 6px; }
 .sub { color: var(--ink-3); font-size: 12.5px; margin: 0 0 var(--sp-2); max-width: var(--read); }
 .note { color: var(--ink-3); font-size: 12px; margin: 6px 0 0; max-width: var(--read); }
 section.s { margin: 0 0 var(--sp-5); }
+/* SKALD-49: Assistants' "pages AI can't read well" card is a ui-card, not a section.s: it had
+   no space under it, so All AI activity today began on its edge. */
+section.ar-card { margin: 0 0 var(--sp-5); }
 /* A note drawn just after a section (older renderers) belongs to it: no gap above, the gap below. */
 section.s + p.note { margin: calc(var(--sp-2) - var(--sp-5)) 0 var(--sp-5); }
 .sheet { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: var(--sp-3) var(--sp-4); }
@@ -448,6 +451,9 @@ tr.withheld td { color: var(--ink-3); background: repeating-linear-gradient(135d
 .stream .s-t { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--ink-3); }
 .stream .s-d { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
 .stream .s-w { font-size: 13.5px; }
+/* SKALD-49: a path link inside the line ("200 GET /x AI asked") starts with its icon, so
+   its baseline was the icon's foot and its words sat 3px above the line's. */
+.stream .s-w > .dl { vertical-align: top; }
 .stream .s-w small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 12px; word-break: break-all; }
 .stream li.fresh { animation: fresh 1.6s var(--ease); }
 

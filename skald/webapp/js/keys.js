@@ -27,8 +27,12 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-23-2.56.1",
+  id: "2026-11-24-2.57.0",
   items: [
+    ["Google Analytics on Today", "Overview › Today shows Google Analytics' own figures too, with new users, engagement, average session and key events, each against its 28 days before; All figures opens every table.", "your-tools"],
+    ["AI training in pages", "AI collecting for training counts pages, with robots.txt, sitemaps, images, styles and scripts as files beside them; All AI activity lists pages only.", "ai-and-bots"],
+    ["AI card split by why it came", "Overview's AI and crawlers now has two lists, AI reading for someone and AI collecting for training, as AI & bots names them.", "real-time"],
+    ["A compact requests chart", "Requests per minute on Overview is drawn for its width again, in Right now's blue, with the busiest minute beside its title.", "real-time"],
     ["Fewer days held back by mistake", "a missing picture in a site's own asset folder no longer holds back the day, and a held-back day no longer sends a failure mail that says the run crashed.", "getting-started"],
     ["Worker bursts no longer lost", "a Cloudflare Worker's burst of posts is no longer refused in front of Skald; Data quality shows any posts refused at the log endpoint, and a day with lost records is worth a look.", "connections"],
     ["Logs with a CDN's addresses", "when a site's log holds Cloudflare's addresses instead of the visitors', Data quality says so with the fix; real crawlers are no longer called impostors and the block list never lists Cloudflare.", "connections"],

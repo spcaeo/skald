@@ -4,8 +4,9 @@ network, no real property.
 
   * the key: a service account (its robot address shown again, never the key),
     an OAuth "authorized_user" file, anything else refused in plain words
-  * the calls: a token for analytics.readonly (the JWT's scope checked), three
-    runReport bodies (GA4's own last 28 days, the top 10, GA4's TOTAL)
+  * the calls: a token for analytics.readonly (the JWT's scope checked), one
+    runReport body per report (GA4's own last 28 days, the 28 before for
+    "previous", the top 10, GA4's TOTAL, ordered by each metric in turn)
   * the figures: GA4's strings as numbers, users never added up (GA4's TOTAL),
     a metric GA4 did not give is NULL, an empty answer is NULL, never 0; the
     window in the property's own time zone; thresholding and sampling kept
@@ -14,6 +15,9 @@ network, no real property.
   * refusals in plain words: no access (Viewer), no such property, a deleted key,
     a revoked refresh token; no token or secret in any of them
   * the install's Search Console key used for GA4 (key=search)
+  * SKALD-55: the totals' new figures (shares, seconds), the 28 days before, four
+    more tables; an answer kept before Skald asked for more still rechecks by
+    what it asked then; the figures' units, rows and report names for the screen
   * what the site check found on the page: the G- measurement ID, a suggestion
 
 Test data: example.com names; the keys are test keys made here.
@@ -48,6 +52,11 @@ PROP = "123456789"
 NOW = datetime(2026, 10, 27, 3, 0, tzinfo=timezone.utc)      # 26 Oct, 23:00 in New York
 FIXTURE = json.loads((Path(__file__).resolve().parent / "fixtures" / "yourtools" /
                       "ga4-runreport.json").read_text())
+# Each report with a dimension, by its dimension (names.GA4_REPORTS).
+DIMS = {"landing": "landingPage", "sources": "sessionSourceMedium",
+        "channels": "sessionDefaultChannelGroup", "devices": "deviceCategory",
+        "countries": "country", "events": "eventName"}
+REPORTS = ["totals", "previous", *DIMS]
 SIGN_IN = json.dumps({"type": "authorized_user", "client_id": "123-abc.apps.example.com",
                       "client_secret": "test-client-secret-xyz", "refresh_token": "1//test-refresh"})
 
@@ -64,8 +73,8 @@ class Google:
     """A fake opener: Google's token address and runReport, from the fixture."""
 
     def __init__(self, answers=None, fail=None, token_fail=None):
-        self.answers = answers or {"": FIXTURE["totals"], "landingPage": FIXTURE["landing"],
-                                   "sessionSourceMedium": FIXTURE["sources"]}
+        self.answers = answers or {**{"": FIXTURE["totals"], "": FIXTURE["totals"]},
+                                   **{dim: FIXTURE[r] for r, dim in DIMS.items()}}
         self.fail, self.token_fail = fail, token_fail
         self.asked, self.tokens = [], []
 
@@ -87,6 +96,8 @@ class Google:
                 {"error": {"code": self.fail, "message": "User does not have sufficient "
                            "permissions for this property."}}).encode()))
         dim = (ask.get("dimensions") or [{}])[0].get("name", "")
+        if not dim and ask["dateRanges"][0]["startDate"] == "56daysAgo":
+            return Answer(json.dumps(self.answers.get("previous", FIXTURE["previous"])).encode())
         return Answer(json.dumps(self.answers[dim]).encode())
 
 
@@ -147,36 +158,47 @@ class Key(unittest.TestCase):
 
 
 class Fetch(Base):
-    def test_three_reports_read_only_ga4s_own_days(self):
+    def test_every_report_read_only_ga4s_own_days(self):
         g = Google()
         answers = GA4.fetch(service_key(), {"property": PROP}, NOW, opener=g, sleep=lambda s: None)
-        self.assertEqual(len(g.tokens), 1, "one token for the three calls")
+        self.assertEqual(len(g.tokens), 1, "one token for every call")
         self.assertEqual(claims(g.tokens[0])["scope"], SCOPE)
         self.assertEqual(SCOPE, "https://www.googleapis.com/auth/analytics.readonly")
-        self.assertEqual([a.report for a in answers], ["totals", "landing", "sources"])
-        for ask in g.asked:
-            self.assertEqual(ask["dateRanges"], [{"startDate": "28daysAgo", "endDate": "yesterday"}])
+        self.assertEqual([a.report for a in answers], REPORTS)
+        for report, ask in zip(REPORTS, g.asked):
+            want = ({"startDate": "56daysAgo", "endDate": "29daysAgo"} if report == "previous"
+                    else {"startDate": "28daysAgo", "endDate": "yesterday"})
+            self.assertEqual(ask["dateRanges"], [want], report)
         self.assertNotIn("dimensions", g.asked[0])
-        self.assertEqual((g.asked[1]["limit"], g.asked[1]["metricAggregations"]), (10, ["TOTAL"]))
-        self.assertEqual(g.asked[2]["dimensions"], [{"name": "sessionSourceMedium"}])
+        self.assertNotIn("dimensions", g.asked[1])
+        self.assertEqual((g.asked[2]["limit"], g.asked[2]["metricAggregations"]), (10, ["TOTAL"]))
+        self.assertEqual(g.asked[3]["dimensions"], [{"name": "sessionSourceMedium"}])
+        events = g.asked[REPORTS.index("events")]
+        self.assertEqual([o["metric"]["metricName"] for o in events["orderBys"]],
+                         ["keyEvents", "eventCount"], "key events first, then the most fired")
+        before = answers[1]
+        self.assertEqual((before.start, before.end), ("2026-08-31", "2026-09-27"),
+                         "the 28 days before the last 28")
         first = answers[0]
         self.assertEqual((first.start, first.end), ("2026-09-28", "2026-10-25"),
                          "New York's today is 26 October: its last 28 whole days")
         self.assertEqual(first.period, "2026-09-28..2026-10-25")
         self.assertIn("America/New_York", first.note)
         self.assertEqual(first.flags["subjectToThresholding"], True)
-        self.assertEqual(answers[2].flags["samplingMetadatas"], True)
+        self.assertEqual(answers[REPORTS.index("sources")].flags["samplingMetadatas"], True)
         self.assertNotIn("test-access-token", json.dumps(first.request))
 
     def test_figures_numbers_from_strings_totals_from_ga4(self):
         answers = GA4.fetch(service_key(), {"property": PROP}, NOW, opener=Google())
         totals = {f.name: f for f in GA4.figures(answers[0])}
         self.assertEqual({k: f.value for k, f in totals.items()},
-                         {"sessions": 1234, "totalUsers": 980, "engagedSessions": 701,
-                          "keyEvents": 37})
+                         {"sessions": 1234, "totalUsers": 980, "newUsers": 812,
+                          "engagedSessions": 701, "engagementRate": 0.5680713128,
+                          "averageSessionDuration": 94.27, "screenPageViews": 3105,
+                          "keyEvents": 37, "sessionKeyEventRate": 0.0218800648})
         self.assertEqual(totals["totalUsers"].src, "/rows/0/metricValues/1/value")
         self.assertEqual(totals["totalUsers"].label, "Users")
-        landing = GA4.figures(answers[1])
+        landing = GA4.figures(answers[REPORTS.index("landing")])
         top = [(f.name, f.dim, f.value) for f in landing]
         self.assertIn(("sessions", None, 1234), top, "the total is GA4's TOTAL")
         self.assertIn(("keyEvents", "(not set)", 1.5), top)
@@ -184,12 +206,16 @@ class Fetch(Base):
         self.assertEqual([f.dim for f in landing if f.name == "sessions" and f.dim],
                          ["/", "/pricing/", "/blog/server-logs/", "(not set)"], "GA4's order")
         self.assertEqual([f.label for f in GA4.headline(GA4.figures(answers[0]))],
-                         ["Sessions", "Users", "Key events"])
+                         ["Sessions", "Users", "New users", "Engagement rate", "Average session",
+                          "Key events"])
+        events = [(f.name, f.dim, f.value) for f in GA4.figures(answers[REPORTS.index("events")])]
+        self.assertIn(("keyEvents", "generate_lead", 22), events)
+        self.assertIn(("eventCount", None, 6420), events, "GA4's TOTAL of every event")
 
     def test_nothing_answered_is_null_never_zero(self):
-        g = Google({"": FIXTURE["empty"], "landingPage": {**FIXTURE["landing"], "rows": [],
-                                                           "totals": []},
-                    "sessionSourceMedium": {"metricHeaders": [{"name": "sessions"}]}})
+        g = Google({"": FIXTURE["empty"], "previous": FIXTURE["empty"],
+                    **{dim: {"metricHeaders": [{"name": "sessions"}]} for dim in DIMS.values()},
+                    "landingPage": {**FIXTURE["landing"], "rows": [], "totals": []}})
         answers = GA4.fetch(service_key(), {"property": PROP}, NOW, opener=g)
         figs = [f for a in answers for f in GA4.figures(a)]
         self.assertTrue(figs)
@@ -217,7 +243,7 @@ class Fetch(Base):
     def test_the_refresh_token_road(self):
         g = Google()
         answers = GA4.fetch(SIGN_IN, {"property": PROP}, NOW, opener=g)
-        self.assertEqual(len(answers), 3)
+        self.assertEqual(len(answers), len(REPORTS))
         self.assertEqual(g.tokens[0]["grant_type"], "refresh_token")
         self.assertEqual(g.tokens[0]["refresh_token"], "1//test-refresh")
         with self.assertRaises(Unreachable) as no:
@@ -234,12 +260,25 @@ class SyncAndAudit(Base):
         self.assertEqual(code, 0, out)
         part = conn.load(self.folder, SITE)["ga4"]
         self.assertTrue(part["audit"]["ok"], part["audit"])
-        self.assertEqual(part["audit"]["figures"], 4 + 2 + 2 * 4 + 2 + 2 * 3)
+        rows = {r: len(FIXTURE[r]["rows"]) for r in DIMS}
+        self.assertEqual(part["audit"]["figures"], 9 + 9 + sum(2 + 2 * n for n in rows.values()))
         got = api.view(self.config, self.folder, SITE, admin=False, now=NOW)["tools"][0]
         self.assertEqual((got["state"], got["counted_from"]), ("answering",
                                                               "Counted from: Google Analytics"))
         self.assertEqual([(f["label"], f["value"]) for f in got["headline"]],
-                         [("Sessions", 1234), ("Users", 980), ("Key events", 37)])
+                         [("Sessions", 1234), ("Users", 980), ("New users", 812),
+                          ("Engagement rate", 0.5680713128), ("Average session", 94.27),
+                          ("Key events", 37)])
+        # SKALD-55: the 28 days before, each figure's unit, the rows in GA4's order, the names.
+        self.assertEqual(got["before"]["sessions"], 1100)
+        self.assertEqual(got["before_period"], {"start": "2026-08-31", "end": "2026-09-27"})
+        self.assertEqual([f.get("unit") for f in got["headline"]],
+                         [None, None, None, "share", "seconds", None])
+        channels = got["reports"]["channels"]
+        self.assertEqual(channels["title"], "Channels")
+        self.assertEqual([f["dim"] for f in channels["figures"] if f["name"] == "sessions" and f["dim"]],
+                         ["Organic Search", "Direct", "Referral", "Organic Social", "Unassigned"])
+        self.assertEqual(next(f for f in channels["figures"] if f["dim"])["rank"], 0, "GA4's first row")
         self.assertEqual(got["period"]["end"], "2026-10-25")
         self.assertIn("Thresholded: Google hid some small numbers", got["reports"]["totals"]["flags"])
         self.assertIn("Sampled: Google counted part of the data", got["reports"]["sources"]["flags"])
@@ -258,6 +297,51 @@ class SyncAndAudit(Base):
         self.assertTrue(any("shown 1300" in p for p in problems), problems)
         self.assertTrue(any("chatgpt.com / referral: GA4 gave 5, not shown" in p
                             for p in problems), problems)
+
+    def test_a_share_and_seconds_read_the_same_in_the_mail(self):
+        """SKALD-55: a share as a percent, seconds as minutes, in the Monday mail's rows as on
+        the card (api.shown); nothing given is Not given, never 0."""
+        self.assertEqual([api.shown(v, u) for v, u in ((0.5680713128, "share"), (94.27, "seconds"),
+                                                       (42, "seconds"), (1234, None), (None, "share"))],
+                         ["56.8%", "1m 34s", "42s", "1,234", "Not given"])
+        self.connect()
+        self.assertEqual(self.run_sync(Google())[0], 0)
+        from skald import mail_marketing
+        t = api.view(self.config, self.folder, SITE, admin=False, now=NOW)["tools"][0]
+        rows = dict(mail_marketing._tool_lines(t)[0])
+        self.assertEqual((rows["Engagement rate"], rows["Average session"], rows["Sessions"]),
+                         ("56.8%", "1m 34s", "1,234"))
+
+    def test_an_answer_kept_before_skald_asked_for_more_still_rechecks(self):
+        """SKALD-55: GA4 keeps an answer a day. One kept by the older code (four metrics
+        asked, four figures) is judged by what it asked then, not withheld; a stored
+        request naming a metric Skald never asks for is a problem."""
+        self.connect()
+        self.assertEqual(self.run_sync(Google())[0], 0)
+        old = {"dimensionHeaders": [], "metricHeaders": [{"name": m, "type": "TYPE_INTEGER"} for m in
+                                                         ("sessions", "totalUsers", "engagedSessions", "keyEvents")],
+               "rows": [{"metricValues": [{"value": v} for v in ("900", "700", "500", "20")]}],
+               "rowCount": 1, "metadata": {"timeZone": "America/New_York"}}
+        asked = {"property": PROP, "dateRanges": [{"startDate": "28daysAgo", "endDate": "yesterday"}],
+                 "metrics": [{"name": m} for m in ("sessions", "totalUsers", "engagedSessions", "keyEvents")]}
+        from skald.yourtools.base import Answer as Kept
+        answer = Kept(report="totals", period="2026-09-01..2026-09-28", start="2026-09-01",
+                      end="2026-09-28", request=asked, body=old, flags={}, note="")
+        db = store.connect(self.folder)
+        with db:
+            # The older code's four figures: the five metrics it never asked for left out.
+            store.keep(db, SITE, "ga4", answer, [f for f in GA4.figures(answer) if f.value is not None],
+                       "2026-09-29T00:00:00Z")
+        db.close()
+        got = recount.check(self.folder, SITE)["ga4"]
+        self.assertTrue(got["ok"], got["problems"])
+        db = sqlite3.connect(store.path_for(self.folder))
+        with db:
+            db.execute("UPDATE answers SET request = ? WHERE period = '2026-09-01..2026-09-28'",
+                       (json.dumps({**asked, "metrics": [*asked["metrics"], {"name": "bounceRate"}]}),))
+        db.close()
+        problems = recount.check(self.folder, SITE)["ga4"]["problems"]
+        self.assertTrue(any("never asks GA4 for 'bounceRate'" in p for p in problems), problems)
 
     def test_a_failure_keeps_the_figures_and_says_what_to_do(self):
         self.connect()

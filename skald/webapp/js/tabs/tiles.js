@@ -6,6 +6,7 @@ import { h, n, tip, untip } from "../ui.js";
 import { color } from "../data.js";
 import * as S from "../state.js";
 import { blist } from "./common.js";
+import { aiSplit } from "./ai-split.js";
 import { popper } from "../tabletools.js";
 
 /* An (i) that says what something counts, on hover and on keyboard focus. With `more` (a
@@ -44,7 +45,10 @@ export function others(t, { probes = false } = {}) {
     reads != null
       ? ["answer_engines", "AI answering a question now", reads, `page reads (${n(t.tiers?.asked ?? 0)} requests)`, "An assistant read the page because someone asked it a question just then. Its repeat requests for the page and the page's own files are counted once, as one read."]
       : ["answer_engines", "AI answering a question now", t.tiers?.asked ?? 0, "requests", "An assistant fetched the page because someone asked it a question just then. Requests, the page's own files included."],
-    ["answer_engines", "AI collecting for training", t.tiers?.training ?? 0, "pages fetched", "Crawls that feed an assistant's training or index; nobody is waiting."],
+    // SKALD-49: pages only, the files beside them; requests when the range cannot split them.
+    ...[aiSplit(t, "training")].map((x) => x
+      ? ["answer_engines", "AI collecting for training", x.pages, `pages fetched, + ${n(x.files)} files`, "Crawls that feed an assistant's training or index; nobody is waiting. Files: robots.txt, sitemaps, llms.txt, images, styles and scripts they also fetched."]
+      : ["answer_engines", "AI collecting for training", t.tiers?.training ?? 0, "requests", "Crawls that feed an assistant's training or index; nobody is waiting. Pages and files together: not told apart for days before 18 Oct 2026."]),
     ["search_engines", "Search engines", t.search ?? 0, "pages fetched", "Indexing by Google, Bing and others; ads quality checks not included."],
     ["bots", "Bots and scanners", t.hits?.bots ?? 0, probes && t.probes ? `requests, ${n(t.probes)} of them probes` : "requests", "Monitors, SEO tools, link previews and scanners probing for weak spots."],
     ["ours", "Our own", t.hits?.ours ?? 0, "requests", "The office, our tests, our crawler and the five-minute heartbeat."],
