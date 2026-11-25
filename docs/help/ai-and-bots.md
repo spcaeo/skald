@@ -131,6 +131,21 @@ Each line is **Good**, **Needs attention** or **Not known**, with one line of ev
 
 What AI got back is recorded from this release on. A page group (view) shows it for the whole site only. robots.txt says what a crawler may read; assistants that fetch for one user (ChatGPT-User, Perplexity-User) may not follow it.
 
+## Who reads the files you made for AI? (Agent files)
+
+Many sites now publish files written for AI agents and tools rather than for people: a Markdown copy of each page (`page.md`, linked from the page's head with `<link rel="alternate" type="text/markdown">`), an OKF bundle (Open Knowledge Format: a folder of Markdown files that indexes the site, `/okf/index.md`), `/llms.txt`, and agent or MCP cards under `/.well-known/`. Open [Traffic › Agent files](#traffic/agentfiles) to see who asks for them.
+
+- **The cards:** requests for all these files, then for each kind: Markdown copies, the OKF bundle (when the site has one), llms.txt, agent cards, and robots.txt and sitemaps beside them. Each card says how many came from AI. "Nobody asked" is an answer too: most llms.txt files are never read.
+- **The chips** narrow everything below to one kind of file.
+- **Requests per day** are stacked by who asked: AI assistants (fetching for someone's question), AI crawlers (training and AI search), search engines, other bots and tools, and people.
+- **Who fetches them:** each group's share, then every name with its requests per kind. **Other bots and tools** holds SEO tools, monitors, scripts (curl, Python) and AI tools Skald does not name yet. It also holds browser-like clients that never showed a page: many AI agents fetch with a browser's name.
+- **Needs a look:** files that answered an error (an agent asked and got nothing) or sent the agent to another address. A 404 for `/llms.txt` or an agent card means agents look for one and your site has none: publish one, or leave it.
+- **Every file fetched:** each file, the page a Markdown copy stands for, its requests, the share from AI, its answers and when it was last fetched. Select a row for the file's own drawer: its answers, who asked, by name and by day. In the address: `afile=/okf/index.md`.
+
+Only the address decides what a file is, so a request that got a 404 still counts: someone asked for it. An agent can also ask for a page's own address with the header `Accept: text/markdown` and get Markdown back; a server log does not keep that header, so those requests are not counted here. Markdown copies are never page views: Traffic › Pages leaves them out.
+
+Files are listed for the last 30 days; the cards, the chart and the names cover the whole range. Each day keeps its 50 busiest files and 20 busiest names per group, and sums the rest, so the totals always add up. Agent files are counted from this release on, for the whole site (a page group says so). Every figure has its own second count from the raw log lines.
+
 ## How the figures are checked
 
 Every figure here is counted twice, by two pieces of code written apart: the daily count, and an independent recount from the raw log lines. If the two disagree, the day is withheld until someone finds out why. A withheld day is left out of every total and named at the top of the page.

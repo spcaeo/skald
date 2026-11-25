@@ -1,4 +1,4 @@
-// Traffic: Visitors · Sources · Pages · Places & devices · Search · Retention · Time · Events. The
+// Traffic: Visitors · Sources · Pages · Agent files · Places & devices · Search · Retention · Time · Events. The
 // Traffic builder owns this file. Tab entries and their options: see s-overview.js. Events (what
 // visitors did inside the pages, from the script tag) moved here from Leads & sales in #33.
 //
@@ -11,6 +11,7 @@ import visitors from "./tr-visitors.js";
 import sources from "./tr-sources.js";
 import pages from "./tr-pages.js";
 import places from "./tr-places.js";
+import agentFiles from "./tr-agentfiles.js";
 import hours from "./hours.js";
 import search from "./tr-search.js";
 import retention from "./tr-retention.js";
@@ -28,6 +29,9 @@ export default [
   ["sources", "Sources", sources, { filters: ["source", "referrer", "campaign"], compare: true, keep: ["net"] }],
   // A page's story (?page=) has a period of its own.
   ["pages", "Pages", pages, { needs: ["pages", "page_index", "page_trends"], filters: ["path"], keep: ["page", "psec", "pubfrom", "pubto", "chgfrom", "psort", "pchg"], ranged: (s) => !s.page, compare: (s) => !s.page }],
+  // SKALD-56: files made for machines (Markdown copies, OKF, llms.txt, agent cards) and who
+  // fetched them, from agent_files.json; the whole site's, so no filter narrows it.
+  ["agentfiles", "Agent files", agentFiles, { filters: [] }],
   ["places", "Places & devices", places, { filters: ["country", "device", "browser"], compare: true }],
   // Search (P1-6): Search Console's and Bing's own figures, synced every 6 hours
   // (search.json). Its own engine and period chips: the engines' days, not the bar's.

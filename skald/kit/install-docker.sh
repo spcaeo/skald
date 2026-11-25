@@ -40,7 +40,7 @@ grep -rnE "access_log|server_name|CustomLog|ServerName|ServerAlias" \
   /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ /etc/apache2/sites-enabled/ /etc/httpd/conf.d/ 2>/dev/null \
   | grep -vE ':[[:space:]]*#' | sed 's/^/   /' | head -40 || true
 GUESS=""
-for f in "/var/log/nginx/www.${SITE}.access.log" "/var/log/nginx/${SITE}.access.log" \
+for f in "/var/log/nginx/${SITE}.access.log" \
          "/var/log/nginx/access.log" "/var/log/apache2/access.log" "/var/log/httpd/access_log"; do
   if [ -f "$f" ]; then GUESS="$f"; break; fi
 done

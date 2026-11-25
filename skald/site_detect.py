@@ -82,12 +82,15 @@ TAGS = {"ga4": re.compile(r"(?:googletagmanager\.com/gtag/js\?id=|gtag\(\s*['\"]
         # connected yet" card can say what the site already uses (js/connect-plan.js).
         "calcom": re.compile(r"(?<![\w.-])((?:app\.)?cal\.com/(?!embed\b)[A-Za-z0-9_-]{1,60}"
                              r"(?:/[A-Za-z0-9_-]{1,60})?)"),
+        # SKALD-54: a NeetoCal scheduling link (<org>.neetocal.com/<slug>), never its CDN.
+        "neetocal": re.compile(r"\b((?!cdn\.)[a-z0-9-]{1,40}\.neetocal\.com/[A-Za-z0-9_-]{1,60})"),
         "stripe": re.compile(r"\b((?:js|buy|checkout)\.stripe\.com)\b"),
         "hubspot": re.compile(r"\b(js\.(?:hs-scripts\.com|hsforms\.net|hs-analytics\.net)"
                               r"|[a-z0-9-]{1,30}\.hsforms\.com)\b")}
 TAG_SHAPES = {"ga4": re.compile(r"G-[A-Z0-9]{4,15}"),
               "calendly": re.compile(r"calendly\.com/[A-Za-z0-9_-]{1,60}(?:/[A-Za-z0-9_-]{1,60})?"),
               "calcom": re.compile(r"(?:app\.)?cal\.com/[A-Za-z0-9_-]{1,60}(?:/[A-Za-z0-9_-]{1,60})?"),
+              "neetocal": re.compile(r"[a-z0-9-]{1,40}\.neetocal\.com/[A-Za-z0-9_-]{1,60}"),
               "stripe": re.compile(r"(?:js|buy|checkout)\.stripe\.com"),
               "hubspot": re.compile(r"js\.(?:hs-scripts\.com|hsforms\.net|hs-analytics\.net)"
                                     r"|[a-z0-9-]{1,30}\.hsforms\.com")}
@@ -165,7 +168,7 @@ def forms_of(html: str) -> int:
 
 
 def tags_of(html: str) -> dict:
-    """{"ga4": [...], "calendly": [...], "calcom", "stripe", "hubspot"} named in the page's
+    """{"ga4": [...], "calendly": [...], "calcom", "neetocal", "stripe", "hubspot"} named in the page's
     text, each at most 3."""
     out = {}
     for kind, rx in TAGS.items():

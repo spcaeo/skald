@@ -123,6 +123,8 @@ export const ROUTE_KEYS = [
   { key: "tool", kind: "overlay", owner: "tabs/set-leads.js", means: "Settings › Leads & tools: one tool's details (its id: site, calendly, stripe...; your-<id>: one of your own tools, your-ga4), or webhooks (Send each lead out), search (Search Console and Bing), checks (every check)", example: "calendly" },
   // SKALD-55: Overview's From your tools: one tool's figures in full (every table it gave).
   { key: "ytool", kind: "overlay", owner: "tabs/ov-tools-drawer.js", means: "Overview › From your tools: one of your own tools' figures in a drawer, by its id (ga4, vercel, calendly, resend): its totals against the days before, and every table it gave", example: "ga4" },
+  // SKALD-56: Traffic › Agent files, one file's drawer, by its path.
+  { key: "afile", kind: "overlay", owner: "tabs/agent-files-drawer.js", means: "Traffic › Agent files: one file made for machines in a drawer, by its path (a Markdown copy, an OKF file, llms.txt, an agent card): its requests over the period, its answers, who fetched it", example: "/okf/index.md" },
   // 2.43: recorded journeys (tabs/recorded.js); never an address, an email or an ID the site made.
   { key: "rj", kind: "overlay", owner: "tabs/recorded.js", means: "a session the site sent (Recorded by your site), by its opaque ref: s and 12 hex, a hash of the site and the session", example: "s3f9a0c2e7b1d" },
   { key: "rjc", kind: "overlay", owner: "tabs/recorded.js", means: "Settings › Leads & tools: Recorded journeys' Connect dialog (Who will do it?, by= inside it)", example: "connect" },

@@ -32,7 +32,7 @@ Steps (about 5 minutes)
   3. Run it:
        sudo bash install.sh
      It lists the access log and host-name lines of nginx or Apache. Give the full path
-     of the access log of the __SITE__ (or www.__SITE__) server block (for example
+     of the access log of the __SITE__ server block (for example
      /var/log/nginx/__SITE__.access.log). Then paste the token when asked (if it is
      not in this kit). It is not shown as you paste it.
   4. It shows the shipper's first lines. Open https://__SITE__/ once; within a few
@@ -54,9 +54,9 @@ If the token is not in this kit
     3. Pasted when install.sh asks for it (the easiest). It is not shown as you paste.
   A token already saved on this server by an earlier run is kept unless you say no.
 
-If www and another subdomain write to the same log file
-  Give www.__SITE__ its own file first, in its server block (nginx):
-    access_log /var/log/nginx/www.__SITE__.access.log <the same format as now>;
+If __SITE__ and another host name write to the same log file
+  Give __SITE__ its own file first, in its server block (nginx):
+    access_log /var/log/nginx/__SITE__.access.log <the same format as now>;
   then: sudo nginx -t && sudo systemctl reload nginx
   Apache: a CustomLog line in its VirtualHost, then: sudo apachectl configtest && sudo systemctl reload apache2
   Then run sudo bash install.sh again and give the new file.

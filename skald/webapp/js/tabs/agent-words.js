@@ -79,7 +79,7 @@ export const jobsFrom = (v) => jobsInOrder(String(v || "").split("."));
 // The report's jobs, {id: done | already | skipped | left}, in plain words.
 export const JOB_RESULT = { done: "done", already: "already there", skipped: "skipped", left: "left for you" };
 // The lead tools a report may name (integrations_api TOOLS), in plain words.
-export const TOOL_NAMES = { lead: "Your site's own form or backend", json: "Zapier, Make or n8n", calendly: "Calendly", calcom: "Cal.com",
+export const TOOL_NAMES = { lead: "Your site's own form or backend", json: "Zapier, Make or n8n", calendly: "Calendly", calcom: "Cal.com", neetocal: "NeetoCal",
   typeform: "Typeform", stripe: "Stripe", hubspot: "HubSpot" };
 
 export const agentOf = (id) => AGENTS.find((a) => a.id === id) || null;

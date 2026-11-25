@@ -424,12 +424,12 @@ filled by `kit.one_file`:
   (and a shipper of the other way is removed, so only one sends).
 - **The log:** found by itself. It reads nginx's settings (`nginx.conf`, `conf.d/`,
   `sites-enabled/`) and Apache's (`sites-enabled/`, `conf.d/`, `httpd.conf`) for the server
-  block whose `server_name` / `ServerName` / `ServerAlias` is the site or `www.<site>` and
-  takes its `access_log` / `CustomLog` (`${APACHE_LOG_DIR}` and nginx's `$host` are filled
-  in). A block with no `access_log` writes the http block's. Several: it asks, from the
-  terminal (`/dev/tty`, so it works under `curl | sudo bash`), the biggest first; none: the
-  usual places. `--log <path>` names it; `--yes` asks nothing and takes what was found;
-  `--dry-run` shows every step and changes nothing.
+  block whose `server_name` / `ServerName` / `ServerAlias` is the site (or `www.<site>`, for a
+  site added without `www.`) and takes its `access_log` / `CustomLog` (`${APACHE_LOG_DIR}` and
+  nginx's `$host` are filled in). A block with no `access_log` writes the http block's.
+  Several: it asks, from the terminal (`/dev/tty`, so it works under `curl | sudo bash`), the
+  biggest first; none: the usual places. `--log <path>` names it; `--yes` asks nothing and
+  takes what was found; `--dry-run` shows every step and changes nothing.
 - **The token:** inside the file when it was made with one (never printed), else
   `SKALD_SHIP_TOKEN`, else asked for, hidden. Kept as the kits keep it: Docker
   `/srv/skald/ship-token` (root:adm, 0640), systemd `/etc/skald-ship/token`

@@ -450,6 +450,8 @@ Moved to [docs/DATA-CONTRACT-BOTS.md](docs/DATA-CONTRACT-BOTS.md#crawler_costjso
 
 AI readiness per page and the day kind `ai_status` (2.35): [docs/DATA-CONTRACT-AI-READY.md](docs/DATA-CONTRACT-AI-READY.md).
 
+Files made for machines (Markdown copies, OKF bundles, llms.txt, agent cards, robots.txt, sitemaps) and who fetched them, the day kind `agent_files` and agent_files.json (SKALD-56, Traffic › Agent files): [docs/DATA-CONTRACT-AGENT-FILES.md](docs/DATA-CONTRACT-AGENT-FILES.md).
+
 ## realtime.json
 
 Moved to [docs/DATA-CONTRACT-REALTIME.md](docs/DATA-CONTRACT-REALTIME.md#realtimejson).
@@ -817,7 +819,7 @@ beside the visit steps (like the lead steps), never divided per visit.
 
 | field | type |
 |---|---|
-| `events` | `[{"name","label"}]`: the event names this site counts, in report order (`cta_click`, `book_demo_open`, `demo_booked`, `signup_start`, `signup_submit`, `contact_submit`, `waitlist_submit`, `outbound_click`, `scroll_75`, `copy_text`, `404_view`; skald.js's own `form_start`, `form_submit`, `calendly_open`, `calendly_time_selected`, `calendly_booked`, `cal_open`, `cal_booked`, `hubspot_meeting_booked`, `tel_click`, `mailto_click`; and `page_view` when `beacon.page_views` or `beacon.visitor_ids` is on) |
+| `events` | `[{"name","label"}]`: the event names this site counts, in report order (`cta_click`, `book_demo_open`, `demo_booked`, `signup_start`, `signup_submit`, `contact_submit`, `waitlist_submit`, `outbound_click`, `scroll_75`, `copy_text`, `404_view`; skald.js's own `form_start`, `form_submit`, `calendly_open`, `calendly_time_selected`, `calendly_booked`, `cal_open`, `cal_booked`, `hubspot_meeting_booked`, `tel_click`, `mailto_click`, `neetocal_open`, `neetocal_time_selected`, `neetocal_booked`; and `page_view` when `beacon.page_views` or `beacon.visitor_ids` is on) |
 | `keep_days` | int: how many days history keeps (`beacon.keep_days`, default 400) |
 | `first_day` | date or null: the first day with events |
 | `limits` | `{"factor","slack","day_factor","day_slack"}`: verify's bounds (events per page view) |

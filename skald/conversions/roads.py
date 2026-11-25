@@ -34,11 +34,12 @@ from datetime import datetime, timezone
 from . import TOOLS, geo, secrets_store, store
 
 TOOL_NAMES = {"lead": "Your site's server (lead)", "json": "Zapier, Make, n8n (json)",
-              "calendly": "Calendly", "calcom": "Cal.com", "stripe": "Stripe",
-              "typeform": "Typeform", "hubspot": "HubSpot"}
+              "calendly": "Calendly", "calcom": "Cal.com", "neetocal": "NeetoCal",
+              "stripe": "Stripe", "typeform": "Typeform", "hubspot": "HubSpot"}
 TESTS = ("test", "test_failed")
 # What each tool calls the key it signs with (its own screens' word).
-KEY_WORD = {"calendly": "signing key", "calcom": "secret", "typeform": "secret",
+KEY_WORD = {"calendly": "signing key", "calcom": "secret", "neetocal": "secret",
+            "typeform": "secret",
             "stripe": "signing secret", "hubspot": "client secret", "lead": "secret",
             "json": "secret"}
 KEY_REFUSALS = ("unsigned", "bad_signature")

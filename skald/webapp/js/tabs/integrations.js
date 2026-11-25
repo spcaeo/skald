@@ -6,7 +6,7 @@
 // and outgoing webhooks: Skald posts a signed summary of each conversion to
 // the owner's CRM, Zapier or Slack. On top, the doctor's lines for the
 // integrations (doctor.integration_checks): each road working, off, or what
-// to fix; each hook's state in words; the Calendly and Cal.com event types to
+// to fix; each hook's state in words; the Calendly, Cal.com and NeetoCal event types to
 // keep. Search Console and Bing (search-connect.js): the keys and each site's
 // connect wizard. For admins; install admins may pick any site of the install. GET/POST <page>/integrations (integrations_api.py).
 //
@@ -92,7 +92,7 @@ function scriptBox(r) {
   links.addEventListener("input", draw);
   draw();
   return h("section", { class: "s" }, h("h2", null, "The script tag"),
-    h("p", { class: "sub" }, "One line in every page's <head>: page views, form steps, phone and email clicks, and Calendly, Cal.com and HubSpot booking embeds. It loads from your Skald server and posts there (or from your own site, if your server passes it on to Skald), never a third party."),
+    h("p", { class: "sub" }, "One line in every page's <head>: page views, form steps, phone and email clicks, and Calendly, Cal.com, NeetoCal and HubSpot booking embeds. It loads from your Skald server and posts there (or from your own site, if your server passes it on to Skald), never a third party."),
     out,
     h("div", { class: "af-col" },
       h("label", { class: "chk" }, consent, h("span", null, h("b", null, "Wait for consent"), h("small", null, "send nothing and keep no ID until the page calls skald('consent', true)"))),
@@ -277,15 +277,15 @@ export function integrationsPart(part = "all") {
       t.paste && t.rotatable ? pasteForm(t) : null, t.event_types ? typesForm(t) : null, acts, log);
   }
 
-  // Calendly and Cal.com: keep only this site's event types (one account often books for several businesses).
+  // Calendly, Cal.com and NeetoCal: keep only this site's event types (one account often books for several businesses).
   function typesForm(t) {
     const e = t.event_types;
-    const cal = t.tool === "calendly";
-    const box = h("textarea", { rows: "2", maxlength: "4000", autocomplete: "off", spellcheck: "false", disabled: !e.editable, placeholder: cal ? "https://api.calendly.com/event_types/..., or a booking-page slug such as demo" : "an event type id such as 1234, or a slug such as 30min" });
+    const cal = t.tool === "calendly", neeto = t.tool === "neetocal";
+    const box = h("textarea", { rows: "2", maxlength: "4000", autocomplete: "off", spellcheck: "false", disabled: !e.editable, placeholder: cal ? "https://api.calendly.com/event_types/..., or a booking-page slug such as demo" : neeto ? "a scheduling link's slug such as demo, or its address" : "an event type id such as 1234, or a slug such as 30min" });
     box.value = (e.value || []).join("\n");
     const save = h("button", { type: "submit", class: "btn", disabled: !e.editable }, "Save event types");
-    const hint = `${e.value?.length ? `Keeps only these ${e.value.length}; any other event type is answered and not kept.` : "Empty: every event is kept."} One per line. ${cal ? "Calendly sends the event type's URI and its name, not the page's slug: a slug is compared with the name written as a slug (\u201cProduct demo\u201d is product-demo). The delivery log names each event type it left out." : "Cal.com sends the event type's id and slug."}${e.source === "config" ? " Now set in the server's config; saving here wins over it." : ""}${e.editable ? "" : ` ${e.reason}`}`;
-    const form = h("form", { class: "af-col", novalidate: true }, field(`Only these ${t.name} event types`, box, hint), h("div", null, save));
+    const hint = `${e.value?.length ? `Keeps only these ${e.value.length}; any other event type is answered and not kept.` : "Empty: every event is kept."} One per line. ${cal ? "Calendly sends the event type's URI and its name, not the page's slug: a slug is compared with the name written as a slug (\u201cProduct demo\u201d is product-demo). The delivery log names each event type it left out." : neeto ? "NeetoCal names the scheduling link by its id, slug and SID; its name written as a slug matches too." : "Cal.com sends the event type's id and slug."}${e.source === "config" ? " Now set in the server's config; saving here wins over it." : ""}${e.editable ? "" : ` ${e.reason}`}`;
+    const form = h("form", { class: "af-col", novalidate: true }, field(neeto ? "Only these NeetoCal scheduling links" : `Only these ${t.name} event types`, box, hint), h("div", null, save));
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       save.disabled = true;

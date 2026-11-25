@@ -18,8 +18,9 @@ EVENTS_TAB = ROOT / "skald" / "webapp" / "js" / "tabs" / "events.js"
 # copy_text, 404_view, contact/waitlist submits and adopts an ID from your
 # other domains; 6.5 KB since it asks the beacon once a day whether Skald
 # shares the ID across subdomains (beacon.share_subdomains); 7 KB since a page
-# view carries the visit's utm_medium, utm_campaign and ad click (2.45).
-BUDGET = 7168
+# view carries the visit's utm_medium, utm_campaign and ad click (2.45); 7.5 KB
+# since it reads NeetoCal's embed and puts the visitor ID on NeetoCal links (SKALD-54).
+BUDGET = 7680
 # Events the tag builds from two parts: "<data-skald or form>_<start|submit>",
 # "calendly_" + the CAL map's value.
 COMPOSED = {"form_start", "form_submit", "signup_start", "signup_submit", "contact_submit",
@@ -67,6 +68,7 @@ class Snippet(unittest.TestCase):
         named = set(re.findall(r'"((?:[a-z]+_)+(?:start|submit|open|selected|booked|click|view))"',
                                self.text))
         named.discard("time_selected")          # the CAL map's value; "calendly_" is added
+        named.discard("slot_selected")          # NeetoCal's own message type, read, never sent
         named |= {"calendly_" + x for x in ("open", "time_selected", "booked")}
         named |= COMPOSED | {"scroll_75", "copy_text", "404_view"}
         self.assertGreaterEqual(len(named), 20)

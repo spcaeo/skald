@@ -279,6 +279,34 @@ const tests = {
     assert.deepEqual(p.names(), ["page_view", "calendly_open", "calendly_time_selected",
       "calendly_booked", "cal_open", "cal_booked", "hubspot_meeting_booked"]);
   },
+  "NeetoCal (SKALD-54): its embed's messages from its own hosts only"() {
+    const p = page();
+    const o = "https://acme.neetocal.com";
+    p.message(o, { source: "neetocal", type: "host_probe" });
+    p.message(o, { type: "neeto-cal-height-change-event", height: 720 });
+    p.message(o, { source: "neetocal", type: "slot_selected", payload: { date: "2026-10-12" } });
+    p.message(o, { source: "neetocal", type: "booking_confirmed", payload: { form_data: {} } });
+    p.message(o, { source: "neetocal", type: "analytics_event", name: "purchase" });
+    p.message(o, { source: "neetocal", type: "toString" });
+    p.message("https://acme.neetocal.com.evil.example.org", { source: "neetocal", type: "booking_confirmed" });
+    p.message("https://notneetocal.com", { source: "neetocal", type: "booking_confirmed" });
+    p.message("http://acme.neetocal.com", { source: "neetocal", type: "booking_confirmed" });
+    assert.deepEqual(p.names(), ["page_view", "neetocal_open", "neetocal_time_selected", "neetocal_booked"],
+      "opened once per page, then a time and the booking; nothing from a lookalike host");
+  },
+  "NeetoCal links and embeds get the ID as skv"() {
+    const frame = el("iframe", { src: "https://acme.neetocal.com/demo?embedded=true" });
+    const own = el("iframe", { src: "https://acme.neetocal.com/demo?skv=skv_" + "B".repeat(22) });
+    const p = page({ embeds: [frame, own] });
+    const v = p.ctx.skald("id");
+    assert.equal(new URL(frame.attrs.src).searchParams.get("skv"), v);
+    assert.equal(new URL(frame.attrs.src).searchParams.get("embedded"), "true");
+    assert.equal(new URL(own.attrs.src).searchParams.get("skv"), "skv_" + "B".repeat(22), "its own is kept");
+    const link = Object.assign(el("a", {}), { href: "https://acme.neetocal.com/demo" });
+    p.doc("click", link);
+    assert.equal(new URL(link.href).searchParams.get("skv"), v);
+    assert.deepEqual(p.names().slice(-1), ["outbound_click"]);
+  },
   "Calendly embeds get the ID as utm_content"() {
     const frame = el("iframe", { src: "https://calendly.com/acme/demo?hide_gdpr_banner=1" });
     const widget = el("div", { "data-url": "https://calendly.com/acme/demo" });

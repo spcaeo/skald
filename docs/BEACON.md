@@ -230,6 +230,7 @@ post with `X-Skald-Probe: 1` (the set-up Test's page check) answers `200` with
 | `calendly_time_selected` | a time is chosen in a Calendly embed | - |
 | `calendly_booked` | a Calendly embed confirms a booking | - |
 | `cal_open`, `cal_booked` | a Cal.com embed is ready / confirms a booking | - |
+| `neetocal_open`, `neetocal_time_selected`, `neetocal_booked` | a NeetoCal embed shows its page (once a page) / a time is chosen / confirms a booking | - |
 | `hubspot_meeting_booked` | a HubSpot meetings embed confirms a booking | - |
 | `tel_click`, `mailto_click` | a `tel:` / `mailto:` link is clicked (never the number or address) | - |
 
@@ -276,8 +277,8 @@ helper also writes to `conversions.sqlite`, right after the spool line:
 | `form_start` / `form_submit`, `contact_submit` | conversion `contact`, started / completed |
 | `signup_start` / `signup_submit` | `signup`, started / completed |
 | `waitlist_submit` | `waitlist`, completed |
-| `calendly_open`, `calendly_time_selected`, `cal_open`, `book_demo_open` | `demo`, started |
-| `calendly_booked`, `cal_booked`, `hubspot_meeting_booked`, `demo_booked` | `demo`, completed |
+| `calendly_open`, `calendly_time_selected`, `cal_open`, `neetocal_open`, `neetocal_time_selected`, `book_demo_open` | `demo`, started |
+| `calendly_booked`, `cal_booked`, `neetocal_booked`, `hubspot_meeting_booked`, `demo_booked` | `demo`, completed |
 | `tel_click` / `mailto_click` / `cta_click` | `call` / `email` / `cta`, completed (the page sees nothing after a click) |
 | anything else | nothing |
 

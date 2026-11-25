@@ -91,6 +91,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `beacon.goals` | Sites (Goals) | up to 10 event names of `beacon.EVENTS` or `page_view`; `[]` is no goal ([]) | admin | site | `beacon.goals` |
 | `hooks.calendly.event_types` | Integrations (Calendly) | up to 50 event-type URIs, uuids or booking-page slugs; `[]` keeps every event ([]) | admin | site | `hooks.calendly_event_types` (or nested `hooks.calendly.event_types`) |
 | `hooks.calcom.event_types` | Integrations (Cal.com) | up to 50 event-type ids or slugs; `[]` keeps every event ([]) | admin | site | `hooks.calcom_event_types` (or nested `hooks.calcom.event_types`) |
+| `hooks.neetocal.event_types` | Integrations (NeetoCal) | up to 50 scheduling-link slugs, addresses, ids or SIDs; `[]` keeps every booking ([]) | admin | site | `hooks.neetocal_event_types` (or nested `hooks.neetocal.event_types`) |
 | `alerts.enabled` | Site > Alerts | on / off (off) | admin | site | `alerts.enabled` |
 | `alerts.mail` | Site > Alerts | on / off (on) | admin | site | `alerts.mail` |
 | `alerts.<rule>` | Site > Alerts | on / off (on), one per rule: `site_down`, `logging_stopped`, `server_errors`, `not_found_surge`, `crawler_burst`, `new_crawler`, `traffic_drop`, `ai_started_reading`, `ai_stopped_reading`, `ai_sending_people`, `first_citation`, `first_cited_page`, `cited_visits`, `crawler_silent`, `security_exposure`, `stack_advisory`, `tool_stopped`, `leads_drop`, `bookings_drop`; off by default: `scan_wave`, `sale`, `sale_refund`, `ga4_log_gap`. Thresholds in config.yml only: `alerts.leads_drop_percent` (50), `alerts.leads_drop_minimum` (5), `alerts.bookings_drop_percent` (50), `alerts.bookings_drop_minimum` (5), `alerts.ga4_gap_factor` (2) | admin | site | `alerts.<rule>` (the AI three also nested `alerts.ai.<rule without ai_>`) |
@@ -103,7 +104,7 @@ log paths) are shown to install admins only.
 
 Totals, page milestones and every stored day's figures are kept forever. They are not a setting.
 
-`hooks.calendly.event_types` and `hooks.calcom.event_types` (Settings > Integrations, the
+`hooks.calendly.event_types`, `hooks.calcom.event_types` and `hooks.neetocal.event_types` (Settings > Integrations, the
 tool's box; saved by `POST integrations/hooks/types`): the hook receiver reads them for each
 delivery (`conversions/event_types.py`), so a change counts from the next delivery. Another
 event type is answered 200 and not kept; docs/INTEGRATIONS.md, "Calendly".
@@ -138,7 +139,9 @@ section, so without a row it looks for `/_next/static/` (Next.js). A WordPress s
 a site whose assets come from a CDN host this log never sees. `settings_store.apply` writes the
 row into `config["site"]`, where the first pass (`rendering.py`), its recount
 (`audit_rendered.py`) and the doctor's "Page assets" line read it, so both roads count with the
-same paths. A change counts from the next run; `backfill --days N --force` recounts stored days.
+same paths. The page's doctor lines (Settings › To do, Leads & tools, the Overview set-up bar
+and MCP `setup_left`) read the rows the same way, through `doctor.with_saved_settings`
+(SKALD-58). A change counts from the next run; `backfill --days N --force` recounts stored days.
 
 `site.not_pages_off` and `site.not_pages_extra` (Settings > Sites > Not pages, 2.35): the
 not-a-page list (`not_pages.py`, CLASSIFICATION.md "What decides a page view") applies to

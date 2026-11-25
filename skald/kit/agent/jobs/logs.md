@@ -96,7 +96,7 @@ It works on every Cloudflare plan.
    `grep '^SKALD_INGEST_TOKEN=' __ENV_FILE__ | cut -d= -f2- | npx wrangler secret put SKALD_TOKEN`,
    then `npx wrangler deploy`.
 4. The route: in Cloudflare, the Worker's Settings > Domains & Routes > Add > Route, with
-   `__SITE__/*` (and `www.__SITE__/*`). If you cannot reach Cloudflare, give the user these
+   `__SITE__/*`. If you cannot reach Cloudflare, give the user these
    steps.
 
 ### Case C. Vercel or Netlify

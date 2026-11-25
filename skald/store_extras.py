@@ -53,6 +53,8 @@ KINDS = ("hourly", "ours", "not_found", "pages", "campaigns", "returning",
          "crawl_health",
          # what AI crawlers and assistants got back, by address (ai_status.py)
          "ai_status",
+         # files made for machines and who fetched them (agent_files.py)
+         "agent_files",
          # where each visit's visitor first came from (firsttouch.py)
          "first_touch",
          # people from search engines by engine and landing page (search_landing.py)

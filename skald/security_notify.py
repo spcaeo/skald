@@ -16,7 +16,9 @@ webhooks (Slack too). This adds a mail to each person on the site's team who wan
              update needed, no official fix, check your version)
   tracked    every live run and run-daily keep `security_items` up to date (open, still
              open, closed); neither mails by itself any more (2.36: one mail per item and
-             per site made 44 mails in a minute for one person)
+             per site made 44 mails in a minute for one person). An item closes only when
+             what would show it gone was read (SKALD-60, _found): never between midnight
+             and run-daily for want of yesterday, so the 01:00 summary keeps it
   right away after every site of a live run or run-daily, right_away(): ONE mail per
              person with every item due on every site they chose "right away" for
   once       each person gets each item once; a reminder only while the item is still
@@ -129,7 +131,7 @@ def recipients(db, site: str) -> list[dict]:
 
 def items(config: dict, site: str, blobs: list, stack_read: dict | None) -> list[dict]:
     """[{item, kind, title, todo}] open now: possible exposures of the blobs given (today
-    so far, the last whole day) and the stack's advisory matches that need something done."""
+    so far, yesterday as collected) and the stack's advisory matches that need something done."""
     from .alerts_security import advice
     from .security import current
     out, seen = [], set()
@@ -166,8 +168,9 @@ def items(config: dict, site: str, blobs: list, stack_read: dict | None) -> list
     return out
 
 
-def _track(db, site: str, found: list, now: datetime) -> None:
-    """Open the items seen now, keep them open, close the ones gone."""
+def _track(db, site: str, found: list, now: datetime, hold=()) -> None:
+    """Open the items seen now, keep them open, close the ones gone. An open item whose kind
+    is in `hold` is not closed: what would show it gone could not be read (SKALD-60)."""
     stamp = _stamp(now)
     for it in found:
         db.execute("INSERT INTO security_items (site, item, kind, title, todo, first_at, "
@@ -176,9 +179,9 @@ def _track(db, site: str, found: list, now: datetime) -> None:
                    "title = excluded.title, todo = excluded.todo",
                    (site, it["item"], it["kind"], it["title"], it["todo"], stamp, stamp))
     live = {it["item"] for it in found}
-    for (item,) in db.execute("SELECT item FROM security_items WHERE site = ? AND closed_at IS NULL",
-                              (site,)).fetchall():
-        if item not in live:
+    for item, kind in db.execute("SELECT item, kind FROM security_items WHERE site = ? AND "
+                                 "closed_at IS NULL", (site,)).fetchall():
+        if item not in live and kind not in hold:
             db.execute("UPDATE security_items SET closed_at = ? WHERE site = ? AND item = ?",
                        (stamp, site, item))
 
@@ -235,10 +238,11 @@ def _skip(config: dict, it: dict, email: str) -> bool:
     return it["kind"] == "exposure" and on and email.strip().lower() in mailed
 
 
-def track(db, site: str, found: list, now: datetime) -> None:
-    """Keep `security_items` up to date for one site; nothing is mailed."""
+def track(db, site: str, found: list, now: datetime, hold=()) -> None:
+    """Keep `security_items` up to date for one site; nothing is mailed. `hold`: the kinds
+    whose open items stay open this time (_found says which)."""
     _ready(db)
-    _track(db, site, found, now)
+    _track(db, site, found, now, hold)
     db.commit()
 
 
@@ -351,16 +355,58 @@ def test_send(db, config: dict, site: str, user: dict, org_id, now: datetime | N
 
 # ------------------------------------------------------------- the runs
 
-def _found(config: dict, live_dir, history, site: str, snap: dict | None, day) -> list:
+def _found(config: dict, live_dir, history, site: str, snap: dict | None, day,
+           need_today: bool = True) -> tuple[list, frozenset]:
+    """(the items open now, the kinds whose open items must stay open). Exposures come from
+    today so far (the live snapshot) and yesterday, `day`, as collected; advisories from the
+    stack's last check. An item not seen is closed only when every source that could show it
+    was read (SKALD-60). Between local midnight and run-daily, yesterday is not stored yet:
+    an exposure seen only yesterday would close at 00:00 and come back after run-daily, so
+    the 01:00 summary missed it. Held the same: a withheld day, a live count that did not
+    reconcile (`need_today`: run-daily has no live count of its own, so it reads the saved
+    one when it is today's and does without it otherwise), and no stack check to read."""
     from . import stack
-    from .alerts_security import _whole
-    blobs = []
-    if snap and snap.get("state") == "ok":
-        blobs.append((snap.get("extras") or {}).get("security"))
-    if history is not None and day is not None:
-        blobs.append(_whole(history, site, day))
+    from .security import current
+    blobs, hold = [], set()
+    today = (snap.get("extras") or {}).get("security") if snap and snap.get("state") == "ok" \
+        else None
+    if current(today):
+        blobs.append(today)
+    elif need_today and not (snap and snap.get("state") == "empty"):
+        hold.add("exposure")            # "empty": no line today yet, a true nothing
+    whole = _collected(history, site, day) if history is not None and day is not None else None
+    if current(whole):
+        blobs.append(whole)
+    else:
+        hold.add("exposure")
     got = stack.latest(live_dir, site) if live_dir is not None else None
-    return items(config, site, blobs, (got[1].get("read") if got else None))
+    if got is None:
+        hold.add("advisory")
+    return items(config, site, blobs, (got[1].get("read") if got else None)), frozenset(hold)
+
+
+def _collected(history, site: str, day) -> dict | None:
+    """The day's `security` blob once collect has stored it verified, else None. A partial
+    day counts (unlike alerts_security._whole): its rows are lines the live runs saw too,
+    and a quiet site whose first or last hour has no request is partial every day; holding
+    on it would keep its items open for ever."""
+    row = history.db.execute("SELECT verified FROM days WHERE site = ? AND day = ?",
+                             (site, day.isoformat())).fetchone()
+    if row is None or not row[0]:
+        return None
+    got = history.db.execute("SELECT data FROM day_extras WHERE site = ? AND day = ? AND "
+                             "kind = 'security'", (site, day.isoformat())).fetchone()
+    return json.loads(got[0]) if got else None
+
+
+def _saved_today(ctx) -> dict | None:
+    """The live run's saved snapshot when it counts today (run-daily's own view of today)."""
+    from . import live as live_mod
+    if ctx.live_dir is None:
+        return None
+    snap = live_mod.load(live_mod.path_for(ctx.live_dir, ctx.site))
+    today = ctx.now.astimezone(ctx.tz).date().isoformat()
+    return snap if snap and snap.get("day") == today else None
 
 
 def live(ctx, snap: dict | None, send=None) -> None:
@@ -376,8 +422,8 @@ def live(ctx, snap: dict | None, send=None) -> None:
         try:
             with ctx.history() as history:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
-                found = _found(ctx.config, ctx.live_dir, history, ctx.site, snap, day)
-            track(db, ctx.site, found, ctx.now)
+                found, hold = _found(ctx.config, ctx.live_dir, history, ctx.site, snap, day)
+            track(db, ctx.site, found, ctx.now, hold)
         finally:
             db.close()
     except Exception as why:            # noqa: BLE001 - never stops the live run
@@ -385,8 +431,9 @@ def live(ctx, snap: dict | None, send=None) -> None:
 
 
 def daily(ctx, send=None) -> int:
-    """run-daily's step: the items tracked from the last whole day and the stack check. It
-    mails nobody (2.36): the 01:00 summary (summary_mail.py) carries them. Always 0."""
+    """run-daily's step: the items tracked from yesterday as collected, today's saved live count
+    when there is one, and the stack check. It mails nobody (2.36): the 01:00 summary
+    (summary_mail.py) carries them. Always 0."""
     try:
         from .auth_api import open_db, sessions_mode
         if not sessions_mode(ctx.config):
@@ -397,10 +444,13 @@ def daily(ctx, send=None) -> int:
         try:
             with ctx.history() as history:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
-                found = _found(ctx.config, ctx.live_dir, history, ctx.site, None, day)
-            track(db, ctx.site, found, ctx.now)
+                saved = _saved_today(ctx)
+                found, hold = _found(ctx.config, ctx.live_dir, history, ctx.site, saved, day,
+                                     need_today=saved is not None)
+            track(db, ctx.site, found, ctx.now, hold)
             ctx.out(f"security items: {len(open_items(db, ctx.site))} open; they go in the "
-                    "daily summary")
+                    "daily summary" + (f" (kept open, nothing to judge them by: "
+                                       f"{', '.join(sorted(hold))})" if hold else ""))
         finally:
             db.close()
     except Exception as why:            # noqa: BLE001 - never stops the run

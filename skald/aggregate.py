@@ -465,6 +465,7 @@ def summarise_views(
     for _, t in tallies.values():        # crawl health and security are the whole site's
         t.extras.crawl_health = None
         t.extras.ai_status = None
+        t.extras.agent_files = None
         t.extras.security = None
     whole.extras.security.verifier = getattr(classifier, "verifier", None)
     verifier = whole.extras.security.verifier

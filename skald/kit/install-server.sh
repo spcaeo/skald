@@ -179,16 +179,18 @@ apache_logs() {
 }
 
 # Each found path as a file on this server: Apache's ${APACHE_LOG_DIR} and httpd's
-# relative paths made whole, nginx's $host tried as the site and www.<site>.
+# relative paths made whole, nginx's $host tried as the site, and as www.<site> only when
+# the site's own name does not already start with "www.".
 log_files() {
-  local p q name ald=/var/log/apache2
+  local p q name ald=/var/log/apache2 alt="www.$SITE"
+  case "$SITE" in www.*) alt="" ;; esac
   { nginx_logs; apache_logs; } | while IFS= read -r p; do
     case "$p" in off|syslog:*|"") continue ;; esac
     p="${p//'${APACHE_LOG_DIR}'/$ald}"
     case "$p" in /*) ;; *) p="/etc/httpd/$p" ;; esac
     case "$p" in
       *'$'*)
-        for name in "$SITE" "www.$SITE"; do
+        for name in "$SITE" ${alt:+"$alt"}; do
           q="${p//'${host}'/$name}"; q="${q//'$host'/$name}"; q="${q//'$server_name'/$name}"
           case "$q" in *'$'*) ;; *) [ -f "$R$q" ] && printf '%s\n' "$R$q" ;; esac
         done ;;
@@ -224,7 +226,7 @@ pick_log() {
     return
   fi
   local guess=""
-  for f in "/var/log/nginx/www.${SITE}.access.log" "/var/log/nginx/${SITE}.access.log" \
+  for f in "/var/log/nginx/${SITE}.access.log" \
            "/var/log/nginx/access.log" "/var/log/apache2/access.log" "/var/log/httpd/access_log"; do
     if [ -f "$R$f" ]; then guess="$R$f"; break; fi
   done

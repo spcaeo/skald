@@ -1,6 +1,6 @@
 # Demo bookings
 
-How booked calls from Calendly and Cal.com reach Skald, what each way can see, and how to keep only your own event types when one account books for several businesses.
+How booked calls from Calendly, Cal.com and NeetoCal reach Skald, what each way can see, and how to keep only your own event types when one account books for several businesses.
 
 ## Three ways Calendly reaches Skald
 
@@ -93,6 +93,28 @@ With PyYAML installed, the nested form works too: `hooks: {calendly: {event_type
 - **The embed:** with the script tag on the page, Skald sees the booking open (`cal_open`) and booked (`cal_booked`).
 - **The visitor ID:** pass it in the embed as `metadata[skv]=skv_...`, or as a hidden booking question named `skv`.
 - **Event types:** **Only these Cal.com event types** in Cal.com's details on Leads & tools takes event type ids (`1234`) or slugs (`30min`, or the page's address `https://cal.com/example/30min`). Config: `hooks: {calcom_event_types: [...]}`.
+
+## NeetoCal
+
+| | Embedded on your page | A link to your NeetoCal page | The NeetoCal webhook |
+| --- | --- | --- | --- |
+| Needs | The script tag | The script tag | The `neetocal` hook (every NeetoCal plan) |
+| Opened the booking | Yes (`neetocal_open`) | No: only a click out | No |
+| Chose a time | Yes (`neetocal_time_selected`) | No | No |
+| Booked | Yes (`neetocal_booked`) | No | Yes |
+| Waiting for approval, rescheduled, cancelled or rejected | No | No | Yes |
+| Joined to the visitor's journey | Yes, with visitor IDs on | Through the `skv` question | Through the `skv` question, with visitor IDs on |
+
+- **The webhook:** see [Webhooks > NeetoCal](webhooks.md#neetocal).
+- **The visitor ID:** add a hidden booking question with the field code `skv` to each scheduling link (**Settings > Questions > Add question**: Short text, **Hide question** on, **Advanced properties > Field code** `skv`). The script tag adds `?skv=<visitor ID>` to links to `*.neetocal.com` and to NeetoCal's embed, and NeetoCal fills the question from it. A booking without it still counts; it has no journey. With NeetoCal's embed code, the surest way is to hand it the ID yourself, so the embed does not load twice:
+
+```
+neetoCal.embed({ type: "inline", organization: "example", slug: "demo",
+  elementSelector: "#booking", queryParams: { skv: window.skald && skald("id") } });
+```
+- **The embed:** with the script tag on the page, Skald hears NeetoCal's own messages from `https://<your workspace>.neetocal.com`: opened (once a page, when the embed loads), a time chosen and booked. An embed on a custom NeetoCal domain is not heard: use the webhook.
+- **Only these NeetoCal scheduling links:** one per line, each a link's slug (`demo`), its address (`https://example.neetocal.com/demo`), its id or its SID (in the link's **Settings > SID**). Its name written as a slug matches too ("Product demo" is `product-demo`). Config: `hooks: {neetocal_event_types: [...]}`. A cancellation names no link: it is kept when its booking was kept.
+- **Only some answers are kept:** `skv` and `utm_` answers, and the name and email when the site keeps them. A phone, a company or a note is never kept.
 
 ## A relay of your own
 

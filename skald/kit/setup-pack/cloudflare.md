@@ -22,7 +22,7 @@ sent. It works on every Cloudflare plan, the free one included.
        npx wrangler deploy
 
 4. Add the site's route: in Cloudflare, open the Worker, then Settings > Domains & Routes >
-   Add > Route, with `__SITE__/*` (and `www.__SITE__/*`).
+   Add > Route, with `__SITE__/*`.
 5. Open a page of the site. Within a few minutes it shows on __DASHBOARD__ (Settings >
    Collect data > Send logs says what arrived).
 

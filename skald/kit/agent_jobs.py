@@ -84,8 +84,8 @@ LEAD_WORDS = {
              "secret in Skald (Settings > Leads & integrations > Lead)."),
 }
 TOOL_LABELS = {"lead": "Your site's server (lead)", "json": "Zapier, Make, n8n (json)",
-               "calendly": "Calendly", "calcom": "Cal.com", "stripe": "Stripe",
-               "typeform": "Typeform", "hubspot": "HubSpot"}
+               "calendly": "Calendly", "calcom": "Cal.com", "neetocal": "NeetoCal",
+               "stripe": "Stripe", "typeform": "Typeform", "hubspot": "HubSpot"}
 HOOK_WORDS = {"set": "Skald has its secret", "env": "its secret is kept in the Skald server's "
               "environment (ask whoever runs Skald; you cannot change it)",
               "none": "no secret yet"}

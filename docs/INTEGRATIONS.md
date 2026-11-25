@@ -12,7 +12,7 @@ Google Search Console and Bing Webmaster Tools ([INTEGRATIONS-SEARCH.md](INTEGRA
 
 | Action | From |
 | --- | --- |
-| `demo` | Calendly, Cal.com, HubSpot meetings, the page's booking events (`calendly_*`, `cal_*`, `book_demo_open`, `demo_booked`), the lead DB's `demo_opened` / `demo_booked` |
+| `demo` | Calendly, Cal.com, NeetoCal, HubSpot meetings, the page's booking events (`calendly_*`, `cal_*`, `neetocal_*`, `book_demo_open`, `demo_booked`), the lead DB's `demo_opened` / `demo_booked` |
 | `paid` | Stripe (a checkout paid; one paid later by a delayed method is `started` first) |
 | `contact` | forms: the page's `form_*` / `contact_submit`, Typeform, HubSpot contacts and workflows, the lead DB's `contact` |
 | `signup`, `waitlist` | the page's sign-up and early-access events, the lead DB |
@@ -123,6 +123,13 @@ server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
   `cal_open` (`linkReady`) and `cal_booked` (`bookingSuccessful`), only from
   `https://app.cal.com`. HubSpot meetings: `hubspot_meeting_booked`, only
   from `https://meetings.hubspot.com` (and its regional `meetings-<x>` hosts).
+  NeetoCal (SKALD-54): `neetocal_open` (its `host_probe` or height message,
+  once a page), `neetocal_time_selected` (`slot_selected`) and `neetocal_booked`
+  (`booking_confirmed`), only from `https://<workspace>.neetocal.com`; an
+  embed on a custom NeetoCal domain is not heard.
+- The visitor ID goes to NeetoCal as `skv=<id>` on its iframes and on links
+  to `*.neetocal.com`, unless the URL already has one; the scheduling link's
+  hidden booking question with the field code `skv` keeps it.
 - The visitor ID goes to Calendly as `utm_content=<id>` on Calendly iframes,
   inline widgets (`data-url`) and links, unless the URL already has a
   `utm_content`; Calendly returns it in its webhook, so the booking joins the
@@ -285,6 +292,7 @@ POST https://www.example.com/traffic-hooks/<site>/<tool>
 | `json` | Zapier, Make, n8n, any script | `X-Skald-Signature` (Skald's scheme), or the plain key (2.30) |
 | `calendly` | Calendly webhook subscriptions | `Calendly-Webhook-Signature` |
 | `calcom` | Cal.com webhooks | `X-Cal-Signature-256` |
+| `neetocal` | NeetoCal webhooks (SKALD-54) | `X-Neeto-Webhook-Signature` |
 | `stripe` | Stripe Checkout | `Stripe-Signature` |
 | `typeform` | Typeform webhooks | `Typeform-Signature` |
 | `hubspot` | HubSpot app webhooks and workflow webhooks | `X-HubSpot-Signature-v3` |
@@ -331,8 +339,8 @@ Docker.
    keep: the action, stage, time, source, country and device, the visitor ID
    or "none" (dropped when the site's visitor IDs are off, as the real path
    drops it), a time without an offset read in the site's zone, and
-   "ignored: other event type" when the site keeps other Calendly or Cal.com
-   event types only (below).
+   "ignored: other event type" when the site keeps other Calendly, Cal.com or
+   NeetoCal event types only (below).
 4. `skald hooks list` shows each hook, where its secret lives (never the
    secret) and its last deliveries. `skald doctor` says, per hook:
    needs a secret, never received, ready (a test passed), or last received
@@ -394,7 +402,7 @@ again, so those leads were lost. `unsigned` says the tool's webhook was made
 without a key: no key pasted into Skald can ever match it, and the fix is to make
 the webhook again with the key Skald gives.
 
-Cal.com and Typeform sign no timestamp, so a captured body could be sent
+Cal.com, NeetoCal and Typeform sign no timestamp, so a captured body could be sent
 again later. Skald keeps a SHA-256 of each accepted body and its event id
 (table `hook_replays`, 30 days, never the body) and answers a repeat with
 200 (`"duplicates":1`), logged as `replay`, neither spooled nor kept. `forget` leaves these
@@ -604,6 +612,44 @@ Cal.com, or `hooks: {calcom_event_types: [...]}`), each an event type's id
 (`1234`) or slug (`30min`, or the page's address); Cal.com sends both. The
 rest works as for Calendly above.
 
+### NeetoCal
+
+SKALD-54. Every NeetoCal plan has webhooks. A scheduling link's Settings >
+Webhooks > Add new webhook (or Admin panel > Webhooks for every link).
+Endpoint: the hook address. Secret key: the hook secret (or NeetoCal's
+"Generate secret key", pasted into Skald). Events: Booking created,
+rescheduled, cancelled, requested and rejected; the others are ignored.
+
+- Signature: `X-Neeto-Webhook-Signature: sha256=<hex HMAC-SHA256>` of the
+  raw body (checked on real deliveries, 25 Nov 2026), sent again as
+  `X-Neeto-Hook-Secret-Sha-256`; User-Agent `Ruby`. NeetoCal's help also
+  shows the body signed with `<`, `>`, `&`, U+2028 and U+2029 escaped; Skald
+  takes that form too. No timestamp: replays are refused by hash (below).
+- The body (seen on a real test booking, 25 Nov 2026; `tests/fixtures/
+  neetocal/`): one object `webhook` that is the booking, with `method`:
+  `create` (sid, id, booked_on, status, meeting {name, id, sid},
+  metadata.scheduling_link, the answers as `details` [{field_code, value}]),
+  `update` (the same, plus `reschedule_details` {time_changed,
+  member_changed} when moved), `cancel` (only id, sid, canceller,
+  cancel_reason).
+- Steps (`adapters/neetocal.kind`): create -> demo completed (started while
+  its status is `awaiting_approval`); update with reschedule_details ->
+  rescheduled; update whose outcome says no-show -> no_show; update with
+  status cancelled or rejected, `cancel`, `reject` -> cancelled; any other
+  update (notes, host, place) is taken and ignored. The external ref is the
+  booking's `sid` (else `id`). A booking made is at its `booked_on`; a change
+  carries no time, so it is at the time Skald received it.
+- The visitor ID: the answer to a hidden question with the field code `skv`
+  (Short text, Hide question). `utm_*` answers are the booking's own touch.
+- Kept: of the answers only `skv`, `utm_*` and click IDs, and the name and
+  email when identity is full (`adapters/neetocal.prepare`, then
+  `conversions.SPOOL_KEYS`). A phone, a company, a note, the hosts, the
+  meeting room and the booking's admin links are never spooled or stored.
+- Only some scheduling links: `hooks.neetocal.event_types` (Settings > Leads
+  & tools > NeetoCal, or `hooks: {neetocal_event_types: [...]}`), each a
+  link's slug (or its address), id or SID; its name written as a slug
+  matches too. A cancellation names no link: kept when its booking is.
+
 ### Stripe
 
 Dashboard > Developers > Webhooks > Add endpoint. URL: the hook address.
@@ -743,7 +789,7 @@ the drawer's.
   set-up's own check of the site (`accounts/site_setup` `found`, cleaned by
   `site_detect.clean_found`; `integrations_api.FOUND_KEYS`: server, platform,
   framework and their labels, `hosted_builder`, `tags` (ga4, calendly, calcom,
-  stripe, hubspot) and `forms`, the home page's form count), or null when the
+  neetocal, stripe, hubspot) and `forms`, the home page's form count), or null when the
   site was never reached; and each tool's `last_at` and `test_at`. Settings >
   This site > Leads & tools (its Next step and groups) and the "not connected
   yet" card on each data page (`webapp/js/connect-plan.js`, `js/ui/connect.js`)
@@ -893,7 +939,7 @@ blocks. Run `nginx -t` before every reload.
 | rows a lead sync took away, whole, with when and why | same file, `removed` | as conversions |
 | each visit with its IP address and user agent (2.4.0, `privacy.keep_ips`) | same file, `visits`, `visit_days` | `privacy.keep_days` (395) |
 | delivery log: time, outcome, HTTP status, error, external ref; never a body | same file, `deliveries` | 90 days |
-| hashes of Cal.com and Typeform bodies (replays) | same file, `hook_replays` | 30 days |
+| hashes of Cal.com, NeetoCal and Typeform bodies (replays) | same file, `hook_replays` | 30 days |
 | the verified bodies (and, on a `lead` or `json` line with a time without an offset, the zone it was read in) | `hooks/<day>.jsonl` beside the history (`hooks.spool`), 0640 | `conversions.retention_days` (400; 0: for good), each site's lines by its own |
 | recorded journeys (2.43): each consented event raw, with its address and email by the site's settings | same file, `recorded_events` (docs/JOURNEYS.md) | `journeys.vid_days` (30); address and email `privacy.keep_days` when shorter |
 | hook secrets | `secrets.json` beside the history (`hooks.secrets`), 0600, or env variables | until replaced |

@@ -182,7 +182,7 @@ of the SHA-256 of its kind, site and parts (host and path; advisory, host and pr
 same every run, never an address. `security.json` carries it on each exposure row and stack
 match (`item`), and the page opens `#threats/exposed?item=<id>` or `#threats/stack?item=<id>`
 with that item first. Items come from the live snapshot (today), the last whole, verified day
-and the latest stack check; one no longer found is closed. Since 2.36 the live run and
+and the latest stack check; one no longer found is closed, but only when every source that could show it was read (SKALD-60): an exposure stays open while yesterday is not stored (local midnight to run-daily) or was withheld, or today's live count did not reconcile (a live snapshot with no line yet is a true nothing), and an advisory while there is no stack check to read. run-daily reads the saved live snapshot when it counts today, so an item seen only today stays open there too. A partial day counts as stored here (a quiet site with no request in its first or last hour is partial every day). Before, items seen only yesterday closed at midnight, the 01:00 summary missed them, and run-daily opened them again. Since 2.36 the live run and
 run-daily's `security mail` step only keep `security_items` up to date. The people who chose
 `daily` (the default) get the items in the daily summary (summary_mail.py, `skald summary-mail`,
 01:00 in the schedule's zone: one mail per person and day for all their sites, with the open

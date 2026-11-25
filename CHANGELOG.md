@@ -4,6 +4,136 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.58.0 (2026-11-25)
+
+Traffic › Agent files: who reads the files a site made for AI (SKALD-56); NeetoCal bookings
+(SKALD-54); security items no longer close at midnight and come back after the morning run
+(SKALD-60); set-up steps name the site exactly as it was added (SKALD-57); and To do's
+"Visits count as people" reads the site's saved file paths (SKALD-58).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`).
+- No schema change, no setting, no recount: no stored figure changes. Agent files are counted
+  from the first day collected after the upgrade (today's live view at once); an older day can
+  be counted with `collect --day`. Security items closed by mistake at midnight open again,
+  with their first date, once a run sees them again (at the latest when the morning run stores
+  yesterday). To do's "Visits count as people" turns done on the next page load on sites whose
+  file paths were saved on the page.
+
+### Added
+
+- **Traffic › Agent files: who reads the files you made for AI (SKALD-56).** Sites now publish
+  files for AI agents and tools rather than for people: Markdown copies of pages (`page.md`,
+  linked with `rel="alternate" type="text/markdown"`), OKF bundles (`/okf/index.md`),
+  `/llms.txt` and agent or MCP cards under `/.well-known/`. Skald recorded those requests but
+  showed them nowhere, except as one number per AI tier for the named AI bots: on one site, 3
+  of 78 `.md` requests in six hours reached any figure. The new tab counts every request for
+  them from every group (AI assistants, AI crawlers, search engines, other bots and tools,
+  people): cards per kind with the AI share, chips to narrow to one kind, requests per day by
+  who asked, who fetches them by name, files that answered errors or redirects, and every file
+  with its page, answers and last fetch, each with its own drawer (`afile=<path>`). New day
+  kind `agent_files` (whole site, verified, kept like the other per-day detail) with its own
+  second count (`audit_agent_files.py`) and the data file `agent_files.json`
+  (docs/DATA-CONTRACT-AGENT-FILES.md). Page views and every other figure are unchanged.
+  Counted from the first day collected after the upgrade; an older day can be counted with
+  `collect --day`. Who must do anything: nothing. Checked: unit tests for the path rule (main
+  and audit agree), the day kind, verify and the audit against tampered figures, the data file
+  and the range sums (node); the tab in a local review build with sample data.
+
+- **NeetoCal bookings (SKALD-54).** Some sites book demos with NeetoCal instead of Calendly,
+  and others plan to move to it; until now a NeetoCal booking reached Skald only through the
+  generic lead hook, without its steps. There is now a `neetocal` hook, next to Calendly and
+  Cal.com under Settings › Leads & tools › Bookings: Skald makes the secret, shows the address
+  and the steps (Admin Panel › Webhooks in NeetoCal; webhooks are on every NeetoCal plan).
+  - **Signature:** `X-Neeto-Webhook-Signature: sha256=<hex HMAC-SHA256 of the raw body>`
+    (checked on real deliveries); the HTML-escaped form NeetoCal's help shows is taken too. No
+    timestamp is signed, so a repeated body is refused by its hash for 30 days, as for Cal.com.
+  - **Events,** as a real test booking showed them (one `webhook` object with a `method`):
+    `create` is a demo completed (started while it waits for approval), an `update` with
+    reschedule details rescheduled, `cancel` (or a rejected or cancelled update) cancelled,
+    and an update whose outcome says no-show a no-show. Other updates (notes, host, place)
+    are ignored. Every step of one booking shares its sid.
+  - **The journey:** a hidden booking question (Short text, field code `skv`) carries the
+    visitor ID. The script tag adds `?skv=` to NeetoCal links and embeds, and now also hears
+    the embed's own messages: `neetocal_open` (when it loads), `neetocal_time_selected` and
+    `neetocal_booked` (only from `https://<workspace>.neetocal.com`). "Chose a time" counts
+    them too.
+  - **Privacy:** of a booking's answers only `skv` and `utm_` (and the name and email when the
+    site keeps them) are read or kept; a phone, a company or a note never is. A delivery
+    Skald refuses (a bad signature, say) is held as it came for 24 hours (longer where the
+    site keeps everything), as for Calendly and Cal.com.
+  - **Several businesses on one account:** "Only these NeetoCal scheduling links" (by slug,
+    address, id or SID), as for Calendly's and Cal.com's event types.
+  - Also: NeetoCal in the connection check, the setup plan and the site check (a
+    `*.neetocal.com` link on the home page), and the second count (`audit_conversions.py`
+    reads NeetoCal's kept bodies with its own code). The tag grew to 7.4 KB (budget 7.5 KB).
+  - Who is affected: sites that book with NeetoCal; nothing changes for anyone else. To do:
+    make the NeetoCal webhook and the hidden `skv` question (Webhooks › NeetoCal).
+  - Checked live end to end (25 Nov, a NeetoCal test workspace and a local Skald reached
+    through a temporary tunnel): a booking made in the real embed on a page with the tag sent
+    `neetocal_open`, `neetocal_time_selected` and `neetocal_booked`; NeetoCal's signed
+    webhooks for the booking, its move and its cancellation were each verified with
+    NeetoCal's generated key and kept as one booking's three steps, joined to the visitor's
+    pages through the hidden `skv` answer; the second count agreed. The signature is an HMAC
+    of the raw body, also sent as `X-Neeto-Hook-Secret-Sha-256`. The three real bodies
+    (personal values replaced) are the test fixtures. `tests/test_hooks_neetocal.py` and
+    `tests/js/skald-snippet.mjs`. Not seen live: a no-show (NeetoCal sends it as a changed
+    meeting outcome, after a meeting).
+
+### Fixed
+
+- **Set-up steps name the site exactly as it was added (SKALD-57).** The steps always put
+  "www." in front of the site's name, so a site added as `www.example.com` was told to add
+  the Cloudflare route `www.www.example.com/*` (seen on 25 Nov when a Next.js site was
+  connected with the Worker). Now every step uses the name as added, and never adds "www.":
+  the Cloudflare route on the set-up page and in the Connect dialog, the log-file steps of the
+  Docker and systemd kits, the kit READMEs, `skald-ship-check`'s lines, and the agent pack's
+  Cloudflare notes and logs job. A site added as `example.com` gets `example.com` only. The
+  "Common problems" row (Connect dialog, set-up link page, help) now says "The site and another
+  host name share one log file" instead of assuming the site is the bare name.
+  The installers no longer guess `/var/log/nginx/www.<site>.access.log`, and the one-file
+  installer no longer looks for `www.www.<site>`'s log when nginx logs by `$host`; it still
+  accepts a server block that names `www.<site>` for a site added without "www.". Affects
+  anyone setting up a site whose name starts with "www.". Nothing to do: a route or log set up
+  by hand stays as it is. Checked with new tests (tests/test_setup_site_name.py,
+  tests/js/setup-site-name.mjs, a www site in the installer's dry run).
+
+- **Set-up: "Visits count as people" stayed To do after the site's file paths were saved
+  (SKALD-58).** On any site whose paths were saved on the page (Settings › Data › What
+  counts, for example `/wp-content/` or `/assets/`), the daily count used them, but
+  Settings › To do, Leads & tools' "Page assets" line, the Overview set-up bar and MCP
+  `setup_left` did not. Those still checked the default `/_next/static/`, so the step said "none counts
+  as a person yet" on sites whose visitors were being counted (seen on 24–25 Nov on four
+  WordPress and static sites). The page's doctor lines now read the saved settings, as
+  `skald doctor` and run-daily do. Who: owners and admins setting up a site that is not Next.js.
+  To do: nothing; the step turns done on the next page load. Figures: none change. Checked:
+  tests (a saved row turns the line OK on the first site and on a dashboard site, rendering off
+  says "not needed", MCP the same, the other lines do not move, a broken accounts file still
+  answers with the config file's view), and the fixed lines run read-only against the live
+  install's 23 sites: only the "Page assets" line changed, from To do to OK on the 5 sites with
+  saved paths (the 4 above and one added on 25 Nov), plus a wording change on one already OK.
+  If accounts.sqlite cannot be read, the lines fall back to the config file's view and say why
+  on stderr.
+
+- **Security items no longer close at midnight and come back after the morning run (SKALD-60).**
+  Skald built the open items from today's live count plus the last whole day. Between local midnight
+  and run-daily (07:15 in the schedule's zone), yesterday is not stored yet, so every exposure seen
+  only yesterday was closed. The live server showed 31 to 143 closures each night right after
+  midnight New York. The 01:00 daily summary is sent inside that gap, so it listed only the first
+  hour's items, and run-daily opened the rest again. Now an item closes only when every source that
+  could show it was read: an exposure waits for yesterday to be stored (and held while that day is
+  withheld or today's live count did not reconcile), and an advisory waits for a stack check. A
+  partial day counts as stored, so a quiet site's items still close. run-daily also reads today's
+  saved live count, so an item seen only today stays open at 07:15. Who it affects: everyone who
+  gets the security part of the daily summary or right-away security mail. What to do: nothing; the
+  items closed wrongly open again on the first run after the upgrade, with their first date kept.
+  Checked: new tests (a live run at 00:30 before run-daily, a withheld day, a partial day, a
+  withheld or missing live count, run-daily with and without today's count, advisories without a
+  stack check), and a real install (collect, history and live snapshots) run on a set clock. On the
+  old code the item closes at 00:30 and reopens at run-daily; on the new code it stays open, and
+  closes at run-daily once the stored day lacks it.
+
 ## 2.57.0 (2026-11-24)
 
 Google Analytics on Overview › Today, with more of its own figures and a drawer with every

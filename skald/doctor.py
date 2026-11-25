@@ -715,6 +715,23 @@ def checks(ctx, send_test: bool = False, helper_state: dict | None = None) -> li
     return out
 
 
+def with_saved_settings(site_config: dict, site: str, folder) -> dict:
+    """The site's config with its settings rows (Settings › Data › What counts, ...)
+    written in, as the CLI's doctor and run-daily read it (settings_store.apply).
+    SKALD-58: without them the page checked a dashboard site against the default
+    /_next/static/, though its visits were counted with the saved asset prefixes.
+    `folder` is the history's folder, where accounts.sqlite lives. When the rows
+    cannot be read, the config file's view, said on stderr."""
+    import sys
+    from . import settings_store
+    try:
+        return settings_store.apply(site_config, site, folder)
+    except Exception as why:                       # noqa: BLE001 - the lines still answer
+        sys.stderr.write(f"doctor: {site}'s saved settings could not be read: "
+                         f"{type(why).__name__}: {why}\n")
+        return site_config
+
+
 def integration_checks(site_config: dict, folder, site: str, live_dir=None,
                        now: datetime | None = None, config_path=None) -> list[dict]:
     """The lines Settings > Leads & tools shows: the access log and its page
@@ -722,6 +739,7 @@ def integration_checks(site_config: dict, folder, site: str, live_dir=None,
     the receiver, the script tag, each hook, one lead from two tools, the lead
     database."""
     from .conversions.roads import HELPER_URL, helper
+    site_config = with_saved_settings(site_config, site, folder)
     now = now or datetime.now(timezone.utc)
     cmd = command(config_path)
     state = helper(str(setting(site_config, "hooks", "test_url") or HELPER_URL))

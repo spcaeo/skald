@@ -37,7 +37,8 @@ FILES = ("overview", "live", "visits", "hourly", "breakdowns", "health", "bots",
 # (docs/PERFORMANCE.md); asking a Page for one is an error, never a null.
 OWN_READERS = frozenset({"ai_fetches", "page_firsts", "crawler_paths", "cube",
                          "visit_cube", "page_counts", "crawler_cost",
-                         "crawl_health", "security", "landings", "ai_status"})
+                         "crawl_health", "security", "landings", "ai_status",
+                         "agent_files"})
 
 
 class _Day(dict):

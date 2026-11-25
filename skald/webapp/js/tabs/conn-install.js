@@ -161,7 +161,7 @@ function docker(st) {
     kitBox(st, "docker"),
     steps(
       ["Copy the zip to the server and unpack it:", codeBlock(`scp skald-ship-${st.site}.zip <server>:~/\nssh <server>\nunzip skald-ship-${st.site}.zip && cd skald-ship-${st.site}`, "the copy commands")],
-      ["Run the installer. It shows nginx's log files; give the access log of " + st.site + " (or www." + st.site + "). Then paste the token when it asks (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
+      ["Run the installer. It shows nginx's log files; give the access log of " + st.site + ". Then paste the token when it asks (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
       ["Open https://" + st.site + "/ once in a browser, then " + thenTest(st)],
     ),
     h("details", { class: "fold" }, h("summary", null, "Without the kit (the same, by hand)"),
@@ -192,7 +192,7 @@ function systemd(st) {
     kitBox(st, "systemd"),
     steps(
       ["Copy the zip to the server and unpack it:", codeBlock(`scp skald-ship-${st.site}.zip <server>:~/\nssh <server>\nunzip skald-ship-${st.site}.zip && cd skald-ship-${st.site}`, "the copy commands")],
-      ["Run the installer. It asks for the access log of " + st.site + " (or www." + st.site + ") and the token (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
+      ["Run the installer. It asks for the access log of " + st.site + " and the token (unless it is in the zip):", codeBlock("sudo bash install.sh", "the install command")],
       ["Open https://" + st.site + "/ once in a browser, then " + thenTest(st)],
     ),
     h("details", { class: "fold" }, h("summary", null, "Without the kit (the same, by hand)"),
@@ -247,7 +247,7 @@ function cloudflare(st) {
       ["Deploy the Worker: the Deploy to Cloudflare button in deploy/cloudflare-worker/README.md (in Skald's code), or by hand with Wrangler from that folder."],
       ["Set its two values. The address:", codeBlock(st.url, "the send address (SKALD_INGEST_URL)"), "and the token, as a secret named SKALD_TOKEN:", tokenNote(st)],
       ["By hand with Wrangler, the token is set with this command (it asks for the value), then deploy:", codeBlock("npx wrangler secret put SKALD_TOKEN\nnpx wrangler deploy", "the Wrangler commands")],
-      ["Add the site's route: in Cloudflare, open the Worker, then Settings > Domains & Routes > Add > Route, with " + st.site + "/* (and www." + st.site + "/*)."],
+      ["Add the site's route: in Cloudflare, open the Worker, then Settings > Domains & Routes > Add > Route, with " + st.site + "/*."],
       ["Open a page of the site, then " + thenTest(st)],
     ),
     h("p", { class: "note" }, "Skald reads this site's records as edge records (log format edge_json) when nothing else has arrived for it yet. If you also send the server's log, keep the format Detect it: then only Cloudflare's cache hits are counted from the Worker."),
