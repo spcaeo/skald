@@ -131,7 +131,7 @@ Below it, every source is in a group by what it is for, each with one line on wh
 | Group | Sources |
 | --- | --- |
 | Leads from your forms | your site's server (the lead hook), Zapier, Make or n8n, Typeform, HubSpot, the script tag |
-| Bookings | Calendly, Cal.com |
+| Bookings | Calendly, Cal.com, NeetoCal |
 | Payments | Stripe |
 | Search | Search Console & Bing |
 | Your own tools | Google Analytics and the others |

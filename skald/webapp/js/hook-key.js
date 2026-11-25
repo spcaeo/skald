@@ -10,7 +10,7 @@
 //   keyWord(t)             the tool's own word: the server's key_word, else KEY_WORD
 //   wayWords(t)            which way the key goes, said once
 //   howQuestion(t)         the one question first, for a tool that takes either key (Calendly,
-//                          Cal.com, Typeform): {question, choices}; how= in the address
+//                          Cal.com, NeetoCal, Typeform): {question, choices}; how= in the address
 //   savedWords(t)          "Signing key saved 28 Oct 10:16 by Ann (pasted)", from saved_at,
 //                          saved_by, saved_how; "saved" without a time when not known
 //   checkWords(check, t)   a paste's or a make's answer (check.verdict) in plain words
@@ -23,18 +23,18 @@
 
 import { time, when } from "./tz.js";
 
-export const KEY_WORD = { calendly: "signing key", calcom: "secret", typeform: "secret", stripe: "signing secret",
+export const KEY_WORD = { calendly: "signing key", calcom: "secret", neetocal: "secret", typeform: "secret", stripe: "signing secret",
   hubspot: "client secret", lead: "secret", json: "secret" };
 export const keyWord = (t) => (t && t.key_word) || KEY_WORD[t?.tool] || "secret";
 export const cap = (s) => String(s || "").replace(/^./, (c) => c.toUpperCase());
 
 // What each tool sends: one and many.
-const NOUN = { calendly: ["booking", "bookings"], calcom: ["booking", "bookings"], typeform: ["response", "responses"],
+const NOUN = { calendly: ["booking", "bookings"], calcom: ["booking", "bookings"], neetocal: ["booking", "bookings"], typeform: ["response", "responses"],
   stripe: ["payment", "payments"], hubspot: ["delivery", "deliveries"], lead: ["lead", "leads"], json: ["lead", "leads"] };
 export const noun = (tool, n = 1) => (NOUN[tool] || ["delivery", "deliveries"])[n === 1 ? 0 : 1];
 
 // The tools that take either key: one Skald makes, or the tool's own, pasted.
-export const EITHER = new Set(["calendly", "calcom", "typeform"]);
+export const EITHER = new Set(["calendly", "calcom", "neetocal", "typeform"]);
 export const asks = (t) => !!t && EITHER.has(t.tool) && t.rotatable !== false;
 export const HOWS = ["make", "paste", "remake"];
 /* The address's how=, when it is an answer this tool's question has; else "". */
@@ -90,6 +90,7 @@ export function savedWords(t) {
 const RIGHT_ONE = {
   calendly: "Copy the signing_key from the request that made the webhook, not your Calendly token or the webhook address.",
   calcom: "Copy the secret from the webhook in Cal.com (Settings > Developer > Webhooks), not an API key.",
+  neetocal: "Copy the secret key the webhook was saved with in NeetoCal (Admin Panel > Webhooks > Edit), not a NeetoCal API key.",
   typeform: "Copy the secret from the webhook's settings in Typeform (Connect > Webhooks > Edit), not your Typeform token.",
   stripe: "Copy this endpoint's signing secret in Stripe (Developers > Webhooks, it starts with whsec_), not an API key.",
   hubspot: "Copy the client secret from your HubSpot app's Auth page, not the app ID or an access token.",

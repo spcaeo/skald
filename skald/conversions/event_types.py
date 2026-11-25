@@ -1,4 +1,4 @@
-"""Keep only some Calendly or Cal.com event types for a site.
+"""Keep only some Calendly, Cal.com or NeetoCal event types for a site.
 
 One Calendly account often books for several businesses, and a Calendly
 webhook subscription cannot be limited to some event types. So a site may
@@ -10,6 +10,11 @@ name the event types that are its own:
                                  address https://calendly.com/acme/demo)
     hooks.calcom.event_types     event-type ids (1234) or slugs ("30min", or
                                  the page's address https://cal.com/acme/30min)
+    hooks.neetocal.event_types   scheduling links (SKALD-54): their slug ("demo",
+                                 or the link's address https://acme.neetocal.com/
+                                 demo), id or SID, or their name as a slug. A
+                                 cancellation names no link: kept when its
+                                 booking is
 
 Set in Settings > Leads & tools (a settings row for the site, settings_store
 "hooks.calendly.event_types"), or in config.yml: nested
@@ -33,7 +38,7 @@ from __future__ import annotations
 
 import re
 
-TOOLS = ("calendly", "calcom")
+TOOLS = ("calendly", "calcom", "neetocal")
 MAX_ITEMS = 50
 ITEM = re.compile(r"^[\x21-\x7e]{1,300}$")
 IGNORED = "ignored: other event type"
@@ -116,6 +121,8 @@ def _forms(item: str) -> set[str]:
 def named(tool: str, payload) -> tuple[set[str], str | None]:
     """(the identifiers the event gives for its type, a short label for the
     log). Empty when the event names no type."""
+    if tool == "neetocal":
+        return _neetocal_named(payload)
     if not isinstance(payload, dict) or not isinstance(payload.get("payload"), dict):
         return set(), None
     inner = payload["payload"]
@@ -166,6 +173,9 @@ def decide(tool: str, payload, listed: list[str], booked=None) -> tuple[bool, st
 def _booking_ref(tool: str, payload) -> str | None:
     """The external ref of the booking an event belongs to (what the adapter
     keeps as external_ref)."""
+    if tool == "neetocal":
+        from .adapters import neetocal
+        return neetocal.ref_of(neetocal.booking_of(payload))
     if not isinstance(payload, dict) or not isinstance(payload.get("payload"), dict):
         return None
     inner = payload["payload"]
@@ -174,3 +184,22 @@ def _booking_ref(tool: str, payload) -> str | None:
         return str(who).strip()[:300] if isinstance(who, str) and who.strip() else None
     uid = inner.get("uid")
     return str(uid).strip()[:120] if isinstance(uid, (str, int)) and str(uid).strip() else None
+
+
+def _neetocal_named(payload) -> tuple[set[str], str | None]:
+    """A NeetoCal booking's scheduling link: its id, slug and SID, and its
+    name written as a slug ("Product demo" -> "product-demo")."""
+    from .adapters import neetocal
+    link = neetocal.meeting_of(neetocal.booking_of(payload))
+    found: set[str] = set()
+    for key in ("id", "slug", "sid"):
+        value = link.get(key)
+        if value not in (None, "") and not isinstance(value, (bool, dict, list)):
+            found.add(str(value).strip().lower())
+    name = link.get("name")
+    if isinstance(name, str) and slug(name):
+        found.add(slug(name))
+    words = [f"{k} {link[k]}" for k in ("slug", "id", "sid")
+             if link.get(k) not in (None, "") and not isinstance(link.get(k), (dict, list))]
+    label = (", ".join(words) or (name.strip() if isinstance(name, str) else ""))[:200] or None
+    return {x for x in found if x}, label

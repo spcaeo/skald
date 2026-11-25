@@ -23,7 +23,7 @@ export const SETTINGS_GROUPS = [
         ["sample", "Test a sample", "troubleshooting-connections", "Paste a few lines of a log: Skald says what it would count, and keeps nothing."]] },
     { route: "settings/site/leads", name: "Leads & tools", help: "webhooks",
       line: "Your forms, bookings and payments, and where leads go.",
-      about: "Calendly, Cal.com, HubSpot, Typeform, Stripe or your own server tell Skald about each lead. Each row opens its address, secret, test event and deliveries. Send each lead out posts it to your CRM, Zapier or Slack; Search Console and Bing add the searches that bring people." },
+      about: "Calendly, Cal.com, NeetoCal, HubSpot, Typeform, Stripe or your own server tell Skald about each lead. Each row opens its address, secret, test event and deliveries. Send each lead out posts it to your CRM, Zapier or Slack; Search Console and Bing add the searches that bring people." },
     { route: "settings/site/details", name: "Site", help: "settings-and-retention",
       line: "Its names, page groups, time zone and logo.",
       about: "The host names Skald counts as this site, page groups (Views), the time zone of its days, its logo, and the machines that are yours.",

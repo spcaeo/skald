@@ -332,7 +332,7 @@ class Check(unittest.TestCase):
         checks = [line for line in out.splitlines() if line.startswith(("✓", "✗", "?"))]
         self.assertGreaterEqual(len(checks), 9, out)
         self.assertTrue(all(line.startswith("✓ OK  ") for line in checks), out)
-        self.assertIn(f"www.example.com writes to {LOG}", out)
+        self.assertIn(f"✓ OK  {SITE} writes to {LOG}", out)
         self.assertIn("401 without a token is expected", out)
         self.assertIn(f"log: {LOG} (", block)
         self.assertNotIn("PROBLEM", block)
@@ -416,7 +416,7 @@ class Check(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertNotIn("✗", out)
         self.assertNotIn("Docker", out)
-        self.assertIn(f"www.example.com writes to {log}", out)
+        self.assertIn(f"✓ OK  {SITE} writes to {log}", out)
         self.assertIn("the web server (apache2) is running", out)
         self.assertIn("skald-ship is running (1 restarts)", out)
         self.assertIn("slow down", out)

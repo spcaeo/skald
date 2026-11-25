@@ -206,7 +206,7 @@ function numbers(m, raw, s, r) {
   const same = s.lact || s.llabel ? `Narrowed to ${[s.lact ? actionName(s.lact).toLowerCase() : "", s.llabel ? `the label “${s.llabel}”` : ""].filter(Boolean).join(" and ")}: not Overview's figure, which counts every kind.`
     : "The same figure as the Leads tab and Overview's Leads tile.";
   const worth = Object.keys(value).sort().map((c) => money(value[c], c, raw)).join(" · ");
-  const demosSeen = (f.days || []).some((d) => d.state === "ok" && d.stages?.demo) || (f.set_up?.hooks || []).some((k) => ["calendly", "calcom"].includes(k));
+  const demosSeen = (f.days || []).some((d) => d.state === "ok" && d.stages?.demo) || (f.set_up?.hooks || []).some((k) => ["calendly", "calcom", "neetocal"].includes(k));
   const demosAt = S.hashFor({ ...s, tab: "sales/leads", lact: "demo", llabel: "", dd: "" });
   return tiles([
     { label: "Leads", value: check.ok ? got.leads : null, info: check.ok ? `Forms sent and demos booked, completed; test rows never counted. Counted on ${cover}. ${same}` : check.why, more: HELP, line },

@@ -75,6 +75,48 @@ def _obj(value) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def _first(where: dict, keys, kind):
+    for key in keys:
+        if isinstance(where.get(key), kind) and (kind is not str or where[key].strip()):
+            return where[key]
+    return None
+
+
+def _neetocal(body) -> list[tuple]:
+    """A NeetoCal body (SKALD-54), read here on its own: the booking is the
+    body's `webhook` object; its `method` and fields say what happened; its
+    sid (else id) is the ref; a booking made is at its booked_on, a change at
+    the time it arrived (None here: recount uses the line's received_at)."""
+    if not isinstance(body, dict):
+        raise _Bad
+    b = body["webhook"] if isinstance(body.get("webhook"), dict) else body
+    method = str(b.get("method") or "").strip().lower()
+    if not method:
+        raise _Bad
+    status = str(b.get("status") or "").strip().lower()
+    name = method
+    if method == "create" and status in ("awaiting_approval", "pending", "requested"):
+        name = "create+awaiting_approval"
+    elif method == "update":
+        moved = _obj(b.get("reschedule_details"))
+        outcome = b.get("meeting_outcome")
+        if moved.get("time_changed") or moved.get("member_changed"):
+            name = "update+rescheduled"
+        elif b.get("no_show") is True or (isinstance(outcome, str)
+                                          and re.search(r"no[\s_-]?show", outcome, re.I)):
+            name = "update+no_show"
+        elif status in ("cancelled", "canceled", "rejected"):
+            name = "update+cancelled"
+    if name not in EVENTS["neetocal"]:
+        return []
+    ref = _txt(b.get("sid"), 120) or _txt(b.get("id"), 120)
+    if not ref:
+        raise _Bad
+    action, stage = EVENTS["neetocal"][name]
+    at = _instant(b.get("booked_on")) if stage in ("completed", "started") else None
+    return [(action, stage, ref, at)]
+
+
 def _lead(item, naive_zone=timezone.utc) -> tuple:
     if not isinstance(item, dict):
         raise _Bad
@@ -128,6 +170,8 @@ def _read(tool: str, body, naive_zone=timezone.utc) -> list[tuple]:
         if not ref:
             raise _Bad
         return [(*EVENTS["calcom"][name], ref, _instant(body.get("createdAt")))]
+    if tool == "neetocal":
+        return _neetocal(body)
     if tool == "stripe":
         if not isinstance(body, dict) or body.get("object") != "event":
             raise _Bad

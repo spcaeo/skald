@@ -16,7 +16,7 @@ This module answers both.
   logs              the access log (any road): setup_live.facts and its verdict
   agent:<link id>   an agent line: opened, keys taken, reported (kit/agent.py), and the
                     first data when its jobs include the logs
-  hook:<tool>       a tool's webhook (lead, json, calendly, calcom, stripe, typeform,
+  hook:<tool>       a tool's webhook (lead, json, calendly, calcom, neetocal, stripe, typeform,
                     hubspot): conversions/roads.hook_states. 2.44.1: good only after a
                     real delivery accepted since the key was saved; a passing Test
                     proves only the address (hook_keys.py)
@@ -51,6 +51,7 @@ HOOK_NEXT = {
     "json": "Run your Zap, scenario or workflow once.",
     "calendly": "Book a test call on your Calendly page.",
     "calcom": "Book a test call on your Cal.com page.",
+    "neetocal": "Book a test call on your NeetoCal scheduling link.",
     "stripe": "Make a test payment in Stripe (test mode is fine), or wait for the next sale.",
     "typeform": "Send one answer to your form.",
     "hubspot": "Make a test contact in HubSpot.",
@@ -194,6 +195,7 @@ HOOK_PROVE = {
     "json": "run your Zap, scenario or workflow once",
     "calendly": "make a test booking",
     "calcom": "make a test booking",
+    "neetocal": "make a test booking",
     "stripe": "make a test payment (test mode is fine)",
     "typeform": "send one answer to your form",
     "hubspot": "make a test contact",

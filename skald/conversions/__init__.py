@@ -38,7 +38,7 @@ LEAD_ACTIONS = ("contact", "signup", "waitlist", "trial", "demo")
 DEMO_ACTIONS = ("demo",)
 
 # The tools a hook may name: /traffic-hooks/<site>/<tool>.
-TOOLS = ("lead", "json", "calendly", "calcom", "stripe", "typeform", "hubspot")
+TOOLS = ("lead", "json", "calendly", "calcom", "neetocal", "stripe", "typeform", "hubspot")
 # Tools whose body is Skald's own lead shape (adapters/lead.py).
 LEAD_SHAPED = ("lead", "json")
 # The site's own lead database (conversions/from_leads.py): not a hook.
@@ -62,7 +62,7 @@ CONVERT_BUCKETS = ("<1h", "<1d", "1-7d", "8-30d", "31-90d", ">90d", "unknown", "
 MIN_RATE = 10
 
 # One name per action, whatever tool reports it: a booked call is "demo"
-# (Calendly, Cal.com, HubSpot meetings, the page's booking events), a
+# (Calendly, Cal.com, NeetoCal, HubSpot meetings, the page's booking events), a
 # payment "paid" (Stripe), a form "contact" or "signup". A name a site's
 # own server or an older version used is read as the one here.
 ALIASES = {"booking": "demo", "meeting": "demo", "demo_booked": "demo", "call_booked": "demo",
@@ -79,6 +79,17 @@ EVENTS = {
     "calcom": {"BOOKING_CREATED": ("demo", "completed"),
                "BOOKING_CANCELLED": ("demo", "cancelled"),
                "BOOKING_RESCHEDULED": ("demo", "rescheduled")},
+    # NeetoCal (SKALD-54): the body's `method`, and for a create or an update
+    # what its fields say (adapters/neetocal.kind). A booking that waits for
+    # the host's approval is a demo started. Any other update (notes, host,
+    # place) is not a step.
+    "neetocal": {"create": ("demo", "completed"),
+                 "create+awaiting_approval": ("demo", "started"),
+                 "update+rescheduled": ("demo", "rescheduled"),
+                 "update+no_show": ("demo", "no_show"),
+                 "update+cancelled": ("demo", "cancelled"),
+                 "cancel": ("demo", "cancelled"),
+                 "reject": ("demo", "cancelled")},
     # A checkout finished but not yet paid (a bank debit) is a payment started.
     # 2.32: a subscription's renewal invoice paid, and a charge refunded (the
     # sale's row, found by its payment intent).
@@ -112,6 +123,8 @@ BEACON_ACTIONS = {
     "calendly_open": ("demo", "started"), "calendly_time_selected": ("demo", "started"),
     "calendly_booked": ("demo", "completed"), "cal_open": ("demo", "started"),
     "cal_booked": ("demo", "completed"), "hubspot_meeting_booked": ("demo", "completed"),
+    "neetocal_open": ("demo", "started"), "neetocal_time_selected": ("demo", "started"),
+    "neetocal_booked": ("demo", "completed"),
     "book_demo_open": ("demo", "started"), "demo_booked": ("demo", "completed"),
     "tel_click": ("call", "completed"), "mailto_click": ("email", "completed"),
     "cta_click": ("cta", "completed"),
@@ -240,6 +253,13 @@ SPOOL_KEYS = {
                            "tracking"}) | _TOUCH,
     "calcom": frozenset({"triggerevent", "createdat", "payload", "uid", "metadata",
                          "responses", "value"}) | _TOUCH,
+    # NeetoCal (SKALD-54): the `webhook` object and what kind() and the audit
+    # read. Its answers are kept only as form_responses_as_hash, and of those
+    # only skv and utm_* (in _TOUCH): never a phone, a company or a note.
+    "neetocal": frozenset({"webhook", "method", "sid", "id", "status", "booked_on",
+                           "reschedule_details", "time_changed", "member_changed",
+                           "meeting_outcome", "no_show", "meeting",
+                           "form_responses_as_hash"}) | _TOUCH,
     "stripe": frozenset({"id", "object", "created", "type", "data", "payment_status",
                          "client_reference_id", "metadata", "amount_total", "currency",
                          "customer", "payment_intent", "invoice", "amount_paid",

@@ -144,7 +144,7 @@ check_log() {
   lp="$(p "$LOG")"
   if [ ! -f "$lp" ]; then
     problem "the access log $LOG does not exist" \
-      "find the access_log (or CustomLog) line of $SITE (or www.$SITE), then run sudo bash install.sh again with that file"
+      "find the access_log (or CustomLog) line of $SITE, then run sudo bash install.sh again with that file"
     return
   fi
   s1="$(fsize "$lp")"; LOG_SIZE="${s1:-unknown} bytes"
@@ -251,20 +251,20 @@ $(IFS='
 $blocks
 EOF
   if [ "$named" = 0 ]; then
-    unsure "no nginx or Apache server block names www.$SITE, so cannot tell which file it writes to" \
-      "check that www.$SITE has its own server block with an access_log line"
+    unsure "no nginx or Apache server block names $SITE, so cannot tell which file it writes to" \
+      "check that $SITE has its own server block with an access_log line"
   elif [ "$mine" = yes ]; then
-    ok "www.$SITE writes to $LOG"
+    ok "$SITE writes to $LOG"
   else
     l="$(printf '%s' "${mine#no:}" | awk '{ print $1 }')"
-    problem "www.$SITE writes to $l, not to $LOG" \
+    problem "$SITE writes to $l, not to $LOG" \
       "run sudo bash install.sh again and give $l as the log file"
   fi
   others="$(echo "$others" | tr ' ' '\n' | grep . | sort -u | tr '\n' ' ' | sed 's/ $//')"
   if [ -n "$others" ]; then
     others=" $others"
     problem "$LOG is shared with other host names:$others" \
-      "give www.$SITE its own log file; README.txt says how"
+      "give $SITE its own log file; README.txt says how"
   fi
 }
 
@@ -502,7 +502,7 @@ check_state() {
   if [ ! -f "$sp" ]; then
     if [ "$LOG_GROWING" = 1 ]; then
       problem "the log grows but the shipper has sent nothing yet (no position saved)" \
-        "see the shipper's reasons above; if there are none, open https://www.$SITE/ and run this again in a minute"
+        "see the shipper's reasons above; if there are none, open https://$SITE/ and run this again in a minute"
     else
       ok "nothing sent yet, but the log did not grow either"
     fi

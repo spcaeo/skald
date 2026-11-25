@@ -1,6 +1,6 @@
 # Webhooks
 
-How to connect Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier, Make and your own site to Skald, so bookings, forms and payments show under Leads & sales. Also how Skald can send conversions out to your CRM.
+How to connect Calendly, Cal.com, NeetoCal, HubSpot, Typeform, Stripe, Zapier, Make and your own site to Skald, so bookings, forms and payments show under Leads & sales. Also how Skald can send conversions out to your CRM.
 
 ## How it works
 
@@ -23,7 +23,7 @@ Each tool's details (its row on Leads & tools), top to bottom:
 - **The live line**: a pill (**Working**, **Waiting**, **Needs a fix**) and one sentence that update by themselves, with the next thing to do under it and **Check for a real one**. It says **Working** only once a real delivery was taken in since the key was saved.
 - **Which way the key goes**, in one line, in the tool's own word. For example: "Skald gives Calendly a signing key; Calendly signs each booking with it."
 - **What is saved**: "Signing key saved 28 Oct 10:16 by Ann (pasted)" or "(made by Skald)", with **Replace**. It stays after you save or make one, and after you close and open the details again.
-- **One question first**, for the tools that take either key (Calendly, Cal.com, Typeform): see [The key](webhooks.md#the-key) below. Your answer is in the page's link (`&how=`), so a link opens on it.
+- **One question first**, for the tools that take either key (Calendly, Cal.com, NeetoCal, Typeform): see [The key](webhooks.md#the-key) below. Your answer is in the page's link (`&how=`), so a link opens on it.
 - **The address**, with copy and open buttons. It looks like `https://analytics.example.com/traffic-hooks/example.com/calendly`. Always copy yours from the page.
 - **Test Skald's address**, and the last real delivery beside it.
 - **Details**, folded: the state in words, the last 50 deliveries (when, the answer, the outcome and any detail) and **Remove**.
@@ -38,14 +38,14 @@ Each tool calls its key by its own name, and Skald uses the same word:
 | --- | --- | --- |
 | Your site's server (lead), Zapier, Make, n8n (json) | secret | Skald: **Make the secret** |
 | Calendly | signing key | Skald, or you chose one in the request that made the webhook |
-| Cal.com, Typeform | secret | Skald, or the one the webhook already has |
+| Cal.com, NeetoCal, Typeform | secret | Skald, or the one the webhook already has |
 | Stripe | signing secret | Stripe: paste it |
 | HubSpot | client secret | your HubSpot app: paste it |
 
-For Calendly, Cal.com and Typeform the details ask one question first, and show only that way:
+For Calendly, Cal.com, NeetoCal and Typeform the details ask one question first, and show only that way:
 
 - Calendly: **How was your Calendly webhook made?** **Not made yet** (Skald makes the signing key; the steps and the one API request have it filled in), **Made with an API request that had a signing_key** (paste that value), or **Made without a signing key, or not sure** (make the webhook again; see [Calendly](webhooks.md#calendly)).
-- Cal.com and Typeform: **Has Cal.com given you a secret?** **No** (Skald makes it) or **Yes** (paste it).
+- Cal.com, NeetoCal and Typeform: **Has Cal.com given you a secret?** **No** (Skald makes it) or **Yes** (paste it).
 
 A key Skald makes is shown once, with a copy button: "Shown once: copy it now". Give it to the tool (each section below says where), then press **I have copied it**. What is saved stays on the page; the key itself is never shown again. A pasted key is never shown either, not even to you.
 
@@ -119,6 +119,23 @@ If the Cal.com webhook already has a secret of its own, answer **Yes** and paste
 To join a booking to the journey, pass the visitor ID in the embed as `metadata[skv]`, or add a hidden booking question named `skv`.
 
 To keep only some event types, enter their ids (`1234`) or names (`30min`) in **Only these Cal.com event types**, as for Calendly above.
+
+## NeetoCal
+
+Webhooks are on every NeetoCal plan, the free one too.
+
+1. In Skald, open the **NeetoCal** details (in **Bookings**). To **Has NeetoCal given you a secret?** answer **No**: Skald makes it. Copy the address and the secret.
+2. In NeetoCal, open your scheduling link, then **Settings > Webhooks > Add new webhook**. For every link at once, use **Admin panel > Webhooks** instead.
+3. **Endpoint**: paste the address.
+4. **Secret key**: paste the secret. (Or press **Generate secret key** in NeetoCal, answer **Yes** in Skald and paste NeetoCal's key there.)
+5. **Events**: Booking created, Booking rescheduled, Booking cancelled, Booking requested and Booking rejected. Skald ignores the others, so leaving them on does no harm. **Save changes**.
+6. So each booking joins the visitor's journey: in the link's **Settings > Questions**, **Add question**: **Question type** Short text, any question text, turn on **Hide question**, and under **Advanced properties** set the **Field code** to `skv`. The script tag adds `?skv=` to NeetoCal links and embeds, and NeetoCal fills the question from it. With NeetoCal's embed code you can also pass it yourself: `queryParams: { skv: skald("id") }` (see [Demo bookings](demo-bookings.md#neetocal)).
+
+If the NeetoCal webhook already has a secret key, answer **Yes** and paste it instead.
+
+A booking made counts as a demo completed (one that waits for your approval as started), a moved one as rescheduled, a cancelled or rejected one as cancelled. NeetoCal sends a no-show only as a changed meeting outcome; Skald counts it when the outcome says no-show. A booking's other answers (phone, company, notes) are never kept: only `skv` and `utm_` answers, and the name and email when the site keeps them.
+
+To keep only some scheduling links, enter their slugs (`demo`, or the link's address `https://example.neetocal.com/demo`), ids or SIDs in **Only these NeetoCal scheduling links**. See [Demo bookings](demo-bookings.md#neetocal).
 
 ## HubSpot
 
@@ -235,13 +252,13 @@ The full how-to, with examples in curl, Node, Python and PHP, retries and backfi
 
 - A tool sends again when it does not get an "OK" answer. This is harmless.
 - Skald keeps each conversion once per tool, reference and stage. A repeat is answered "OK" and shows as "already had it" in Last deliveries. Nothing is counted twice.
-- Cal.com and Typeform sign no time, so Skald also remembers each message for 30 days and ignores an exact repeat.
+- Cal.com, NeetoCal and Typeform sign no time, so Skald also remembers each message for 30 days and ignores an exact repeat.
 - **One lead, one road.** Each tool keeps its own record, so the same lead sent through two tools (your lead push and Zapier, or the lead push and the lead database) counts twice. The **Status** list names any lead that arrived from two tools: send each lead one way only.
 - If Skald cannot save a message, it answers with an error, and the tool sends it again later.
 
 ## Remove an integration
 
-1. Delete the webhook in the other tool (Calendly, Cal.com, HubSpot, Typeform, Stripe, Zapier or Make).
+1. Delete the webhook in the other tool (Calendly, Cal.com, NeetoCal, HubSpot, Typeform, Stripe, Zapier or Make).
 2. In Skald, press **Remove** in that tool's box, then **Yes, remove**.
 
 Skald deletes the hook's secret. Its address then refuses every message, as if it had never been set up. **Last deliveries** stays, and the removal is in the audit log. To use the tool again, make or paste a secret.
@@ -281,7 +298,7 @@ Open the tool's box and look at **Last deliveries**. The **Outcome** column says
 | --- | --- | --- |
 | kept | recorded | nothing |
 | already had it | a repeat of a message already kept | nothing |
-| not a conversion | an event Skald does not count, or (with a detail "other event type") a Calendly or Cal.com event type this site does not keep | choose the events listed above; or add the event type to the list |
+| not a conversion | an event Skald does not count, or (with a detail "other event type") a Calendly, Cal.com or NeetoCal event type this site does not keep | choose the events listed above; or add the event type to the list |
 | test, read and not kept | a test | nothing |
 | bad signature | the secret (or the `Bearer` key) does not match, or the time is more than 5 minutes off | paste the secret again, or rotate it and give the new one; check the sender's clock |
 | not readable | the message is not what this tool sends | check you used the address for the right tool |

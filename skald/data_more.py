@@ -18,7 +18,9 @@ FILES = {"requests": "requests_feed", "alerts": "alerts", "quality": "quality",
          # 2.35: Overview > Insights' to-dos and Site > Not found's lost pages
          "todos": "todos", "lost_pages": "lost_pages",
          # Traffic > Pages > a page: did my change work? (the page changes marked)
-         "page_changes": "page_changes"}
+         "page_changes": "page_changes",
+         # Traffic > Agent files: files made for machines and who fetched them (SKALD-56)
+         "agent_files": "agent_files"}
 
 
 def builders() -> dict:

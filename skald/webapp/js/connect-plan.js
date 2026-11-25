@@ -36,7 +36,7 @@ export const GROUP_IDS = GROUPS.map((g) => g.id);
 export const groupById = (id) => GROUPS.find((g) => g.id === id) || null;
 
 // The incoming hooks (integrations_api.TOOLS) and the group each feeds.
-export const HOOK_GROUP = { lead: "leads", json: "leads", typeform: "leads", hubspot: "leads", calendly: "bookings", calcom: "bookings", stripe: "payments" };
+export const HOOK_GROUP = { lead: "leads", json: "leads", typeform: "leads", hubspot: "leads", calendly: "bookings", calcom: "bookings", neetocal: "bookings", stripe: "payments" };
 // What each hook brings, when it is not connected (its row's one line).
 const HOOK_WHY = {
   lead: "Your site's own form or backend tells Skald about each lead",
@@ -45,11 +45,12 @@ const HOOK_WHY = {
   hubspot: "New contacts, booked meetings and won deals",
   calendly: "Bookings, cancellations and no-shows",
   calcom: "Bookings, cancellations and moved bookings",
+  neetocal: "Bookings, cancellations, moved bookings and no-shows",
   stripe: "Each paid Checkout, with its value",
 };
 
 // Where its leads come from, in a sentence ("Leads arrive from your server").
-const HOOK_FROM = { lead: "your server", json: "Zapier, Make or n8n", typeform: "Typeform", hubspot: "HubSpot", calendly: "Calendly", calcom: "Cal.com", stripe: "Stripe" };
+const HOOK_FROM = { lead: "your server", json: "Zapier, Make or n8n", typeform: "Typeform", hubspot: "HubSpot", calendly: "Calendly", calcom: "Cal.com", neetocal: "NeetoCal", stripe: "Stripe" };
 
 export const STATES = { connected: ["good", "Connected"], waiting: ["warn", "Waiting"], failing: ["bad", "Failing"], off: ["off", "Not connected"] };
 export const stateWords = (st) => STATES[st] || STATES.off;
@@ -59,7 +60,7 @@ export const isOn = (row) => ON.has(row?.state);
 // A page's missing source. act: the dialog Connect opens when nothing better is known.
 export const NEEDS = {
   leads: { group: "leads", title: "No lead source connected yet", line: "Leads need a source: your forms, your booking tool or your site's server telling Skald about each one.", act: { setup: "lead" } },
-  bookings: { group: "bookings", title: "No booking tool connected yet", line: "Calendar bookings need Calendly or Cal.com to tell Skald about each booking.", act: { setup: "lead", way: "calendly" } },
+  bookings: { group: "bookings", title: "No booking tool connected yet", line: "Calendar bookings need Calendly, Cal.com or NeetoCal to tell Skald about each booking.", act: { setup: "lead", way: "calendly" } },
   payments: { group: "payments", title: "No payment source connected yet", line: "Revenue needs each sale's value: from Stripe, or sent with each lead.", act: { setup: "lead", way: "stripe" } },
   search: { group: "search", title: "Search Console is not connected yet", line: "Search needs Google Search Console: only Google sees what people searched for.", act: { setup: "search" } },
   tools: { group: "tools", title: "No tool of yours connected yet", line: "Google Analytics and your other tools can show their own figures here, never mixed into Skald's.", act: { setup: "finish-tools" } },
@@ -159,6 +160,7 @@ export function fits(row, found) {
     case "hubspot": return has(found, "hubspot");
     case "calendly": return has(found, "calendly");
     case "calcom": return has(found, "calcom");
+    case "neetocal": return has(found, "neetocal");
     case "stripe": return has(found, "stripe");
     case "journeys": return found?.framework === "nextjs";
     case "your-ga4": return has(found, "ga4");
@@ -191,7 +193,8 @@ export function recommend(need, found = null) {
   if (need === "bookings") {
     if (tags.calendly?.length) return { words: `Calendly is on your home page (${tags.calendly[0]}): connect Calendly and each booking shows here, step by step.`, act: { setup: "lead", way: "calendly" } };
     if (tags.calcom?.length) return { words: `Cal.com is on your home page (${tags.calcom[0]}): connect Cal.com and each booking shows here, step by step.`, act: { setup: "lead", way: "calcom" } };
-    return { words: "Connect Calendly or Cal.com, whichever takes your bookings: each booking then shows here, step by step.", act: { setup: "lead", way: "calendly" } };
+    if (tags.neetocal?.length) return { words: `NeetoCal is on your home page (${tags.neetocal[0]}): connect NeetoCal and each booking shows here, step by step.`, act: { setup: "lead", way: "neetocal" } };
+    return { words: "Connect Calendly, Cal.com or NeetoCal, whichever takes your bookings: each booking then shows here, step by step.", act: { setup: "lead", way: "calendly" } };
   }
   if (need === "payments") {
     if (tags.stripe?.length) return { words: "Stripe is on your site: connect Stripe and each paid Checkout shows here with its value.", act: { setup: "lead", way: "stripe" } };
@@ -223,7 +226,7 @@ export function otherWays(need, found = null) {
     leads: [["Your site's own form or backend", { setup: "lead", way: "lead" }], ["WordPress forms (a plugin, no code)", { setup: "lead", way: "wordpress" }],
       ["Zapier, Make or n8n", { setup: "lead", way: "json" }], ["Typeform", { setup: "lead", way: "typeform" }], ["HubSpot", { setup: "lead", way: "hubspot" }],
       ["The script tag (form sends, no code)", { setup: "script" }]],
-    bookings: [["Calendly", { setup: "lead", way: "calendly" }], ["Cal.com", { setup: "lead", way: "calcom" }], ["HubSpot meetings", { setup: "lead", way: "hubspot" }]],
+    bookings: [["Calendly", { setup: "lead", way: "calendly" }], ["Cal.com", { setup: "lead", way: "calcom" }], ["NeetoCal", { setup: "lead", way: "neetocal" }], ["HubSpot meetings", { setup: "lead", way: "hubspot" }]],
     payments: [["Stripe", { setup: "lead", way: "stripe" }], ["Value with each lead (the lead hook)", { setup: "lead", way: "lead" }], ["Zapier, Make or n8n", { setup: "lead", way: "json" }]],
     search: [["Search Console & Bing, in Leads & tools", { tool: "search" }]],
     tools: [["Google Analytics", { setup: "tool-ga4" }], ["Calendly", { setup: "tool-calendly" }], ["Vercel Web Analytics", { setup: "tool-vercel" }], ["Resend", { setup: "tool-resend" }]],
@@ -246,6 +249,7 @@ export function factsOf(found) {
   for (const v of tags.ga4 || []) out.push({ label: "Google Analytics", value: v });
   for (const v of tags.calendly || []) out.push({ label: "Calendly", value: v });
   for (const v of tags.calcom || []) out.push({ label: "Cal.com", value: v });
+  for (const v of tags.neetocal || []) out.push({ label: "NeetoCal", value: v });
   if ((tags.stripe || []).length) out.push({ label: "Stripe" });
   if ((tags.hubspot || []).length) out.push({ label: "HubSpot" });
   return out;
@@ -261,7 +265,7 @@ export function nextStep(rows, found = null) {
   const tags = tagsOf(found);
   const want = {
     leads: !anyOn(rows, "leads"),
-    bookings: !anyOn(rows, "bookings") && (has(found, "calendly") || has(found, "calcom")),
+    bookings: !anyOn(rows, "bookings") && (has(found, "calendly") || has(found, "calcom") || has(found, "neetocal")),
     payments: !anyOn(rows, "payments") && has(found, "stripe"),
     search: !anyOn(rows, "search"),
     tools: !anyOn(rows, "tools") && (tags.ga4 || []).length > 0,
@@ -308,7 +312,7 @@ export function fedFromData(group, m) {
   for (const r of conv?.today?.rows || []) if (r.tool) tools.add(r.tool);
   // Leads: any tool, or the lead database; no conversions file at all is not known.
   if (group === "leads") return tools.size > 0 || !!(m?.x?.leads && m.x.leads.available !== false) ? true : conv ? false : null;
-  if (group === "bookings") return tools.has("calendly") || tools.has("calcom");
+  if (group === "bookings") return tools.has("calendly") || tools.has("calcom") || tools.has("neetocal");
   if (group === "payments") return tools.has("stripe") || (conv?.days || []).some((d) => d.revenue && Object.keys(d.revenue).length);
   if (group === "search") return !!(m?.x?.search?.engines?.google?.connected || m?.x?.search?.engines?.bing?.connected);
   return null;                                   // not known from the files

@@ -30,8 +30,9 @@ TOKEN = "skald_ab12cd34_" + "Zq7Lm2Np9Rs4Tv8Wx1Yb5Cd3Fg6Hj0Kk2Mp7Qr9St4Uv"[:43]
 LINE = '192.0.2.10 - - [21/Oct/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5\n'
 
 
-def one(token=None, image=IMAGE, ship=SHIP) -> str:
-    return kit.one_file(SITE, URL, DASH, HELP, image, ship, token).decode()
+def one(token=None, image=IMAGE, ship=SHIP, site=SITE) -> str:
+    url = URL if site == SITE else URL.rsplit("/", 1)[0] + "/" + site
+    return kit.one_file(site, url, DASH, HELP, image, ship, token).decode()
 
 
 def embedded(text: str, mark: str) -> str:
@@ -130,9 +131,9 @@ class DryRun(unittest.TestCase):
         full.write_text(text, encoding="utf-8")
         return full
 
-    def run_it(self, *args, token=TOKEN, image=IMAGE, code=0, tty=None, **env):
+    def run_it(self, *args, token=TOKEN, image=IMAGE, code=0, tty=None, site=SITE, **env):
         script = self.tmp / "skald-install.sh"
-        script.write_text(one(token, image=image), encoding="utf-8")
+        script.write_text(one(token, image=image, site=site), encoding="utf-8")
         environ = {k: v for k, v in os.environ.items() if not k.startswith("SKALD_")}
         environ.update(PATH=f"{self.bin}:/usr/bin:/bin:/usr/sbin:/sbin", LC_ALL="C",
                        SKALD_INSTALL_ROOT=str(self.root))
@@ -231,6 +232,16 @@ class DryRun(unittest.TestCase):
         log = self.put("/var/log/nginx/www.example.com.log", LINE)
         out = self.run_it()
         self.assertIn(f"found in the web server's settings: {log}", out)
+
+    def test_a_www_site_is_never_tried_as_www_www(self):
+        # SKALD-57: a site added as www.example.com is looked up by that name only.
+        self.docker()
+        self.nginx_site(log="/var/log/nginx/$host.log")
+        log = self.put("/var/log/nginx/www.example.com.log", LINE)
+        self.put("/var/log/nginx/www.www.example.com.log", LINE)   # never picked
+        out = self.run_it(site="www.example.com")
+        self.assertIn(f"found in the web server's settings: {log}", out)
+        self.assertNotIn("www.www.", out)
 
     def test_two_logs_without_a_terminal_takes_the_biggest(self):
         self.docker()

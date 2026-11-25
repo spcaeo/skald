@@ -55,7 +55,7 @@ export async function tagDialog(site, { item = null, onClose = null, route = nul
     title: "Add the script tag", subtitle: `For ${site}. Optional.`, key: "setup-script", onClose, state: ts,
     steps: [
       { name: "What it adds",
-        draw: () => [h("p", null, "The script tag adds what a server log cannot see: forms started and sent, phone and email clicks, and bookings made in a Calendly, Cal.com or HubSpot embed."),
+        draw: () => [h("p", null, "The script tag adds what a server log cannot see: forms started and sent, phone and email clicks, and bookings made in a Calendly, Cal.com, NeetoCal or HubSpot embed."),
           h("p", { class: "note" }, `It is optional: Skald's figures from the log never depend on it. It sends events only to your Skald server (${skald.replace(/^https?:\/\//, "")}), never to a third party, and uses no cookies.`),
           off ? answerBox("bad", "The script tag is switched off on this Skald server.", h("p", null, "Ask whoever runs your Skald server to turn it on first. The next steps still show the tag."),
             adminFold("Set beacon.origins in Skald's config (Docker: SKALD_BEACON_ORIGINS) to the site's address, then restart Skald.")) : null,

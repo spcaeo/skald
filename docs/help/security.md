@@ -176,7 +176,7 @@ On top of the site's alert mail, each person on the site's team chooses their ow
 - At 01:00 the to-dos come from the last daily run (07:15 the morning before); the security items are current, from the live runs every few minutes.
 - **Right away** sends one mail per live run at most with everything due on all the sites you chose it for, never one mail per item.
 - Each mail names the site, what was found, what to do in one line, and a link straight to it on the Security tab (for example `…#threats/exposed?item=x1a2b3c4d5e6`), which opens with that item first.
-- Right away, each item is mailed once; a reminder comes only while it stays open, every 3 days (`security.remind_days`). The summary lists every open item each day.
+- Right away, each item is mailed once; a reminder comes only while it stays open, every 3 days (`security.remind_days`). The summary lists every open item each day. An item closes only once Skald has read what would show it gone: an exposure seen yesterday stays open until that morning's count has stored yesterday, so the 01:00 summary still lists it.
 - Only accounts that were confirmed (the invite link was used) and are not switched off get one. If you are also one of the site's alert mail recipients, an exposure is not mailed twice.
 - Every send is written to the organisation's audit log: to whom, which item and how (a summary: the day and how many items), never what was found.
 - Owners and admins can **Send a test security alert** to themselves (three in ten minutes at most).

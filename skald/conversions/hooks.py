@@ -84,7 +84,7 @@ PREFIX = "/traffic-hooks/"
 _PATH = re.compile(r"^/traffic-hooks/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/([a-z]{2,20})/?$")
 REFUSED_EVERY = 60
 SITES_EVERY = 30          # seconds: a hook for an unknown site re-reads the sites
-REPLAY_TOOLS = ("calcom", "typeform")     # no signed timestamp: refused by hash
+REPLAY_TOOLS = ("calcom", "neetocal", "typeform")    # no signed timestamp: refused by hash
 HELD = "accepted_held"    # a held delivery taken in once a saved key matched it (2.44.1)
 HELD_NOTE = held.NOTE
 PROXIES = ("127.0.0.1", "::1")
@@ -97,7 +97,7 @@ _SKV_IN_TEXT = re.compile(r"(?<![A-Za-z0-9_-])skv_[A-Za-z0-9_-]{16,43}(?![A-Za-z
 def without_vid(value):
     """The body with no visitor ID left, at any depth (2.38.0): every `vid`
     key, every value that is a Skald ID (Typeform's hidden.skv, Cal.com's
-    metadata.skv or utm_content, Calendly's tracking.utm_content, Stripe's
+    metadata.skv or utm_content, NeetoCal's skv answer, Calendly's tracking.utm_content, Stripe's
     client_reference_id, HubSpot's skv property), and a Skald ID inside a
     longer text. Before, only `vid` went and the tools' own fields kept it."""
     if isinstance(value, dict):
@@ -120,8 +120,14 @@ def replay_digest(tool: str, payload, body: bytes) -> str | None:
     if tool not in REPLAY_TOOLS or not isinstance(payload, dict):
         return None
     inner = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
-    event = payload.get("event_id") if tool == "typeform" else \
-        f"{payload.get('triggerEvent')}:{inner.get('uid')}"
+    if tool == "typeform":
+        event = payload.get("event_id")
+    elif tool == "neetocal":
+        mod = adapter(tool)
+        booking = mod.booking_of(payload)
+        event = f"{mod.kind(booking)}:{mod.ref_of(booking)}"
+    else:
+        event = f"{payload.get('triggerEvent')}:{inner.get('uid')}"
     return hashlib.sha256(f"{tool}\0{event}\0".encode() + body).hexdigest()
 
 
@@ -480,8 +486,10 @@ class Receiver:
             self._log(site, tool, "bad_body", 400, "; ".join(
                 ([HELD_NOTE] if held_at else []) + ["not JSON"]), at=received)
             return 400, {"error": "not JSON"}
+        if hasattr(mod, "prepare"):         # NeetoCal: its other answers go first
+            payload = mod.prepare(payload)
         full = identity_full(self.sites[site], self.folder)
-        # Calendly or Cal.com with the site's event types named: another type is
+        # Calendly, Cal.com or NeetoCal with the site's event types named: another type is
         # answered 200, logged, and nothing else - no spool line, no row.
         keep, skipped = event_types.decide(
             tool, payload, event_types.wanted(self.sites[site], site, tool, self.folder),

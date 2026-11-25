@@ -54,7 +54,7 @@ class Base(unittest.TestCase):
         if self.identity:
             self.config["conversions"]["identity"] = self.identity
         path = secrets_store.path_for(self.config, self.folder)
-        for tool in ("lead", "calendly", "stripe", "hubspot", "typeform", "calcom", "json"):
+        for tool in ("lead", "calendly", "stripe", "hubspot", "typeform", "calcom", "neetocal", "json"):
             secrets_store.put(path, secrets_store.key("example.com", tool), SECRET)
         self.now = T
         self.rx = Receiver(self.config, self.folder, clock=lambda: self.now)

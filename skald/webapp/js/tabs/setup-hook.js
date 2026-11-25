@@ -56,11 +56,12 @@ const WAYS = {
   json: ["Zapier, Make or n8n", "A form plugin or a no-code tool sends each lead through Zapier, Make or n8n."],
   calendly: ["Calendly", "Bookings, cancellations and no-shows. Needs a paid Calendly plan (Standard or higher)."],
   calcom: ["Cal.com", "Bookings, cancellations and moved bookings."],
+  neetocal: ["NeetoCal", "Bookings, cancellations, moved bookings and no-shows. Webhooks are on every NeetoCal plan."],
   typeform: ["Typeform", "Each form response, counted as a contact form."],
   stripe: ["Stripe", "Each paid Checkout, counted as a payment."],
   hubspot: ["HubSpot", "New contacts, booked meetings and won deals."],
 };
-const ORDER = ["lead", "wordpress", "json", "calendly", "calcom", "typeform", "stripe", "hubspot"];
+const ORDER = ["lead", "wordpress", "json", "calendly", "calcom", "neetocal", "typeform", "stripe", "hubspot"];
 export const toolOf = (way) => (way === "wordpress" ? "lead" : way);
 // The lead hook's secret made in this page, for the set-up pack (never stored).
 export const leadSecretFor = (site) => keptKey("lead", site);
@@ -100,6 +101,12 @@ export function hookSteps(tool, addr, secret = SECRET, how = "") {
       "In Cal.com, go to Settings > Developer > Webhooks > New.", `Subscriber URL: ${addr}`,
       "Event triggers: Booking Created, Booking Cancelled, Booking Rescheduled.",
       how === "paste" ? "Secret: leave the one the webhook has (the one you pasted in Skald). Save." : `Secret: ${secret}. Save.`] };
+    case "neetocal": return { lines: [
+      "In NeetoCal, open your scheduling link > Settings > Webhooks > Add new webhook. (For every link at once: Admin panel > Webhooks.)",
+      `Endpoint: ${addr}`,
+      how === "paste" ? "Secret key: the one you pasted in Skald (NeetoCal's Generate secret key makes one)." : `Secret key: ${secret}`,
+      "Events: Booking created, Booking rescheduled, Booking cancelled, Booking requested and Booking rejected (Skald ignores the others). Save changes.",
+      "So each booking joins the visitor's journey: in the link's Settings > Questions, Add question: type Short text, turn on Hide question, and under Advanced properties set the Field code to skv. The script tag fills it."] };
     case "typeform": return { lines: [
       `In Typeform, open your form, then Connect > Webhooks > Add a webhook. Paste the address: ${addr}`,
       how === "paste" ? "Open the webhook's settings (Edit): its Secret must be the one you pasted in Skald. Save, and turn the webhook on."

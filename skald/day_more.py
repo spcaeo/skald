@@ -45,6 +45,9 @@ KINDS = {"funnels": "funnel_days", "engagement": "engagement",
          "crawl_health": "crawl_health",
          # what AI crawlers and assistants got back, by address (ai_status.py)
          "ai_status": "ai_status",
+         # files made for machines (Markdown copies, OKF, llms.txt, agent
+         # cards) and who fetched them, every group (agent_files.py)
+         "agent_files": "agent_files",
          # scanners, exposures, attack attempts, fake browsers (security.py)
          "security": "security"}
 

@@ -57,7 +57,9 @@ EVENTS = ("cta_click", "book_demo_open", "demo_booked", "signup_start", "signup_
           # the conversions among them).
           "form_start", "form_submit", "calendly_open", "calendly_time_selected",
           "calendly_booked", "cal_open", "cal_booked", "hubspot_meeting_booked",
-          "tel_click", "mailto_click")
+          "tel_click", "mailto_click",
+          # SKALD-54: the NeetoCal embed's own messages
+          "neetocal_open", "neetocal_time_selected", "neetocal_booked")
 # The events skald.js never sends by itself: only the site's own code does
 # (skald('track', ...) or its own beacon). The Events page and the guide say so.
 CODE_ONLY = ("book_demo_open", "demo_booked")
@@ -76,7 +78,9 @@ LABELS = {"cta_click": "Button clicks", "book_demo_open": "Demo booking opened",
           "calendly_open": "Calendly opened", "calendly_time_selected": "Calendly time chosen",
           "calendly_booked": "Calendly booked", "cal_open": "Cal.com opened",
           "cal_booked": "Cal.com booked", "hubspot_meeting_booked": "HubSpot meeting booked",
-          "tel_click": "Phone link clicks", "mailto_click": "Email link clicks"}
+          "tel_click": "Phone link clicks", "mailto_click": "Email link clicks",
+          "neetocal_open": "NeetoCal opened", "neetocal_time_selected": "NeetoCal time chosen",
+          "neetocal_booked": "NeetoCal booked"}
 
 VIEWPORTS = ("xs", "sm", "md", "lg", "xl")
 FIELDS = {"e", "p", "id", "r", "u", "vw", "t", "v", "m", "c", "k"}

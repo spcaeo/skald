@@ -404,7 +404,7 @@ class RightAway(Base):
         ctx = self.ctx(SITES[0])
         ctx.tz, ctx.history = ZONE, (lambda: mock.MagicMock())
         found = sn.items({}, SITES[0], [exposure(SITES[0])], STACK)
-        with mock.patch.object(sn, "_found", return_value=found):
+        with mock.patch.object(sn, "_found", return_value=(found, frozenset())):
             self.assertEqual(sn.daily(ctx, send=self.box), 0)
         self.assertEqual(self.box.sent, [])
         self.assertEqual(len(sn.open_items(self.db, SITES[0])), 2, "still tracked")

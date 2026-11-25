@@ -20,7 +20,9 @@ import { countryName } from "../countries.js";
 export const ACTION = { demo: "Demos", contact: "Contact forms", signup: "Sign-ups", waitlist: "Early access", paid: "Payments", deal: "Deals", call: "Phone clicks", email: "Email clicks", cta: "Button clicks", trial: "Trials" };
 export const ONE = { demo: "Demo booking", contact: "Contact form", signup: "Sign-up", waitlist: "Early access", trial: "Trial", paid: "Payment", deal: "Deal" };
 export const STAGE = { started: "started", completed: "completed", paid: "paid", cancelled: "cancelled", rescheduled: "rescheduled", no_show: "no-show", won: "won", lost: "lost" };
-export const TOOL = { beacon: "The page (script tag)", site: "Lead database", lead: "Site's server", json: "Zapier, Make or a script", calendly: "Calendly", calcom: "Cal.com", stripe: "Stripe", typeform: "Typeform", hubspot: "HubSpot" };
+// The page's own "chose a time" events: Calendly's and NeetoCal's embeds (SKALD-54).
+export const TIME_CHOSEN = ["calendly_time_selected", "neetocal_time_selected"];
+export const TOOL = { beacon: "The page (script tag)", site: "Lead database", lead: "Site's server", json: "Zapier, Make or a script", calendly: "Calendly", calcom: "Cal.com", neetocal: "NeetoCal", stripe: "Stripe", typeform: "Typeform", hubspot: "HubSpot" };
 export const toolName = (t) => TOOL[t] || t;
 export const actionName = (a) => ACTION[a] || a.replace(/[_.:-]/g, " ").replace(/^./, (c) => c.toUpperCase());
 export const oneAction = (a) => ONE[a] || actionName(a).replace(/s$/, "");

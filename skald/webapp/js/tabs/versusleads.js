@@ -103,7 +103,7 @@ export function leadsCompare(m, s, res) {
   return h("section", { class: "s vs-leads" }, head,
     h("div", { class: "vs-kpis" },
       kpi("Leads", LEAD_WORDS, A.leads, B.leads),
-      kpi("Demos booked", "Demo bookings completed: Calendly, Cal.com, HubSpot meetings, the script tag and the lead database. Part of the leads.", A.demos, B.demos),
+      kpi("Demos booked", "Demo bookings completed: Calendly, Cal.com, NeetoCal, HubSpot meetings, the script tag and the lead database. Part of the leads.", A.demos, B.demos),
       kpi("All completed", "Every completed action: leads, payments, deals and clicks.", A.all, B.all)),
     res.a.days !== res.b.days ? h("p", { class: "note" }, "The periods have a different number of days: these are totals, not a typical day.") : null,
     h("div", { class: "sheet" }, h("h3", null, "By source (last touch)"), dimTable(A, B, "source_type", "source", "Source", "source", `${base}-sources.csv`)),

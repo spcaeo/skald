@@ -215,6 +215,9 @@ SCHEMA: dict[str, Key] = {
     "hooks.calcom.event_types": Key("eventtypes", "admin", ("site",),
                                     ("hooks", "calcom_event_types"), [],
                                     label="Cal.com event types"),
+    "hooks.neetocal.event_types": Key("eventtypes", "admin", ("site",),
+                                      ("hooks", "neetocal_event_types"), [],
+                                      label="NeetoCal scheduling links"),
     # Settings > Mail & reports > Client reports (client_reports.py): the agency's name and colour on
     # every client report of the organisation; its logo is a file (logos/org-<id>/).
     "brand.agency_name": Key("text", "admin", ("org",), None, None, limit=60,
@@ -848,7 +851,7 @@ SHRINKING = tuple(k for k in PLAIN if SCHEMA[k].shrink and "site" in SCHEMA[k].s
 # page milestones and the rest are kept for good.
 DETAIL_KINDS = ("pages", "visit_cube", "cube", "crawler_paths", "page_firsts",
                 "not_found", "page_counts", "funnels", "crawler_cost",
-                "crawl_health", "security", "ai_status")
+                "crawl_health", "security", "ai_status", "agent_files")
 
 
 def apply(config: dict, site: str | None = None, live_dir=None) -> dict:

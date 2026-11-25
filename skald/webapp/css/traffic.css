@@ -73,3 +73,27 @@
 }
 /* A letter chip (a referring site's mark) in a grid's label cell keeps its letter centred. */
 .lead-tbl .cell-l .ic.ic-chip { display: inline-grid; place-items: center; vertical-align: middle; position: relative; top: -1px; }
+
+/* Traffic › Agent files (SKALD-56, js/tabs/tr-agentfiles.js). AI crawlers: the AI colour, lighter. */
+:root { --af-training: color-mix(in srgb, var(--g-answer_engines) 55%, var(--surface)); }
+.af-kpis { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.af-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0 0 var(--sp-5); }
+.af-chip { border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); border-radius: 999px;
+  padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.af-chip:hover { color: var(--ink); border-color: var(--ink-3); }
+.af-chip.on { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); }
+.af-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.af .band { margin: var(--sp-3) 0 var(--sp-2); }
+.af-path { display: inline-block; min-width: 16ch; max-width: 46ch; font-size: 12.5px; overflow-wrap: anywhere; }
+.af-ans { white-space: nowrap; }
+.af-ok { color: var(--good); }
+.af-mv { color: var(--warn); }
+.af-bad { color: var(--bad); font-weight: 600; }
+.af-how ul { margin: 0; padding-left: 18px; color: var(--ink-2); }
+.af-how li + li { margin-top: var(--sp-2); }
+.af-dw > p { margin: 0 0 var(--sp-3); }
+.af-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-5); }
+.af-fact { border: 1px solid var(--rule); border-radius: var(--r); padding: var(--sp-3); background: var(--surface); }
+.af-fv { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.af-part { margin: 0 0 var(--sp-5); }
+.af-part h3 { font-size: 14px; margin: 0 0 var(--sp-2); }

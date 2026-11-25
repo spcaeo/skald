@@ -19,6 +19,7 @@ import { table } from "../table.js";
 import { howTo } from "./help.js";
 import { conversionsLikely } from "./likelyai.js";
 import { withFlag } from "./readers.js";
+import { TIME_CHOSEN } from "./leadfigs.js";
 import { label as valueLabel } from "../drill.js";
 import { openConversionList } from "./person.js";
 import { STAGE, actionName, toolName } from "./leadfigs.js";
@@ -164,9 +165,9 @@ function demoFunnel(m, t, days) {
   if (!st) return null;
   const ev = m.x.events;
   let chosen = null;
-  if (ev && (ev.events || []).some((e) => e.name === "calendly_time_selected")) {
+  if (ev && (ev.events || []).some((e) => TIME_CHOSEN.includes(e.name))) {
     const want = new Set(days.map((d) => d.day));
-    chosen = (ev.days || []).filter((d) => want.has(d.day) && d.state === "ok").reduce((a, d) => a + (d.events?.calendly_time_selected || 0), 0);
+    chosen = (ev.days || []).filter((d) => want.has(d.day) && d.state === "ok").reduce((a, d) => a + TIME_CHOSEN.reduce((y, k) => y + (d.events?.[k] || 0), 0), 0);
   }
   const steps = [["Opened the booking", st.started], ["Chose a time", chosen], ["Booked", (st.completed || 0) + (st.paid || 0)],
     ["Cancelled", st.cancelled], ["Rescheduled", st.rescheduled], ["No-show", st.no_show], ["Won", st.won]];

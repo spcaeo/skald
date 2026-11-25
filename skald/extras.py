@@ -99,6 +99,10 @@ class Extras:
         # AI readiness). The whole site's tally only: None for a view.
         from .ai_status import Collector as AiStatus
         self.ai_status = AiStatus()
+        # Files made for machines and who fetched them (agent_files.py,
+        # Traffic > Agent files). The whole site's tally only: None for a view.
+        from .agent_files import Collector as AgentFiles
+        self.agent_files = AgentFiles()
         # Scanners, exposures, attack attempts and fake browsers (security.py):
         # a view across the groups. The whole site's tally only: None for a view.
         from .security import Collector as Security
@@ -190,6 +194,8 @@ class Extras:
             self.ai_status.add(hit, verdict)
         if self.security is not None:
             self.security.add(hit, verdict)
+        if self.agent_files is not None:
+            self.agent_files.add(hit, verdict)
         hour = dim.hour(hit.when, self.tz)
         row = self.hours.get(hour)
         if row is None:

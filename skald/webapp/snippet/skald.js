@@ -53,9 +53,9 @@ var once=(k,e)=>{if(ok&&!seen.includes(k)){seen.push(k);go(e)}},nf=()=>d.querySe
 scan=()=>{em();nf()};
 function tag(u){var v=id(),h=lc(u.hostname),p=u.searchParams,ch=0;if(!v)return"";
 if(ends(h,"calendly.com")&&!p.get("utm_content")){p.set("utm_content",v);ch=1}
-LD.forEach(m=>{if(ends(h,m)&&!p.get("skv")){p.set("skv",v);ch=1}});return ch?u.href:""}
+if((ends(h,"neetocal.com")||LD.some(m=>ends(h,m)))&&!p.get("skv")){p.set("skv",v);ch=1}return ch?u.href:""}
 function em(){if(!id())return;
-d.querySelectorAll('iframe[src*="calendly.com"],[data-url*="calendly.com"]').forEach(f=>{
+d.querySelectorAll('iframe[src*="calendly.com"],[data-url*="calendly.com"],iframe[src*="neetocal.com"]').forEach(f=>{
 var k=f.tagName=="IFRAME"?"src":"data-url",x;try{x=tag(new URL(ga(f,k),L.href))}catch{}if(x)f.setAttribute(k,x)})}
 function form(t){var f=t&&t.form;while(!f&&t&&t.tagName!="FORM")t=t.parentNode;f=f||t;
 return f&&ga(f,"data-skald")!="off"&&ga(f,"role")!="search"?f:null}
@@ -71,6 +71,7 @@ x=tag(u);if(x)a.href=x;go("outbound_click",bare(u.hostname))},!0);
 on(w,"message",ev=>{var o=ev.origin,m=ev.data||{},t=m.type,c=/^calendly\./.test(m.event)&&CAL[m.event.slice(9)];
 if(o=="https://calendly.com")go(c&&"calendly_"+c);
 else if(o=="https://app.cal.com")go(t=="linkReady"?"cal_open":/^bookingSuccessful/.test(t)&&"cal_booked");
+else if(/^https:\/\/[\w-]+\.neetocal\.com$/.test(o))/height|host_probe/.test(t)?once(o,"neetocal_open"):go(t=="slot_selected"?"neetocal_time_selected":t=="booking_confirmed"&&"neetocal_booked");
 else if(/^https:\/\/meetings(-\w+)?\.hubspot\.com$/.test(o)&&(m.meetingBookSucceeded||m.meetingsPayload))go("hubspot_meeting_booked")});
 ["pushState","replaceState"].forEach(k=>{var f=H[k];H[k]=function(){f.apply(this,arguments);pv()}});
 // back/forward; a page restored from the back-forward cache is opened again

@@ -27,8 +27,13 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-24-2.57.0",
+  id: "2026-11-25-2.58.0",
   items: [
+    ["Agent files", "Traffic › Agent files shows who reads the files a site made for AI: Markdown copies, OKF bundles, llms.txt, agent cards, robots.txt and sitemaps, by AI, search engines, other bots and people.", "ai-and-bots"],
+    ["NeetoCal bookings", "NeetoCal joins Calendly and Cal.com under Leads & tools: its webhook brings each booking, move and cancellation, joined to the visitor's pages.", "demo-bookings"],
+    ["Security alerts stay open overnight", "an exposure seen yesterday no longer closes at midnight and comes back after the morning run, so the 01:00 summary lists it.", "security"],
+    ["Set-up steps name your site as added", "a site added as www.example.com is no longer told to route www.www.example.com; every step uses the name as added.", "connections"],
+    ["\"Visits count as people\" fixed", "the set-up step reads the file paths saved under Settings › Data, so it turns done on sites that are not Next.js.", "getting-started"],
     ["Google Analytics on Today", "Overview › Today shows Google Analytics' own figures too, with new users, engagement, average session and key events, each against its 28 days before; All figures opens every table.", "your-tools"],
     ["AI training in pages", "AI collecting for training counts pages, with robots.txt, sitemaps, images, styles and scripts as files beside them; All AI activity lists pages only.", "ai-and-bots"],
     ["AI card split by why it came", "Overview's AI and crawlers now has two lists, AI reading for someone and AI collecting for training, as AI & bots names them.", "real-time"],

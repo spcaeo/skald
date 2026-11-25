@@ -13,14 +13,14 @@
 //   bookingSteps(m, s, r, a)     the strip (null when the action is not a booking)
 
 import { h, n, reduced } from "../ui.js";
-import { convFile, actionName, toolName } from "./leadfigs.js";
+import { convFile, actionName, toolName, TIME_CHOSEN } from "./leadfigs.js";
 import { periodDays } from "./sa-period.js";
 import { rateOf } from "./sa-rate.js";
 import { connectCard } from "../ui/connect.js";
 import { fedFromData } from "../connect-plan.js";
 
 // Tools that book or take payment: an action any of them reported is a booking action.
-export const BOOKING_TOOLS = new Set(["calendly", "calcom", "stripe"]);
+export const BOOKING_TOOLS = new Set(["calendly", "calcom", "neetocal", "stripe"]);
 const FIN = ["completed", "paid"];
 
 export function isBooking(f, a) {
@@ -44,8 +44,8 @@ export function stepsOf(f, a, days, events = null) {
     for (const [t, v] of Object.entries(d.by?.tool?.[a] || {})) tools[t] = (tools[t] || 0) + v;
   }
   let chosen = null;
-  if (events && (events.events || []).some((e) => e.name === "calendly_time_selected") && (f.demo_actions || ["demo"]).includes(a)) {
-    chosen = (events.days || []).filter((d) => want.has(d.day) && d.state === "ok").reduce((x, d) => x + (d.events?.calendly_time_selected || 0), 0);
+  if (events && (events.events || []).some((e) => TIME_CHOSEN.includes(e.name)) && (f.demo_actions || ["demo"]).includes(a)) {
+    chosen = (events.days || []).filter((d) => want.has(d.day) && d.state === "ok").reduce((x, d) => x + TIME_CHOSEN.reduce((y, k) => y + (d.events?.[k] || 0), 0), 0);
   }
   const steps = [
     ever.has("started") ? ["started", "Opened the booking", sum.started || 0] : null,

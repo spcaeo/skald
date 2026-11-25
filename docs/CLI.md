@@ -434,12 +434,12 @@ Incoming hooks from the site and its tools (Calendly, Stripe, ...): secrets, lis
 | --- | --- | --- |
 | `hooks secret` | | Make a hook's secret (printed once, kept 0600). |
 | | `site` | the site's name |
-| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`, `journey`) |
+| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `neetocal`, `stripe`, `typeform`, `hubspot`, `journey`) |
 | | `--value` | keep this secret (one the tool made, such as Stripe's whsec_...) instead of a new one; '-' reads it from standard input |
 | `hooks list` | | The hooks set up, where their secrets live, their last deliveries. |
 | `hooks test` | | Post a signed sample to the local receiver (marked as a test: read, never kept). |
 | | `site` | the site's name |
-| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`) |
+| | `tool` | the hook (one of `lead`, `json`, `calendly`, `calcom`, `neetocal`, `stripe`, `typeform`, `hubspot`) |
 | | `--url` | the receiver (default hooks.test_url or http://127.0.0.1:8766) |
 
 ### skald conversions
@@ -458,12 +458,12 @@ The conversions file: list, mark test, remove, forget a person, prune.
 | | `site` | the site's name |
 | | `ids` | conversion ids (conversions list) |
 | | `--ref` REF | a lead's external_ref: every stage of it (repeat for more) |
-| | `--tool` | the tool the refs came through (default lead) (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`; default `lead`) |
+| | `--tool` | the tool the refs came through (default lead) (one of `lead`, `json`, `calendly`, `calcom`, `neetocal`, `stripe`, `typeform`, `hubspot`; default `lead`) |
 | | `--unmark` | count them again |
 | `conversions remove` | | Soft-remove a lead's rows: each kept whole under Show left out > Removed with when and why, out of every count. |
 | | `site` | the site's name |
 | | `--ref` | the lead's external_ref (required) |
-| | `--tool` | the tool it came through (default lead) (one of `lead`, `json`, `calendly`, `calcom`, `stripe`, `typeform`, `hubspot`; default `lead`) |
+| | `--tool` | the tool it came through (default lead) (one of `lead`, `json`, `calendly`, `calcom`, `neetocal`, `stripe`, `typeform`, `hubspot`; default `lead`) |
 | | `--stage` | only this stage (default every stage) (one of `started`, `completed`, `cancelled`, `rescheduled`, `no_show`, `paid`, `won`, `lost`, `refunded`) |
 | | `--action` | only this action |
 | | `--why` | why it goes (kept with each row) (required) |

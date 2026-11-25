@@ -102,7 +102,7 @@ TEST_LIMIT, TEST_MINUTES = 3, 10        # webhook tests per user (each may wait 
 # Tools that sign with a secret they make themselves: it is pasted, never made here.
 OWN_SECRET = ("stripe", "hubspot")
 # Tools that take a secret you choose, or give their own: made here or pasted.
-EITHER = ("calendly", "calcom", "typeform")
+EITHER = ("calendly", "calcom", "neetocal", "typeform")
 # lead and json carry Skald's own signature: made here only.
 PASTED = re.compile(r"^[\x21-\x7e]{12,500}$")     # one line, no spaces
 
@@ -322,7 +322,7 @@ def _check(c: Ctx, site: str, tool: str, value: str) -> dict | None:
 
 
 def _types(c: Ctx, conf: dict, site: str, tool: str) -> dict | None:
-    """Calendly and Cal.com: the event types this site keeps ([] keeps all),
+    """Calendly, Cal.com and NeetoCal: the event types this site keeps ([] keeps all),
     where the list comes from, and whether the caller may change it here."""
     from .conversions.event_types import TOOLS as TYPED, setting_key
     from . import settings_store
@@ -511,7 +511,7 @@ def remove(c: Ctx, form):
 
 
 def types(c: Ctx, form):
-    """The Calendly or Cal.com event types this site keeps: a settings row for
+    """The Calendly, Cal.com or NeetoCal event types this site keeps: a settings row for
     the site (settings_store "hooks.<tool>.event_types"); [] clears it."""
     from . import settings_store
     from .conversions.event_types import TOOLS as TYPED, setting_key
@@ -520,7 +520,7 @@ def types(c: Ctx, form):
     if tool is None:
         return None
     if tool not in TYPED:
-        return c.no(400, "Only Calendly and Cal.com hooks keep some event types.")
+        return c.no(400, "Only Calendly, Cal.com and NeetoCal hooks keep some event types.")
     name = setting_key(tool)
     may, why = settings_store.may_edit(name, c.role, c.install_admin, c.config)
     if not may:

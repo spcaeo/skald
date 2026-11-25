@@ -14,6 +14,9 @@
         the headers the tool would send: for tests and `skald hooks test`.
     sample(site, now) -> dict
         a body like the tool's, for `skald hooks test`.
+    prepare(payload) -> payload        (optional; NeetoCal)
+        the parsed body as Skald reads and keeps it, before anything else
+        reads it: drops what must never be kept (NeetoCal's other answers).
     HEADER, SIGNED
         the signature's header, and every header that carries a signature
         (lead and json: also Authorization). A delivery with none of SIGNED
@@ -172,9 +175,9 @@ def signed(tool: str, headers: dict) -> bool:
 
 
 def _load():
-    from . import calcom, calendly, generic, hubspot, lead, stripe, typeform
+    from . import calcom, calendly, generic, hubspot, lead, neetocal, stripe, typeform
     return {"lead": lead, "json": generic, "calendly": calendly, "calcom": calcom,
-            "stripe": stripe, "typeform": typeform, "hubspot": hubspot}
+            "neetocal": neetocal, "stripe": stripe, "typeform": typeform, "hubspot": hubspot}
 
 
 _ADAPTERS: dict | None = None
