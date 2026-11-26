@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import base64
 import smtplib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import client_reports as cr
@@ -203,8 +203,11 @@ def send(config: dict, history_path, db, report: dict, base, by: str,
 # ------------------------------------------------------------- the clock
 
 def run_due(config: dict, history_path, db, site: str, base, now: datetime | None = None,
-            trusted=(), out=print) -> int:
-    """Send each of the site's reports that is due; 1 when any failed."""
+            trusted=(), out=print, live_dir=None) -> int:
+    """Send each of the site's reports that is due; 1 when any failed. live_dir: the
+    site's state folder, whose runs.json says whether the morning run has counted
+    yesterday again (SKALD-61: close-day stores it at 00:20, before late lines)."""
+    from .day_close import morning_ran
     from .window import zone
     from .store import History
     tz = zone(config)
@@ -220,7 +223,11 @@ def run_due(config: dict, history_path, db, site: str, base, now: datetime | Non
         if history_path is not None and Path(history_path).is_file():
             with History(history_path) as history:
                 missing = history.state(site, last) is None
-            if cr.should_wait(missing, now, tz):
+            # A report goes once and is never sent again: it waits for the morning's
+            # count of yesterday, not close-day's early one (until 18:00, as before).
+            early = last == (now.astimezone(tz).date() - timedelta(days=1)) and \
+                not morning_ran(live_dir, now, tz)
+            if cr.should_wait(missing or early, now, tz):
                 out(f"reports: {site}: {spec['name']!r} waits for {last} to be stored")
                 continue
         ok, words = send(config, history_path, db, report, base, "schedule", now, day, trusted)
@@ -254,7 +261,7 @@ def cmd_reports(ctx) -> int:
     try:
         if ctx.args.due:
             return run_due(ctx.config, ctx.db_path, db, ctx.site, base, now, _trusted(ctx),
-                           ctx.out)
+                           ctx.out, live_dir=ctx.live_dir)
         reports = cr.org_reports(db, ctx.site)
         if ctx.args.send or ctx.args.pdf:
             want = ctx.args.send or ctx.args.pdf

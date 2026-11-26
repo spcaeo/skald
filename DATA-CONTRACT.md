@@ -163,6 +163,7 @@ Meta for the app, and one row of headline figures per day.
 | `server_errors` | int or null: 5xx to anyone |
 | `visits` | `{"visits","views","one_page","median_seconds","in_app","not_found","posted"}` or null |
 | `returning` | `{"readers": int, "returning": int}` or null: readers seen on an earlier day within 30 days (keyed hash, see ai_activity.json) |
+| `counted_at` | the `anchor` day only (app.json): when its count was stored, in the site's zone, ISO to the minute. close-day stores yesterday soon after midnight and run-daily counts it again in the morning (SKALD-61); absent on older days |
 
 ```json
 {"schema_version":1,"generated_at":"2026-10-08T07:16:02-04:00","site":"example.com","view":null,

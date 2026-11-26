@@ -435,9 +435,14 @@ assert.deepEqual(ids({ country: "US", lby: "Direct or unknown" }), [], "filters 
   const s = { ...go("#traffic/places?country=US&browser=Chrome"), tab: "traffic/places" };
   const tree = fromState(s);
   assert.equal(applies(s, tree.items[0], tree), true, "Places & devices applies the country filter");
-  const s2 = { ...go("#traffic/sources?country=US&source=Search+engine") };
+  // SKALD-62: Sources shares the bar's filter, so it applies the country too; Events keeps its own.
+  const s1 = { ...go("#traffic/sources?country=US&source=Search+engine") };
+  const t1 = fromState(s1);
+  assert.deepEqual(t1.items.map((x) => applies(s1, x, t1)), [true, true], "Sources applies the country and the source (the shared bar)");
+  assert.equal(filterChips(m, s1).querySelectorAll(".chip").length, 0, "the four shared tabs show the bar's filters in the bar, not as chips");
+  const s2 = { ...go("#traffic/events?country=US&source=Search+engine") };
   const t2 = fromState(s2);
-  assert.deepEqual(t2.items.map((x) => applies(s2, x, t2)), [false, true], "Sources applies the source filter, not the country");
+  assert.deepEqual(t2.items.map((x) => applies(s2, x, t2)), [false, true], "Events applies the source filter, not the country");
   const chips = filterChips(m, s2);
   assert.equal(chips.querySelectorAll(".chip.off").length, 1, "one greyed chip, not two");
 }

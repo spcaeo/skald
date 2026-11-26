@@ -62,6 +62,13 @@ use the script tag.
   (written before 2.9.0) is the first site's, the only one then. With the
   old two-field `log_format`, every line reads as the first site's, so
   another site's audit finds no 204s and withholds its days.
+- **A page that closes first is still a 204 (SKALD-15).** A form sent or a link
+  out can close the page before the helper answers. nginx then logs `499 -`:
+  no 204 and no site, though the helper kept the event, so the spool holds a
+  few more lines than nginx's 204s and the audit withholds the day.
+  `proxy_ignore_client_abort on` in the location (below) makes nginx wait for
+  the helper and log its 204 and site. Days before it went live stay withheld:
+  their 499 lines name no site.
 - **Visitor IDs per site.** `beacon.visitor_ids` is a site setting (below).
   `/traffic-js/skald.js` is served with the setting of the site whose page
   loads it, found by the `Referer` (scheme and host only). With no
@@ -442,6 +449,7 @@ location = /traffic-beacon {
   access_log /var/log/nginx/skald-beacon.log skald_beacon;
   add_header Cache-Control "no-store" always;
   add_header X-Robots-Tag "noindex" always;
+  proxy_ignore_client_abort on;   # keep the helper's 204 when the page closes first (SKALD-15)
   proxy_pass http://127.0.0.1:8766;
   proxy_set_header Host $host;
   proxy_set_header X-Real-IP $remote_addr;

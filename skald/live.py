@@ -8,7 +8,8 @@ What keeps it honest is what it is NOT allowed to touch:
 
   * it never writes the daily history: a day is stored once it is over, by
     collect, from the whole day. A partial day stored as a day would be a
-    small number pretending to be a quiet day.
+    small number pretending to be a quiet day. (The run's one history write is
+    the pages' own dates, page_dates.py, SKALD-64: no figure of a day.)
   * it is never mailed and never used in a comparison. The mail and the
     KPI changes read history only.
   * it runs the same verify as everything else. If today's figures so far

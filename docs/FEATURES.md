@@ -28,7 +28,7 @@ the [changelog](../CHANGELOG.md) says when each one came.
   Up, Down, No clear change or Too early to tell. A sitemap date offers to track it for you.
 - **Back** (2.42): one **← Back to …** link names the view you came from and returns to it;
   browser Back and Forward walk the same steps.
-- **Today** (live), **7**, **30** and **90 days**, **More** (Yesterday, All time, Custom) and **Compare**
+- **Today** (live), **Yesterday** (stored soon after midnight), **7**, **30** and **90 days**, **More** (All time, Custom) and **Compare**
   in the top bar, on every tab; Compare is on by default (2.42). Leads & sales opens on the last
   7 days, the other sections on today.
 - **Real time** (Overview › Real time): visitors active now and in the last 30 minutes, visitors

@@ -8,10 +8,40 @@ import { open as openDrill } from "../drill.js";
 import { hourLabels, label as tzLabel, sameAsSite, city, siteZone } from "../tz.js";
 import * as S from "../state.js";
 import { rove } from "../place.js";
+import { hourStats, WINDOW, WEEK_MIN } from "./hour-stats.js";
+import { info } from "./tiles.js";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const span = (hh) => { const i = Number(hh); const a = LABELS[i], b = LABELS[(i + 1) % 24]; return `${a.includes(":") ? a : `${a}:00`} to ${b.includes(":") ? b : `${b}:00`}`; };
+
+const DAYNAME = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+const clock = (i) => { const a = LABELS[i % 24]; return a.includes(":") ? a : `${a}:00`; };
+const pctOf = (v) => `${Math.round(v * 100)}%`;
+
+/* SKALD-66: the busiest and the quietest hours, and the busiest weekday, above the charts. */
+export function statsBlock(days, get, unit, r) {
+  // A day with hourly requests but none for this group is 0 for it, as the heatmap draws it;
+  // a day with no hour counts at all is not known and left out.
+  const known = (d) => d.state === "ok" && (get(d) || (unit !== "visitors" && d.hourly));
+  const st = hourStats(days.filter(known).map((d) => ({ day: d.day, weekday: weekday(d.day), cells: HOURS.map((hh) => (get(d) || {})[hh] || 0) })));
+  if (!st.total) return null;
+  const tile = (label, value, line, about) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label, info(about, label)), h("div", { class: "k-v" }, value), h("div", { class: "tm-line" }, line));
+  // (tm-line, not k-n: tiles.js quietKpis folds a k-n line into the (i), and this line is the figure's point.)
+  const win = (w) => `${clock(w.from)}–${clock(w.from + WINDOW)}`;
+  const top = `${clock(st.top.hour)}–${clock(st.top.hour + 1)}`;
+  const busy = tile("Busiest hours", win(st.busy), [`${pctOf(st.busy.share)} of the ${unit} (${n(st.busy.value)}). The busiest single hour: ${top}, ${pctOf(st.top.share)}.`,
+    st.oneDay ? ` Mostly from one day: ${short(st.oneDay.day)} had ${n(st.oneDay.value)} of its ${n(st.top.value)}.` : ""].join(""),
+    `The ${WINDOW} hours in a row with the most ${unit}, summed over the ${n(st.days)} verified days shown. Avoid releases and changes here.`);
+  const calm = tile("Quietest hours", win(st.calm), `${pctOf(st.calm.share)} of the ${unit} (${n(st.calm.value)}): the calmest time for a release or a change.`,
+    `The ${WINDOW} hours in a row with the fewest ${unit}, summed over the ${n(st.days)} verified days shown. A stretch may run past midnight.`);
+  const week = st.week
+    ? tile("Busiest day of the week", DAYNAME[st.week.busiest.weekday], `${n(Math.round(st.week.busiest.avg))} ${unit} a day on average; the quietest is ${DAYNAME[st.week.quietest.weekday]} (${n(Math.round(st.week.quietest.avg))}).${st.week.oneDay ? ` Mostly from one day: ${short(st.week.oneDay.day)} had ${n(st.week.oneDay.value)}.` : ""}`,
+      `The average per day of each weekday over the verified days shown. Each weekday is counted ${WEEK_MIN} times or more.`)
+    : tile("Busiest day of the week", "-", `Needs each weekday ${WEEK_MIN} times or more: choose 30 or 90 days.`, "Days of the week are compared only when each one is in the range at least twice.");
+  return h("section", { class: "s" }, h("div", { class: "kpis tm-stats" }, busy, calm, week),
+    h("p", { class: "note" }, `Over ${n(st.days)} verified ${st.days === 1 ? "day" : "days"}, hours in ${tzLabel()}. ${unit === "visitors" ? "A visitor counts once, in the hour of their first page." : "Every request counts in its own hour."}${st.days < 14 ? " Few days give a rough picture: 30 or 90 days are steadier." : ""}`));
+}
 
 // What a cell counts: readers by the hour of their first page, or a group's requests when the day has them.
 function measures(days) {
@@ -69,6 +99,7 @@ export default function hours(m, s) {
     sel.addEventListener("change", () => { measure = sel.value; const p = document.getElementById("panel"); p.replaceChildren(...hours(m, s).flat(Infinity).filter(Boolean)); });
     out.push(h("label", { class: "ctl", style: { marginBottom: "14px" } }, "Count", sel));
   }
+  if (r.kind !== "today") out.push(statsBlock(days, get, unit, r));
   const byDate = days.length <= 31;
   const rows = byDate
     ? days.filter((d) => d.state !== "before").map((d) => ({ day: r.kind === "today" ? "" : d.day, label: short(d.day), long: `${weekday(d.day)} ${short(d.day)}`,

@@ -31,6 +31,16 @@ The same daily read keeps each page's `<lastmod>`: the date your sitemap says th
 - Some site builders stamp every page with the build time. Then every page looks changed on each build; that is what the sitemap says, and Skald shows it as it is.
 - Change dates start on the first sitemap read after the upgrade (the next local day). Days before that have none.
 
+### The page's own dates
+
+Your sitemap gives one change date a day. The page itself often says more: when it was published and when it was last updated, to the minute. Turn on **Settings › Sites › Page dates** and Skald reads them from each page of the site (it is off until you do).
+
+- **What it reads:** the page's structured data (`datePublished` and `dateModified` of an article or a web page), else its `article:published_time` and `article:modified_time` meta tags, else a date tag the page marks as its own. A date in a comment, a related post or the footer is never taken. A page that gives no date says so; Skald never guesses one.
+- **How often:** each page once (its published date never changes), then again only when your sitemap says the page changed, and every page once a month. Your sitemap's dates are read every 6 hours for this. At most 500 pages a day, a few at a time; a large site fills in over a few days.
+- **Skald's own request:** it asks as `site-page-dates/1`, which Skald always counts as its own, never as a visitor or a bot. A page behind a bot check (Cloudflare's challenge, say) or one that errors is tried again within a day, and keeps your sitemap's date meanwhile; its story says why.
+- **Where it shows:** Pages by publish date (the dates marked "from the page"), each page's story (every update on the timeline, with its time), the page's drawer on [Traffic > Pages](#traffic/pages) (published and last updated above Google's figures, a mark on the chart for each update), and the query drawer on [Traffic > Search](#traffic/search) (the same dates under Average position, and the marks on its chart).
+- **Every date is kept,** the page's and your sitemap's, from the day you turn it on; your sitemap's dates kept before then are copied in.
+
 ### No sitemap yet
 
 The tab says so and shows how to add one. Coverage and orphans need a sitemap; the problem lists below still work without one.

@@ -123,7 +123,7 @@ Each engine's `part`:
 | `health` | #40, `search/health.py`: `{"state": "off"/"waiting"/"answering"/"failing"/"not_answering"/"stopped", "stopped", "since" (the last good sync), "fails", "hours" (from the last good sync to the newest failed try), "reason" (the engine's own words in one line), "advice" (what to do), "words", "pill", "rule": {"tries": 4, "hours": 24}}`. Stopped: connected, worked before, and every try since failed, for 24 hours or 4 tries in a row. Settings › Leads & tools › Search Console & Bing gets the same in its `engines[].health` |
 | `summary` | `{"days", "first", "last", "provisional", "fetched_at"}` of what history holds |
 | `days[]` | every stored day of the last 480 up to the newest, oldest first: `{"day", "clicks", "impressions", "ctr", "position", "final"}`. `ctr` is clicks / impressions (null when 0 impressions). |
-| `periods` | `{"7", "28", "90", "480"}`: the last N days up to the newest stored day, each `{"first", "last", "days", "provisional_days": [day], "totals": {"clicks", "impressions", "ctr", "position"}, "query", "page", "country", "device", "appearance", "coverage"}`, and for Search Console also `"changes"`, `"positions"`, `"opportunities"` (below) |
+| `periods` | `{"7", "28", "90", "480"}`: the last N days up to the newest stored day, each `{"first", "last", "days", "provisional_days": [day], "totals": {"clicks", "impressions", "ctr", "position"}, "query", "page", "country", "device", "appearance", "coverage"}`, and for Search Console also `"earlier"`, `"changes"`, `"positions"`, `"opportunities"` (below) |
 
 Each table in a period: `{"rows": [[key, clicks, impressions, ctr,
 position]], "others": {"rows", "clicks", "impressions", "position"},
@@ -145,6 +145,15 @@ road: `audit_search_reports.py`, by SQL over the stored JSON, run by
 the first stored day), "missing": [day] (inside the history, no figures),
 "provisional": [day], "history_first", "empty"}` (`empty`: every stored day
 has 0 impressions).
+
+`earlier` (Search Console; SKALD-66), the N days just before the period, for the
+tiles' change, whole or nothing: `{"state", "first", "last"}` and, when `state` is
+`"ok"`, `"clicks", "impressions", "ctr", "position"` (each day's own total summed, the
+position weighted by impressions) and `"provisional": [day]`. `state`: `"ok"`;
+`"too_long"` (16 months: Search Console keeps no earlier 16 months); `"now_short"` (the
+period itself is not whole, so it is not set against anything); `"short"` (an earlier
+day is not stored; with `missing`, how many). The tab never works a change out from a
+part of a period. Recounted by `audit_search_reports.py` (SQL over the `total` rows).
 
 `changes`, new and lost queries, on whole days only:
 

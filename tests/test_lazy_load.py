@@ -38,6 +38,7 @@ READERS = {
     "tabs/ai-trend.js": "AI & bots › Assistants: needs page_trends",
     "tabs/funnels.js": "Leads & sales › Funnels: needs pages",
     "tabs/si-notfound.js": "Site › Not found: its file",
+    "page-dates.js": "a page's dates (rowFor): its callers, the Search and page drawers, ask first (need)",
 }
 READ = re.compile(r"\.x\??\.(" + "|".join(LAZY) + r")\b")
 

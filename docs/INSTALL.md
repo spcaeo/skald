@@ -114,6 +114,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_KEEP_IPS` | on (new install), off (upgraded from before 2.4.0) | `1` keeps each visit's IP address and browser with its pages for `privacy.keep_days` (395 days), so a person can be looked up; `short` keeps each address with its last part removed (203.0.113.57 as 203.0.113.0; since 2.15.0); `0` keeps none (only the last 6 hours of requests show addresses). Also Settings > Data retention > People. Your privacy notice must say so |
 | `SKALD_IDENTITY` | `full` (new install), `anonymous` (upgraded from before 2.4.0) | `full` keeps leads' names and emails with their conversions; `anonymous` keeps neither |
 | `SKALD_KEEP_EVERYTHING` | off | `1` (or `true`): keep everything, for an internal or enterprise install. Skald then deletes and clears nothing by itself on any site of the install: no retention window, People days or plan cap removes a row, a file line or a conversions backup (`retention.keep_everything` in [SETTINGS.md](SETTINGS.md#keep-everything)). A person's own deletion request, run by an admin (`forget`, `conversions forget`), still works. The privacy notice wording then says "until you ask us to delete it" |
+| `SKALD_CLOSE_AT` | `00:20` | the day's close (`close-day`): yesterday checked, collected, audited and drawn soon after midnight, so Yesterday and the 7, 30 and 90 days show it from then, not only after the daily run, which counts it again; `off` stops it |
 | `SKALD_DAILY_AT`, `SKALD_BACKUP_AT` | `07:15`, `03:30` | the daily run and the backup, in the site's time zone |
 | `SKALD_LIVE_MINUTES` | `2` | the live snapshot's interval |
 | `SKALD_JOB_NICE` | `10` | how much lower the scheduled jobs (live, daily, backup...) run than nginx and the helper, 0 to 19; `0` turns it off |
@@ -124,7 +125,7 @@ the container has them (`history.db: /var/lib/skald/history.sqlite`,
 | `SKALD_AI_ANSWERS_MINUTES` | `15` | how often the AI answers profiles that are due (or asked to run now) are asked (`ai-answers --due`); `0` stops them |
 | `SKALD_SUMMARY_AT` | `01:00` | the daily summary mail (`summary-mail`): one mail per person with what to look at on every site they get security alerts for (security items, to-dos, set-up problems), in the schedule's time zone; `off` stops it |
 | `SKALD_SCHEDULER` | `on` | `off` stops the container's own schedule (every job below) |
-| `SKALD_SCHEDULE_TZ` | the site's `report.timezone` | the zone the daily times above are in (`SKALD_DAILY_AT`, `SKALD_BACKUP_AT`, `SKALD_SEARCH_AT`, `SKALD_TOOLS_AT`, `SKALD_SUMMARY_AT`); an unknown zone stops the scheduler at start |
+| `SKALD_SCHEDULE_TZ` | the site's `report.timezone` | the zone the daily times above are in (`SKALD_CLOSE_AT`, `SKALD_DAILY_AT`, `SKALD_BACKUP_AT`, `SKALD_SEARCH_AT`, `SKALD_TOOLS_AT`, `SKALD_SUMMARY_AT`); an unknown zone stops the scheduler at start |
 | `SKALD_MAIL_FROM` | the first `SKALD_EMAIL` | the sender of every mail |
 | `SKALD_CONFIG` | | a config file inside the container to use as it is, instead of a mounted `/etc/skald/config.yml` or the one generated from these variables |
 | `SKALD_ORIGIN` | from `SKALD_BASE_URL` | the browser origin(s) the dashboard's buttons are accepted from |
@@ -139,7 +140,8 @@ The image sets a few more for itself; leave them: `SKALD_APP` (the code,
 
 The container's schedule (`docker/scheduler.py`, cron's lines without a cron daemon; one line
 per run in `docker logs skald`, each job's output in `/var/log/skald/<job>.log`): `live`
-every `SKALD_LIVE_MINUTES` and once at start; `run-daily` at `SKALD_DAILY_AT` (one
+every `SKALD_LIVE_MINUTES` and once at start; `close-day` at `SKALD_CLOSE_AT` (yesterday stored
+soon after midnight; no failure mail, the daily run counts the same day again); `run-daily` at `SKALD_DAILY_AT` (one
 `notify-failure` mail when it fails, at most one per 12 hours); `backup` at `SKALD_BACKUP_AT`;
 `reports --due` every `SKALD_REPORTS_MINUTES`; the beacon log's rotation at 00:05; `search sync`
 every `SKALD_SEARCH_HOURS` from `SKALD_SEARCH_AT`; `tools sync` every `SKALD_TOOLS_HOURS` from

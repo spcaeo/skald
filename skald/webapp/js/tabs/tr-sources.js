@@ -30,6 +30,8 @@ import { directPanel } from "./likelydirect.js";
 import { urlFold } from "../ui/fold.js";
 import { help } from "../ui/help.js";
 import { SEGMENT as SOCIAL, socialRows, netCell, socialNote, networkPanel } from "./tr-social.js";
+import { filtered, picksOf } from "../narrow.js";
+import { waiting, totalsOf, howNote, notSplit } from "./tr-narrowed.js";
 
 const TOUCH = "last touch: the source of the visit the lead was sent from";
 const only = (value) => (value ? (k) => k === value : () => true);
@@ -120,10 +122,55 @@ function campaignParts(m, s, r) {
   return box;
 }
 
+/* With Traffic's filter bar on (SKALD-62): source types and campaigns of the matching visits
+   only (narrow.js). Social networks and referring sites are not in the crossed figures, so
+   their segments stay empty and say so; Before, Change and the trend are the whole site's, so
+   they are left out. Leads stay only while the filter is a source alone (leads are split by
+   source type, never crossed with a country or a device). */
+function narrowed(m, s, r, t) {
+  const c = compareOf(m, s);
+  return waiting(m, s, r, c, (N, cn) => {
+    const nt = totalsOf(N);
+    const all = leadsBy(m, s, r, t, "source");
+    const lb = picksOf(s).every(([k]) => k === "source") ? all : null;
+    const leads = !!(lb && lb.days);
+    const seg = (id) => SEGMENTS.find((x) => x.id === id);
+    const types = nt.by.source ? leadRows(nt.by.source, lb, { dim: "source", keep: only(s.source), whole: nt.readers }).map((x) => ({ ...x, seg: "type" })) : [];
+    const camp = nt.by.campaign ? leadRows(nt.by.campaign, null, { dim: "campaign", keep: only(s.campaign), noLeads: seg("campaign").noLeads }).map((x) => ({ ...x, seg: "campaign" })) : [];
+    const bBy = cn.ok ? cn.bT?.by || {} : {};
+    const rows = [...compareRows(cn, types, bBy.source, { dim: "source", keep: only(s.source), whole: nt.readers }),
+      ...compareRows(cn, camp, bBy.campaign, { dim: "campaign", keep: only(s.campaign) })];
+    if (!nt.by.source) return [notSplit("Sources", "the source types are not in the filtered figures this page has for this period."), howNote(m, s, N)];
+    const box = h("div", { class: "tr-src", "data-seg": "type" });
+    const g = grid({
+      ns: "src", caption: "Sources", file: fileName("sources", r), columns: sourceColumns({ prev: false, perDay: false, leads, c: cn }), rows,
+      segments: SEGMENTS.map((x) => ({ id: x.id, label: x.label, test: (row) => row.seg === x.id })), sortKey: "v",
+      placeholder: "Search sources and campaigns",
+      empty: "Nothing here under the filter. Social networks and referring sites are not kept crossed with country, source and device, so they are not split by it.",
+      onFiltered: (_, q) => { box.dataset.seg = q.segment || SEGMENTS[0].id; },
+    });
+    g.classList.add("tr-grid", "lead-tbl");
+    box.append(g);
+    return [
+      h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Sources"),
+        help("Sources", { text: ["Visitors by source type or campaign, only the visits that match the filter. Social networks and referring sites are not kept crossed with country, source and device, so their segments are not split by it; Before, Change and the trend are left out for the same reason.",
+          compareNote(cn)?.textContent, lb ? leadNote(lb, TOUCH).textContent : null].filter(Boolean), guide: "where-visitors-come-from" })),
+        box,
+        leads || !all?.days ? null : h("p", { class: "note" }, "Leads are split by source type only, never crossed with a country or a device, so they are left out under this filter."),
+        nt.by.campaign ? null : h("p", { class: "note" }, "Campaigns are not split by the filter for this period, so that segment stays empty."),
+        howNote(m, s, N),
+        goTo(S.hashFor({ ...s, tab: "traffic/pages", dd: "" }), "The pages these visitors landed on are on", "Pages")),
+      h("section", { class: "s tf-not" }, h("p", { class: "empty" },
+        "The likely causes of Direct, where returning visitors first came from, and campaigns and referrers in detail are not split by the filter. Clear the filter to see them for every visit.")),
+    ];
+  });
+}
+
 export default function sources(m, s) {
   const { r, t, cov } = figures(m, s);
   const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say. Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
   if (!t || !t.by) return [...out, nothing(m, r, "sources")];
+  if (filtered(s)) return [...out, narrowed(m, s, r, t)];
   const { lb, prev, perDay, rows, c, social } = sourceRows(m, s, r, t, cov);
   const leads = !!(lb && lb.days);
   // The segment on show, for the styles: a referring site or a campaign has no

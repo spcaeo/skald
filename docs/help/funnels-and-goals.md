@@ -142,9 +142,10 @@ For conversions from all sources (bookings, payments, CRM deals), with completio
 
 [Traffic > Events](#traffic/events) shows what people did inside your pages, as totals. Nothing here is tied to a visit or a person. Bots are left out.
 
-- **The figures at the top**: each kind of event, with its rate per 100 visitors.
-- **Through the forms**: Sign-up started to Sign-up sent, and Demo booking opened to Demo booked, with the share that went on (from five starts).
-- **Per day**: a line per main event. A hatched stub is a day not counted.
+- **What visitors did**: every event your site sends, biggest first, each with one line on what it is, its rate per 100 visitors and the pages it happened on most. For example *Read three quarters: 174, times a visitor read three quarters of a page, 27.6 per 100 visitors, most on / and /pricing/*. An event your site has sent before but not in these days shows 0; one it has never sent is not listed here.
+- **Through the forms**: each start-to-end pair your site sends, with how many went on: Form started to Form sent, Sign-up started to Sign-up sent, Demo booking opened to Demo booked, and a booking tool's opened to booked (Calendly, Cal.com, NeetoCal). A share is given from five starts.
+- **Not set up yet**: one line naming the main events your site has never sent (Button clicks, Sign-up, Demo booking), with **How to set them up** behind one button. Booking tools and the other events count themselves once they are on a page.
+- **Per day**: a line for each of the four biggest events. A hatched stub is a day not counted.
 - **Goals**: see above.
 - **Which button or form**: each event by its name and page, such as a Button click named `pricing_top` on `/pricing/`.
 - **By page** and **By source**: one column per kind of event.

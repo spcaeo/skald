@@ -101,7 +101,7 @@ The sidebar has six sections. Each section has tabs along its top.
 | Section | Tabs |
 | --- | --- |
 | Overview | Summary (with Right now on top), Insights |
-| Traffic | Visitors, Sources, Pages, Places & devices, Search, Retention, Time |
+| Traffic | Visitors, Sources, Pages, Places & devices (these four share one filter), Agent files, Search, Retention, Time, Events |
 | Leads & sales | Leads, Summary, Revenue, Funnels |
 | AI & bots | Assistants, Crawlers, Crawl health, AI answers, Crawler rules, llms.txt |
 | Security | Is anything exposed?, Your stack, Who is scanning us?, Attack attempts, Fake browsers, Block list, Alerts |
@@ -180,7 +180,7 @@ Where is that visitor coming from? Countries come from your log, or from a count
 
 With the file set:
 
-- **Traffic > Places & devices** has a **Cities** table under the countries: visitors by city, each with its country's flag. Search it, sort it, download it, or select a city for its detail (its trend and the visits behind it). Choosing a country in Filters keeps only that country's cities.
+- **Traffic > Places & devices** has a **Cities** table under the countries: visitors by city, each with its country's flag. Search it, sort it, download it, or select a city for its detail (its trend and the visits behind it). Choosing a country in Filters, or in the filter bar of the four Traffic tabs, keeps only that country's cities.
 - **Each visit** (the visit list, a visit's panel, a person's visits and Real time's newest visits) says where it came from: "Toronto, Ontario, Canada".
 - Overview's map (Real time) puts a dot on each city with visitors now. See [Real time](real-time.md#cities-on-the-map).
 
@@ -188,7 +188,9 @@ A city is counted for visitors only, never for bots, at the first page of the vi
 
 ## Choosing a period
 
-The date range sits in the top bar, beside the page's name, as one group: **Today** (live), **7 days**, **30 days**, **90 days** and **More**, which holds **Yesterday**, **All time** and **Custom** (the one you pick shows in the group while it is the period). With the keyboard the group is one stop: Tab reaches the chosen period, the arrow keys move along it, Enter picks. Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
+The date range sits in the top bar, beside the page's name, as one group: **Today** (live), **Yesterday**, **7 days**, **30 days**, **90 days** and **More**, which holds **All time** and **Custom** (the one you pick shows in the group while it is the period). With the keyboard the group is one stop: Tab reaches the chosen period, the arrow keys move along it, Enter picks. Every figure on the page follows the period. Each section opens on its own default when the link names no period: **Leads & sales** on the last 7 days (a lead is rarer than a visit, so today is often empty), every other section on Today. A period you pick is kept in the address and stays as you move between tabs and sections; the default of one section is never carried into another, so moving from Overview's Today to Leads & sales opens on 7 days.
+
+**Yesterday** is that whole day, midnight to midnight in the site's time zone. Skald stores it soon after midnight (about 00:20 on a Docker install) and counts it again in the morning's daily run, which also takes in any log line that reached the server late; the morning's count is the one kept. The period line says when the count you see was made: "Wed 25 Nov 2026 · every day whole and verified · counted 26 Nov 00:24 EST". In the minutes before it is stored, Yesterday says it is not counted yet and shows nothing rather than zeros. On Leads & sales the leads come from the lead store, which has yesterday at once.
 
 **All time** runs from the first day this site has data (its first recorded day, or its first lead when that is earlier) to the last whole day, and the period line says the day it starts: "All time: since Fri 21 Aug 2026, 62 days". The dashboard holds the last 180 days; when your site's data begins before that, the line says so ("All time held here: the last 180 days ... this site's data begins ..."), and no total counts days it does not have.
 
@@ -241,6 +243,30 @@ A country is shown as its flag and three-letter code, such as 🇺🇸 USA or �
 
 If your site has several page groups (for example, the blog apart from the product pages), pick one under **Filters** in the top bar: **Page group** is at the top of the panel. While one is chosen, a **Page group** chip shows under the bar; its × goes back to all pages.
 
+### One filter for four Traffic tabs
+
+On Traffic, **Visitors**, **Sources**, **Pages** and **Places & devices** sit together in one shaded box on the tab strip, with a filter mark. Under the strip they share one filter bar: **Country**, **Source** and **Device**, each value with its visits in the period. Pick one, say 🇺🇸 USA, and the four tabs show only the visits from the USA. The pick stays as you move between them, and the address keeps it, so a link shows the same. The picked chip turns dark with a ✕; select it again, or **Clear filter**, to show every visit. **More countries** lists every other country.
+
+- The rows count together. With USA picked, Source and Device count only the visits from the USA. Country still counts every country, so you can switch to another.
+- **Sources**: the source types and campaigns of those visits. Social networks and referring sites are not kept together with country, source and device, so their parts say "not split by the filter".
+- **Pages**: the landing pages of those visits. Page views, Pages per visit, Left after one page and AI reads are each page's figures for every visitor, so they are left out while the filter is on.
+- **Places & devices**: their devices, browsers, systems and countries. Cities follow a country on its own, but not a source or a device.
+- **Visitors**: the visit list, the flow and the cards, as with any filter. New or returning stays in the list's own chips: it is known only for the visits kept, 7 days.
+- Leads follow the filter only where they are split the same way: by country on Places & devices, by source type on Sources. Otherwise they are left out while the filter is on.
+- **Compare with…** works on the filtered figures too: B is the same filter over the earlier period.
+
+The filtered figures are counted from every visit of the whole, verified days, with all its labels at once. Skald keeps these records 400 days, and the audit counts every combination again from the log. Today's figures come from today's visits, and a list is used only when those visits add up exactly to today's own list. A day that is not whole, or from before these records were kept, is left out and named under the lists; when the period you compare with has none of them, the tab says it is not compared. Agent files, Search, Retention, Time and Events keep their own filters; on those tabs a country, source or device you picked shows as a chip under the top bar, greyed where the tab cannot apply it.
+
+### When to release: Traffic > Time
+
+[Traffic > Time](#traffic/time) shows when visitors arrive, by the hour of their first page: each day hour by hour, and all hours together. Above the two charts, three figures help you pick a time for a release or a change:
+
+- **Busiest hours**: the three hours in a row with the most visitors, with their share, and the busiest single hour. When one unusual day makes that hour the busiest, it says so and names the day.
+- **Quietest hours**: the three hours in a row with the fewest visitors, the calmest time for a release. The stretch may run past midnight.
+- **Busiest day of the week**: the weekday with the most visitors a day on average, and the quietest. It needs each weekday at least twice, so pick 30 or 90 days.
+
+They follow the **Count** choice: visitors, or a group's requests where the day has them. Only whole, verified days count, as in the charts, and hours are in the time zone you chose. Over a few days the picture is rough, and the line under them says so. Today has no figures here: it is not over.
+
 ### Saved views
 
 Save the tab, period, page group, rules and each table's sort, filters and columns under a name, and come back to them later. In the Filters panel, type a name under **Save as a view** and select **Save view**; the saved views are listed beside the rules, each with **Copy link**, **Rename** and **Delete**. They are also in the **More** menu (the three dots at the top right). Saved views are kept in this browser.
@@ -287,7 +313,7 @@ Select any country, city, page, source, AI assistant, campaign, referring site, 
 
 When the panel has visits behind it, **How these visitors moved** draws them as a flow map. See [Visitor flow](getting-started.md#visitor-flow).
 
-[Traffic > Pages](#traffic/pages) opens on **Landing pages and their leads**: search it for a page, sort it with the chips (Most visits, Rising, Falling, Recently changed, Needs work), and select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead, and each time it changed according to your sitemap (`page=` in the address). The story's one main button is **Mark a change**.
+[Traffic > Pages](#traffic/pages) opens on **Landing pages and their leads**: search it for a page, sort it with the chips (Most visits, Rising, Falling, Recently changed, Needs work), and select a page to see its story: when it was published, its first crawl, its first AI fetch, its first person and its first lead, and each time it changed according to your sitemap, or to the page itself when **Settings › Sites › Page dates** is on (`page=` in the address). The story's one main button is **Mark a change**.
 
 - **Latest crawl**, under the firsts: when Googlebot and Bingbot last fetched the page, and the status your server gave (200 is the page itself; 304 means your server said "not changed since your last copy"). After you change a page, a fetch dated after the change means the crawler has the new version. Only real Googlebot and Bingbot count, by the same check as the first crawl, and only fetches of the page itself: a redirect or an error is not a fetch of the page. "Has not fetched it since the logs began" means none was seen. It is kept for good, after the log files are gone.
 - **Time on page**, under the daily chart: the typical (median) seconds from a view of the page to the visitor's next page view, over the whole, checked days, from your server log, so you do not need Google Analytics for it. A view that was the visit's last page has no next view, so it is not measured, and the line says how many those were. Under 5 measured views the time is not shown. A log sees when the next page was asked for, not how long someone read, so this is an estimate. The MCP `page_story` tool gives it per day too. What the columns count is behind the "?" beside the title. **Pages by publish date**, the **Page leaderboard** and **Pages read by people** are under **Open the details** (`pgx_view=open`). **Pages by publish date** has a **Changed** column and a **Changed since** filter from the same dates. See [Change dates from your sitemap](crawl-health.md#change-dates-from-your-sitemap).
@@ -388,7 +414,7 @@ Each list shows at most 5 pages. Leads come from the conversions data; when they
 
 ### New and updated pages: are they getting found?
 
-The pages whose change date is in the last 30 days: the website's own date when it sends a page list, else the sitemap's "last changed" (`<lastmod>`). Each shows the change date, the visits and search visits since, the first day with a search visit, and whether Google fetched it since. Its period is always the last 30 days to yesterday, whatever the top bar says.
+The pages whose change date is in the last 30 days: the website's own date when it sends a page list, else the page's own updated date (when Skald reads it), else the sitemap's "last changed" (`<lastmod>`). Each shows the change date, the visits and search visits since, the first day with a search visit, and whether Google fetched it since. Its period is always the last 30 days to yesterday, whatever the top bar says.
 
 When more than half of the sitemap's dates fall on one day, the card says **Dates look like build times**: some sites stamp every page each time they are built, so every page looks changed.
 
@@ -473,7 +499,7 @@ The full list of hosts, with what each one lets Skald see: [Hosting](https://git
 
 ## How fresh the figures are
 
-The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted every few minutes; **Refresh now** counts this site at once. Yesterday becomes a whole day after the morning's daily run.
+The foot of every page says when the data was last updated, and when the next update is due. Today's figures are recounted every few minutes; **Refresh now** counts this site at once. Yesterday is stored soon after midnight and counted again in the morning's daily run.
 
 If your server allows it, **More** > **Recount today now** recounts today at once.
 

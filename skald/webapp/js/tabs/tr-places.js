@@ -15,6 +15,8 @@ import { country, city, cityCode } from "./readers.js";
 import { leadsBy, leadNote, viewNote } from "./leadfigs.js";
 import { leadRows, labelCol, countCols, leadCols, countRows, compareOf, compareRows, compareCols, compareNote } from "./tr-grid.js";
 import { noCompare } from "../mode-compare.js";
+import { filtered, picksOf } from "../narrow.js";
+import { waiting, totalsOf, howNote, notSplit, notSplitLine } from "./tr-narrowed.js";
 
 const TOUCH = "the lead's country, from the tool or the visitor's address";
 const only = (value) => (value ? (k) => k === value : () => true);
@@ -65,11 +67,47 @@ function cities(m, s, r, t, c, credit) {
   return h("section", { class: "s" }, h("h2", null, "Cities"), sub, g, compareNote(c), part, credit);
 }
 
+/* With Traffic's filter bar on (SKALD-62): devices, browsers, systems and countries of the
+   matching visits only (narrow.js); cities are not in the crossed figures, so they say so.
+   Leads stay only while the filter is a country alone: leads are split by country, never
+   crossed with a source or a device. */
+function narrowed(m, s, r, t, c) {
+  return waiting(m, s, r, c, (N, cn) => {
+    const nt = totalsOf(N);
+    const by = nt.by;
+    const why = "this list is not kept crossed with country, source and device.";
+    const all = leadsBy(m, s, r, t, "country");
+    const lb = picksOf(s).every(([k]) => k === "country") ? all : null;
+    const leads = !!(lb && lb.days);
+    const keep = only(s.country);
+    const rows = by.country ? compareRows(cn, leadRows(by.country, lb, { dim: "country", keep, label: country, whole: nt.readers }), cn.bT?.by?.country,
+      { dim: "country", keep, label: country, whole: nt.readers }) : null;
+    const g = rows ? grid({ ns: "ct", caption: "Visitors by country", file: fileName("countries", r), columns: countryColumns(leads, cn), rows, sortKey: "v",
+      placeholder: "Search countries", empty: "No visitor from this country matches the filter in this range." }) : null;
+    g?.classList.add("tr-grid", "lead-tbl");
+    return [
+      noCompare(s, "devices, browsers and systems show this period only; countries below are set against B"),
+      h("div", { class: "cols three" },
+        panel("Devices", null, by.device ? meter(by.device, nt.readers, s.device) : notSplitLine(why)),
+        panel("Browsers", "Brave counts as Chrome; an in-app browser by its app", by.browser ? blist(ranked(by.browser, only(s.browser)), { drill: "browser", total: nt.readers, limit: 8, color: "var(--views)" }) : notSplitLine(why)),
+        panel("Systems", "An iPad asking for the desktop site counts as macOS", by.os ? blist(ranked(by.os), { drill: "os", total: nt.readers, limit: 8, color: "var(--ink-3)" }) : notSplitLine(why))),
+      g ? h("section", { class: "s" }, h("h2", null, leads ? "Countries, with their leads" : "Countries"), g, compareNote(cn), lb ? leadNote(lb, TOUCH) : null,
+        leads || !all?.days ? null : h("p", { class: "note" }, "Leads are split by country only, never crossed with a source or a device, so they are left out under this filter."))
+        : notSplit("Countries", why),
+      // A country alone still narrows the cities: each city carries its country (the list as before).
+      picksOf(s).every(([k]) => k === "country") ? cities(m, s, r, t, c, null)
+        : notSplit("Cities", "cities are kept on their own, never crossed with a source or a device."),
+      howNote(m, s, N),
+    ];
+  });
+}
+
 export default function places(m, s) {
   const { r, t } = figures(m, s);
   const out = [...head("Places & devices", r, "Visitors by country, city, device, browser and system, each counted once, at their first page. Browser, system and device are what the browser says about itself.")];
   if (!t || !t.by) return [...out, nothing(m, r, "breakdowns")];
   const c = compareOf(m, s);
+  if (filtered(s)) return [...out, narrowed(m, s, r, t, c)];
   out.push(noCompare(s, "devices, browsers and systems show this period only; countries below are set against B"));
   out.push(h("div", { class: "cols three" },
     panel("Devices", null, meter(t.by.device, t.readers, s.device)),

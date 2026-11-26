@@ -70,7 +70,11 @@ date**.
   removes it. A file of another version is not read (no dates shown).
 - **Shown:** `page_index.json` and the page story (DATA-CONTRACT.md, "Page
   lifecycle"): `lastmod`, `lastmod_seen`, and `updated` with `updated_source`
-  "sitemap" when the website's own list gives no updated date.
+  "sitemap" when neither the website's own list nor the page itself
+  (SKALD-64, `site.page_dates`) gives an updated date. With `site.page_dates`
+  on, page_dates.py also reads the sitemap's dates every 6 hours and keeps
+  each value with its time in history (`page_dates`, source "sitemap"); this
+  file and the day's list are unchanged.
   `crawl_health.json`'s `sitemap.lastmod` is the day's counts.
 
 The second count is `audit_lastmod.py` (run-daily's recounts, `audit_more.DAILY`

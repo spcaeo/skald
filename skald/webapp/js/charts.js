@@ -50,8 +50,20 @@ export function setMarkers(byDay, on) { MARKS = byDay || new Map(); MARKS_ON = o
 const marksOf = (d) => (MARKS_ON && d.day ? MARKS.get(d.day) || [] : []);
 const MARK_WORDS = { website_release: "Website release", skald_deploy: "Traffic tool deploy", config_change: "Counting rules changed",
   ours_change: "Internal address change", backfill: "History recounted", page_change: "Page changed" };
-const markRows = (d) => marksOf(d).map((k) => ({ color: "var(--opp)", value: "", label: `${MARK_WORDS[k.kind] || "Marker"}${k.at && k.kind !== "page_change" ? ` at ${tzTime(k.at)}` : ""}: ${k.label}` }));
-const markWords = (d) => marksOf(d).map((k) => `; marker: ${k.label}`).join("");
+/* A marker's own words, plainly: the recount's command line read as what it did (SKALD-66). */
+export function markLabel(k) {
+  const re = /^backfill --force (\d+) days?$/.exec(k?.label || "");
+  if (k?.kind === "backfill" && re) return `Skald recounted ${re[1] === "1" ? "1 past day" : `${re[1]} past days`} from the logs`;
+  return k?.label || "";
+}
+const markRows = (d) => marksOf(d).map((k) => ({ color: "var(--opp)", value: "", label: `${MARK_WORDS[k.kind] || "Marker"}${k.at && k.kind !== "page_change" ? ` at ${tzTime(k.at)}` : ""}: ${markLabel(k)}` }));
+const markWords = (d) => marksOf(d).map((k) => `; marker: ${MARK_WORDS[k.kind] || "Marker"}, ${markLabel(k)}`).join("");
+/* Under a chart that draws a marker: what the dashed line and ◆ are (SKALD-66). */
+export function markKey(el, days) {
+  if (!days.some((d) => marksOf(d).length)) return;
+  el.append(h("p", { class: "mk-key" }, h("span", { class: "mk-sw", "aria-hidden": "true" }, "◆"),
+    "A dashed line marks something that happened that day: a deploy of the site or of Skald, a recount, a change to the counting rules. Point at the day to see what."));
+}
 function markLines(days, L, T, ph, slot) {
   const out = [];
   days.forEach((d, i) => {
@@ -187,6 +199,7 @@ export function columns(days, series, { label, H = 250, unit = "requests", onPic
     hit.addEventListener("click", () => { untip(); pick(d); });
     hit.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); untip(); pick(d); } });
   });
+  markKey(el, days);
   return el;
 }
 
@@ -301,6 +314,7 @@ export function lines(days, series, { label, H = 240, prev, marks } = {}) {
     hit.addEventListener("blur", hide);
   });
   rove(el.querySelectorAll(".hit"));
+  markKey(el, days);
   return el;
 }
 

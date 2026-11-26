@@ -22,10 +22,39 @@ import { connectCard, sourceLink } from "../ui/connect.js";
 
 const COLS = ["cta_click", "book_demo_open", "demo_booked", "signup_start", "signup_submit", "contact_submit", "waitlist_submit", "outbound_click", "scroll_75", "copy_text", "404_view"];
 const SHORT = { cta_click: "Clicks", book_demo_open: "Demo opened", demo_booked: "Demo booked", signup_start: "Sign-up started", signup_submit: "Sign-up sent", contact_submit: "Contact sent",
-  waitlist_submit: "Early access", outbound_click: "Links out", scroll_75: "Read ¾", copy_text: "Copied", "404_view": "Not found", page_view: "Page views" };
+  waitlist_submit: "Early access", form_start: "Form started", form_submit: "Form sent", tel_click: "Phone", mailto_click: "Email", outbound_click: "Links out", scroll_75: "Read ¾", copy_text: "Copied", "404_view": "Not found", page_view: "Page views" };
 // Sent by the site's own code only, never by the tag (beacon.CODE_ONLY).
 const CODE_ONLY = ["book_demo_open", "demo_booked"];
-const LINE = { cta_click: "var(--g-people)", scroll_75: "var(--ink-3)", book_demo_open: "var(--opp)", signup_submit: "var(--good)" };
+const LINE = ["var(--g-people)", "var(--good)", "var(--opp)", "var(--ink-3)"];
+// SKALD-66: what each event is, in one plain sentence (the tile says it under the count).
+export const MEANING = {
+  cta_click: "clicks on buttons and links marked as a call to action",
+  book_demo_open: "times the demo booking was opened",
+  demo_booked: "demos booked",
+  signup_start: "times someone started the sign-up form",
+  signup_submit: "sign-up forms sent",
+  contact_submit: "contact forms sent",
+  waitlist_submit: "early-access forms sent",
+  outbound_click: "clicks on links to other sites",
+  scroll_75: "times a visitor read three quarters of a page",
+  copy_text: "times a visitor copied text from a page",
+  "404_view": "visits to the not-found page",
+  form_start: "times someone started filling in a form",
+  form_submit: "forms sent",
+  calendly_open: "times the Calendly booking was opened", calendly_time_selected: "times a time was chosen in Calendly", calendly_booked: "meetings booked in Calendly",
+  cal_open: "times the Cal.com booking was opened", cal_booked: "meetings booked in Cal.com",
+  hubspot_meeting_booked: "meetings booked in HubSpot",
+  tel_click: "clicks on a phone number", mailto_click: "clicks on an email address",
+  neetocal_open: "times the NeetoCal booking was opened", neetocal_time_selected: "times a time was chosen in NeetoCal", neetocal_booked: "meetings booked in NeetoCal",
+  page_view: "page views the tag sent",
+};
+// The form and booking steps, start to end: a pair is shown when the site sends either side.
+export const PAIRS = [["signup_start", "signup_submit"], ["form_start", "form_submit"], ["book_demo_open", "demo_booked"],
+  ["calendly_open", "calendly_booked"], ["cal_open", "cal_booked"], ["neetocal_open", "neetocal_booked"]];
+// The events worth setting up on any site; a booking tool's own events count themselves once its widget is on a page.
+export const CORE = ["cta_click", "signup_start", "signup_submit", "book_demo_open", "demo_booked"];
+const ORDER = [...COLS, "form_start", "form_submit", "tel_click", "mailto_click", "calendly_open", "calendly_time_selected", "calendly_booked", "cal_open", "cal_booked",
+  "hubspot_meeting_booked", "neetocal_open", "neetocal_time_selected", "neetocal_booked", "page_view"];
 
 // An event the site has never sent is "not set up" with how to send it, never 0 or 0% (notset.js).
 export { everSent, howToSend };
@@ -43,6 +72,7 @@ export function eventRows(f, r, today) {
   const ok = new Set(days.filter((d) => d.state === "ok").map((d) => d.day));
   return { rows: (f.rows || []).filter((x) => ok.has(x[0])), days, ok, live: false };
 }
+const totals0 = (rows, e) => rows.some((x) => x[1] === e && x[5] > 0);
 const sum = (rows, key) => { const out = {}; for (const x of rows) { const k = key(x); if (k != null) out[k] = (out[k] || 0) + x[5]; } return out; };
 
 function pivot(rows, by, names) {
@@ -131,7 +161,8 @@ export default function events(m, s) {
   const keep = pathMatch(s);
   const got = eventRows(f, r, m.today);
   const rows = got.rows.filter((x) => keep(x[3]) && (!s.source || x[4] === s.source));
-  const names = (f.events || []).map((x) => x.name).filter((e) => COLS.includes(e) || e === "page_view");
+  // SKALD-66: every event the site sends, not only the first eleven (form_start and the rest were never shown).
+  const names = (f.events || []).map((x) => x.name).filter((e) => everSent(f, e) || totals0(rows, e));
   const totals = sum(rows, (x) => x[1]);
   // Visitors of the same verified days, for a rate per 100.
   const readers = got.live ? null : [...(got.ok || [])].reduce((a, d) => a + (m.byDay.get(d)?.state === "ok" ? m.byDay.get(d).readers || 0 : 0), 0);
@@ -140,26 +171,42 @@ export default function events(m, s) {
     out.push(h("div", { class: "state" }, h("div", null, f.first_day ? `No event in this range${s.path || s.source ? " with these filters" : ""}. The beacon counts from ${short(f.first_day)}.` : "No event counted yet: the beacon starts counting the day the website release with it goes live.")), leftOut(got.days) || "", refused(f) || "");
     return out;
   }
-  // The figures: each kind of event, with its rate per 100 visitors.
-  out.push(h("section", { class: "s" }, h("div", { class: "ev-tiles" }, names.filter((e) => totals[e] || COLS.slice(0, 5).includes(e)).map((e) => (!everSent(f, e)
-    ? h("div", { class: "ev-t not-set", title: "Never sent by this site: not recorded, never zero" }, h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, "Not set up"), h("small", null, howToSend(e)))
-    : h("div", { class: "ev-t" },
-      h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, n(totals[e] || 0)),
-      h("small", null, CODE_ONLY.includes(e) && !totals[e] ? "sent by your own code" : readers ? `${((100 * (totals[e] || 0)) / readers).toFixed(1)} per 100 visitors` : got.live ? "today so far" : ""))))),
-  h("p", { class: "note" }, "The tracking tag sends these by itself, except Demo opened and Demo booked: those come from your site's own code (the Help guide “The tracking script” shows the one line to add). \"Not set up\": this site has never sent that event, so there is no count, not a zero."),
-  leftOut(got.days)));
-  // The two paths through the forms: started to sent, opened to booked.
-  // A side the site never sends is "Not set up", and no share is given across it.
+  // The figures (SKALD-66): what visitors did, the events this site sends, biggest first, each
+  // with what it is, its rate per 100 visitors and the pages it happened on most.
+  // Beacon page views go last and stay out of the chart and the columns: they would dwarf the rest.
+  const sent = names.filter((e) => everSent(f, e)).sort((a, b) => (a === "page_view") - (b === "page_view") || (totals[b] || 0) - (totals[a] || 0) || ORDER.indexOf(a) - ORDER.indexOf(b));
+  const acts = sent.filter((e) => e !== "page_view");
+  const topPages = (e) => Object.entries(sum(rows.filter((x) => x[1] === e), (x) => x[3])).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const rate = (e) => (readers ? `${((100 * (totals[e] || 0)) / readers).toFixed(1)} per 100 visitors` : got.live ? "today so far" : "");
+  out.push(h("section", { class: "s" }, h("h2", null, "What visitors did"),
+    h("div", { class: "ev-tiles ev-did" }, sent.map((e) => {
+      const most = topPages(e);
+      return h("div", { class: "ev-t" }, h("span", { class: "ev-l" }, eventLabel(f, e)), h("b", null, n(totals[e] || 0)),
+        h("small", { class: "ev-what" }, MEANING[e] ? `${MEANING[e][0].toUpperCase()}${MEANING[e].slice(1)}.` : ""),
+        h("small", null, [CODE_ONLY.includes(e) && !totals[e] ? "sent by your own code" : rate(e),
+          most.length ? `${rate(e) ? "; " : ""}most on ${most.map(([pth, v]) => `${pth} (${n(v)})`).join(", ")}` : ""].join("")));
+    })),
+    h("p", { class: "note" }, "Counts of events, not of people: one person can send the same event twice. A figure here is 0 only for an event this site has sent before."),
+    leftOut(got.days)));
+  // The steps through the forms and bookings the site uses: a side never sent is "Not set up",
+  // and no share is given across it.
   const val = (e) => (everSent(f, e) ? h("b", null, n(totals[e] || 0)) : h("b", { class: "not-set", title: "Never sent by this site" }, "Not set up"));
-  const step = (a, b, nameA, nameB) => {
+  const step = (a, b) => {
     const unsent = [a, b].filter((e) => !everSent(f, e));
-    return h("div", { class: "ev-step" }, h("div", null, h("span", null, nameA), val(a)), h("span", { class: "ev-arrow", "aria-hidden": "true" }, "→"),
-      h("div", null, h("span", null, nameB), val(b)),
+    return h("div", { class: "ev-step" }, h("div", null, h("span", null, eventLabel(f, a)), val(a)), h("span", { class: "ev-arrow", "aria-hidden": "true" }, "→"),
+      h("div", null, h("span", null, eventLabel(f, b)), val(b)),
       unsent.length ? h("small", { class: "how" }, `No share: ${unsent.map((e) => eventLabel(f, e)).join(" and ")} never sent. ${howToSend(unsent[unsent.length - 1])}`)
-        : h("small", null, totals[a] >= 5 ? `${Math.round((100 * (totals[b] || 0)) / totals[a])}% went on` : totals[a] ? "too few to rate" : ""));
+        : h("small", null, totals[a] >= 5 ? `${n(totals[b] || 0)} of ${n(totals[a])} went on (${Math.round((100 * (totals[b] || 0)) / totals[a])}%)` : totals[a] ? "too few to rate" : ""));
   };
-  out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Through the forms"), info("Each count is of events, not of people: one person can start a sign-up twice. A share is given from five starts on.", "Through the forms")),
-    h("div", { class: "ev-steps" }, step("signup_start", "signup_submit", "Sign-up started", "Sign-up sent"), step("book_demo_open", "demo_booked", "Demo booking opened", "Demo booked"))));
+  const pairs = PAIRS.filter(([a, b]) => everSent(f, a) || everSent(f, b));
+  if (pairs.length) out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Through the forms"), info("Each count is of events, not of people: one person can start a form twice. A share is given from five starts on.", "Through the forms")),
+    h("div", { class: "ev-steps" }, pairs.map(([a, b]) => step(a, b)))));
+  // Not set up yet: one line, the how behind one button (it was six big tiles of set-up words).
+  const unset = CORE.filter((e) => !everSent(f, e) && !pairs.some((pr) => pr.includes(e)));
+  if (unset.length) out.push(h("section", { class: "s ev-unset" }, h("p", null, h("b", null, "Not set up yet: "), `${unset.map((e) => eventLabel(f, e)).join(", ")}. This site has never sent ${unset.length === 1 ? "it" : "them"}, so there is no count, not a zero.`),
+    h("details", null, h("summary", null, "How to set them up"),
+      h("ul", null, unset.map((e) => h("li", null, h("b", null, `${eventLabel(f, e)}: `), howToSend(e)))),
+      h("p", { class: "note" }, "The tracking tag sends the rest by itself, booking tools included (Calendly, Cal.com, NeetoCal, HubSpot), once they are on a page. Demo booking opened and Demo booked come from your site's own code: the Help guide “The tracking script” shows the one line."))));
   // Per day.
   if (!got.live && r.length > 1) {
     const byDay = new Map(got.days.map((d) => [d.day, d]));
@@ -170,7 +217,7 @@ export default function events(m, s) {
       const e = byDay.get(d);
       days.push(e?.state === "ok" ? { day: d, state: "ok", ev: perDay.get(d) || {} } : { day: d, state: e?.state === "withheld" ? "withheld" : e?.state === "before" ? "before" : "missing" });
     }
-    const series = Object.keys(LINE).filter((e) => totals[e]).map((e) => ({ name: eventLabel(f, e), color: LINE[e], get: (d) => d.ev?.[e] ?? 0 }));
+    const series = acts.filter((e) => totals[e]).slice(0, LINE.length).map((e, i) => ({ name: eventLabel(f, e), color: LINE[i], get: (d) => d.ev?.[e] ?? 0 }));
     if (series.length) out.push(h("section", { class: "s" }, h("h2", null, "Per day"), h("div", { class: "sheet" }, legend([...series.map((x) => [x.name, x.color]), ["Not counted", "", "hatch"]], true),
       lines(days, series, { label: "Events per day", H: 210 }))));
   }
@@ -181,8 +228,8 @@ export default function events(m, s) {
     table([{ key: "e", label: "Event" }, { key: "label", label: "Which" }, { key: "path", label: "Page", path: true, drill: "path" }, { key: "v", label: "Count", num: true }],
       { caption: "Events by button or form and page", rows: which, file: `events-which-${r.first}-to-${r.last}.csv`, sortKey: "v", limit: 12 })));
   // By page and by source: one column per kind of event that happened.
-  const seen = COLS.filter((e) => totals[e]);
-  const cols = (first, key) => [first, ...seen.map((e) => ({ key: e, label: SHORT[e], num: true })), { key: "total", label: "All", num: true }];
+  const seen = acts.filter((e) => totals[e]);
+  const cols = (first, key) => [first, ...seen.map((e) => ({ key: e, label: SHORT[e] || eventLabel(f, e), num: true })), { key: "total", label: "All", num: true }];
   const flagged = new Set((got.days || []).flatMap((d) => (d.anomalies || []).filter((a) => a.kind === "path").map((a) => a.path)));
   out.push(h("section", { class: "s" }, h("h2", null, "By page"),
     table(cols({ key: "k", label: "Page", path: true, fmt: (v) => h("span", null, h("button", { type: "button", class: "linkish ev-pg", title: "This page's story", onclick: () => S.set({ tab: "traffic/pages", page: v }) }, v),

@@ -9,7 +9,9 @@
 // inside of this file and keep its interface.
 //
 //   tabStrip(tabs, active, onPick, { label }) -> { root, panel }
-//     tabs    [{ key, name, href, count?, countLabel? }]: count, a small number on the tab
+//     tabs    [{ key, name, href, count?, countLabel?, group? }]: count, a small number on the tab;
+//             group, a name: the tabs that share it (next to each other) sit in one shaded
+//             box with a filter mark, the tabs that share Traffic's filter (SKALD-62)
 //     active  the chosen tab's key
 //     onPick  (key) => void: a plain click, Enter or Space on a tab
 //     label   the strip's accessible name (the section's name)
@@ -33,7 +35,7 @@ export function tabStrip(tabs, active, onPick, { label = "" } = {}) {
     onclick: (e) => pick(e, t.key) },
   h("span", { class: "stab-name" }, t.name),
   t.count ? h("span", { class: "tab-n", "aria-label": t.countLabel || String(t.count) }, String(t.count)) : null));
-  const list = h("div", { class: "stabs-list", role: "tablist", "aria-label": label, "aria-orientation": "horizontal" }, items);
+  const list = h("div", { class: "stabs-list", role: "tablist", "aria-label": label, "aria-orientation": "horizontal" }, grouped(tabs, items));
   list.addEventListener("keydown", (e) => {
     const i = items.indexOf(document.activeElement);
     if (i < 0) return;
@@ -63,4 +65,27 @@ export function tabStrip(tabs, active, onPick, { label = "" } = {}) {
     if (back) on.focus({ preventScroll: true });
   });
   return { root, panel };
+}
+
+const FUNNEL = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.5 5.5V13l-3-1.5v-3z"/></svg>';
+
+/* The strip's children: a run of tabs with the same group in one box (role none, so the
+   tabs stay the tablist's own), its name the box's title; the others as they are. */
+function grouped(tabs, items) {
+  const out = [];
+  let box = null;
+  tabs.forEach((t, i) => {
+    if (!t.group) { box = null; out.push(items[i]); return; }
+    if (!box || box.dataset.group !== t.group) {
+      // The group's words, read with each of its tabs (aria-describedby), seen as a title.
+      const id = `stab-grp-${out.length}`;
+      box = h("span", { class: "stab-grp", role: "none", "data-group": t.group, title: t.group },
+        h("span", { class: "stab-grp-ic", html: FUNNEL, "aria-hidden": "true" }), h("span", { class: "vh", id }, t.group));
+      box.dataset.desc = id;
+      out.push(box);
+    }
+    items[i].setAttribute("aria-describedby", box.dataset.desc);
+    box.append(items[i]);
+  });
+  return out;
 }

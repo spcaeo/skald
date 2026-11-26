@@ -42,6 +42,7 @@ from .aggregate import READER_DIMS, Totals
 from .classify import AI_ASKED, Group, assistant_name
 from .search.days import TABLE as SEARCH_DAYS
 from .search.inspect import TABLE as SEARCH_INSPECT
+from .page_dates import TABLE_CHECKS as PAGE_CHECKS, TABLE_DATES as PAGE_DATES
 from .verify import Problem
 
 # 1: the first release (3436ae4).
@@ -89,7 +90,10 @@ from .verify import Problem
 # 15: (2.48) the `search_inspect` table - Search Console's URL Inspection
 #    answer per page and day: index status, last crawl, canonicals
 #    (search/inspect.py). A table: a page never asked has no rows.
-SCHEMA_VERSION = 15
+# 16: (SKALD-64) the `page_dates` and `page_checks` tables - each page's own
+#    published and modified dates, every value ever seen, and the last read of
+#    each page (page_dates.py). Tables: a site with the setting off has no rows.
+SCHEMA_VERSION = 16
 
 # Meta rows an upgrade adds: (version, key, value). Written only when a file
 # older than `version` is upgraded, never on a new file.
@@ -129,6 +133,8 @@ CREATE TABLE IF NOT EXISTS page_milestones (
 )"""),
     (14, "search_days", SEARCH_DAYS),
     (15, "search_inspect", SEARCH_INSPECT),
+    (16, "page_dates", PAGE_DATES),
+    (16, "page_checks", PAGE_CHECKS),
 ]
 
 # Indexes added after version 1: (version, name, CREATE statement). Made by
@@ -598,7 +604,7 @@ class History:
         start = self.first_day(site)
         rows = {r[0]: r for r in self.db.execute(
             "SELECT day, verified, cited_visits, problems, partial_from, "
-            "partial_until FROM days WHERE site = ? AND day BETWEEN ? AND ?",
+            "partial_until, collected_at FROM days WHERE site = ? AND day BETWEEN ? AND ?",
             (site, first.isoformat(), last.isoformat()))}
         groups: dict[str, dict] = {}
         for day, grp, hits, views, visits, probes, readers in self.db.execute(
@@ -618,6 +624,8 @@ class History:
             else:
                 state = "partial" if (row[4] or row[5]) else "ok"
             entry = {"day": day, "state": state}
+            if row is not None:
+                entry["collected_at"] = row[6]       # UTC, when this count was stored
             if state == "partial":
                 entry["partial_from"] = datetime.fromisoformat(row[4]) if row[4] else None
                 entry["partial_until"] = datetime.fromisoformat(row[5]) if row[5] else None

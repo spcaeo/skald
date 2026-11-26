@@ -18,6 +18,14 @@
 .stab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .stab .tab-n { margin: 0; }
 .stabs-panel { outline: none; }
+/* Tabs that share one filter (SKALD-62: Traffic's Visitors, Sources, Pages, Places & devices):
+   one shaded box with a filter mark, a thin rule after it. Not positioned, so a tab's
+   offsetLeft stays the strip's (tabstrip.js scrolls the chosen tab into view). */
+.stab-grp { display: inline-flex; flex: none; align-items: stretch; gap: 2px; padding: 0 4px; margin-right: 12px;
+  background: var(--sunk); border-radius: 8px 8px 0 0; box-shadow: 7px 0 0 -6px var(--rule); }
+.stab-grp-ic { display: inline-flex; align-items: center; padding: 0 2px 0 6px; color: var(--ink-3); }
+.stab-grp-ic svg { width: 14px; height: 14px; }
+.stab-grp .stab:hover { background: var(--surface); }
 /* the page's own title stays for screen readers and print; the bar and the strip name it on screen */
 .stabs-panel > .head > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .stabs-panel > .head.shown > h1 { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }

@@ -529,3 +529,11 @@ td .confirm { flex-wrap: wrap; justify-content: flex-end; }
 .ub-scale span:last-child { transform: translateX(-100%); }
 .usage-bar .note { margin: 4px 0 0; }
 .plan-banners { display: grid; gap: 8px; }
+/* SKALD-66: Events says what each event is; what is not set up is one line with its how behind a button. */
+.ev-t .ev-what { color: var(--ink-2); white-space: normal; line-height: 1.35; }
+.ev-did .ev-t small { white-space: normal; overflow-wrap: anywhere; }
+.ev-unset p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.ev-unset details { margin-top: 6px; font-size: 13px; }
+.ev-unset summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.ev-unset ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink-2); }
+.ev-unset code { font-size: 11.5px; }

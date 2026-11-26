@@ -2,8 +2,8 @@
 // phone's tab bar are nav.js's.
 //
 // The top bar, one slim row, the approved mockup's seven (the UX audit's tasks 2 and 5):
-// the section's title; the period, one group (Today, live; 7, 30, 90 days; More, with
-// Yesterday, All time and Custom inside it); Compare (modes.js, on by default, only on a
+// the section's title; the period, one group (Today, live; Yesterday; 7, 30, 90 days; More,
+// with All time and Custom inside it); Compare (modes.js, on by default, only on a
 // tab that compares); then on the right the filter (an icon; the page group is inside),
 // the one search (the command palette), the alerts and More (recount today, saved views,
 // export, markers). Active filters and the page group make a second row, only when there
@@ -17,6 +17,7 @@ import { TAB_RENDER } from "./tabs/index.js";
 import { framed } from "./tabs/settings-frame.js";
 import { TAB, opt, tabFiles } from "./sections.js";
 import { tabStrip } from "./tabstrip.js";
+import { sharedBar } from "./tabs/tr-filter.js";
 import { barModes, modeBanner, modeActions, liveSegment, setLive } from "./modes.js";
 import { country, countryName, withFlag, city, cityCode, cityName } from "./tabs/readers.js";
 import { setMarkers } from "./charts.js";
@@ -257,8 +258,9 @@ function drawBar(s) {
       last ? h("li", null, h("span", { class: "crumb now", "aria-current": "page", title: last[0] === "country" || last[0] === "city" ? titled(last[0], last[1]) : null }, `${DIMS[last[0]].name}: ${said(last[0], last[1])}`)) : null)));
 
   // Middle: the period and Compare (modes.js, only on a tab that compares).
-  // One group, Today (live) · 7 · 30 · 90 days · More (Yesterday, All time, Custom; the one
-  // picked shows in the group while it is the period). The page group is in the Filters
+  // One group, Today (live) · Yesterday · 7 · 30 · 90 days · More (All time, Custom; the one
+  // picked shows in the group while it is the period). Yesterday is a button of its own since
+  // SKALD-61 (2026-11-26), between Today and 7 days. The page group is in the Filters
   // panel, and shows as a chip while one is chosen.
   const pickRange = (k) => {
     if (k === "today") return setLive(true, s);
@@ -373,13 +375,14 @@ function moreMenu(s) {
   return wrap;
 }
 
-const MAIN_RANGES = ["7d", "30d", "90d"];
-// The other periods, one press away (2.41): Yesterday, All time, Custom. Their button is the
+const MAIN_RANGES = ["yesterday", "7d", "30d", "90d"];
+// The other periods, one press away (2.41): All time and Custom (Yesterday left for the
+// group itself in SKALD-61). Their button is the
 // period group's last (the mockup's "More"); main.js drawBar hangs the menu on the group.
 // Include today (inc=1) is not here since 2.43: it is one press on Summary's and Pages' period
 // line (period-line.js incSwitch), the two tabs it changes.
 function rangeMore(s, onPick) {
-  const toggle = h("button", { type: "button", class: "ui-more-range", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "More periods", title: "Yesterday, All time, or your own dates" }, "More");
+  const toggle = h("button", { type: "button", class: "ui-more-range", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "More periods", title: "All time, or your own dates" }, "More");
   const pop = h("div", { class: "pop menu", role: "menu", hidden: true, "aria-label": "More periods" },
     S.RANGES.filter(([k]) => k !== "today" && !MAIN_RANGES.includes(k)).map(([k, name]) => h("button", { type: "button", role: "menuitemradio", class: "menu-i", "aria-checked": String(k === s.range),
       onclick: () => { pop.hidden = true; toggle.setAttribute("aria-expanded", "false"); onPick(k); } }, h("b", null, name))));
@@ -526,9 +529,12 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
     // A section: its tabs right under the bar's title, the notices and the chosen tab's page in the strip's panel.
     const tabs = sec.tabs.filter(([k]) => S.shown(k)).map(([k, nm]) => {
       const [count, countLabel] = TAB[k].badge?.(model) || [];
-      return { key: k, name: nm, href: S.hashFor({ ...s, tab: k, dd: "" }), count, countLabel };
+      return { key: k, name: nm, href: S.hashFor({ ...s, tab: k, dd: "" }), count, countLabel, group: TAB[k].group };
     });
     const strip = tabStrip(tabs, s.tab, (k) => S.set({ tab: k }), { label: sec.name });
+    // SKALD-62: the four Traffic tabs that share one filter have its bar right under the strip.
+    const shared = opt(s.tab, "shared", s, false) ? sharedBar(model, s) : null;
+    if (shared) strip.root.insertBefore(shared, strip.panel);
     strip.panel.append(...banners, ...content);
     panel.replaceChildren(printHead(s, `${sec.name}: ${name}`), crumbLine(model, s), strip.root);
   // Settings (v2): no trail line; the menu on the left already says where the page is.

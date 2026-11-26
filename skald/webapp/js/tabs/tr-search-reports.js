@@ -10,6 +10,7 @@
 // Method, thresholds and caveats are behind each "?" (help()); the screen holds the
 // figures and one line each.
 
+import { markerSvg } from "../page-dates.js";
 import { h, n, esc, short } from "../ui.js";
 import { table } from "../table.js";
 import { help } from "../ui/help.js";
@@ -20,6 +21,10 @@ export const KEPT = { rule: subView("seopr"), side: subView("senl"), kind: subVi
 const COLOR = "var(--g-search_engines)";
 
 const pct = (v) => (v == null ? "-" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`);
+// The stored CTR is rounded to 4 places (6 clicks in 500,000 is 0.0000): work it out again.
+const rateOf = (x) => (x.impressions ? x.clicks / x.impressions : x.ctr);
+// A click rate for an opportunity: a tiny one is "<0.01%", never "0.0%" beside its clicks (SKALD-66).
+const ctrFine = (v) => (v == null ? "-" : v === 0 ? "0%" : v < 0.0001 ? "<0.01%" : v < 0.01 ? `${(v * 100).toFixed(2)}%` : pct(v));
 export const pos = (v) => (v == null ? "-" : v.toFixed(1));
 const plural = (k, one, many = `${one}s`) => `${n(k)} ${k === 1 ? one : many}`;
 export const pathOf = (url) => { try { return new URL(url).pathname || "/"; } catch { return url; } };
@@ -41,6 +46,19 @@ export function coverageLines(cov, tool = "Search Console") {
 }
 
 export const RULE_WORDS = { low_ctr: "Rarely clicked", near: "Positions 8-20" };
+
+/* A figure next to its rule's line, never rounded onto it: 7.96 is "7.96", not "8.0 (better than 8)". */
+const edge = (v, line, fmt, fine, scale = 1) => (v != null && v !== line && Number.parseFloat(fmt(v).replace(/[<%]/g, "")) === line * scale ? fine(v) : fmt(v));
+/* Why a query is an opportunity, in this period's own numbers (reports.py rule_of). */
+export function whyOpp(x, r = {}) {
+  const near = r.near || [8, 20];
+  if (x.rule === "low_ctr") return `Shown ${n(x.impressions)} times (${n(r.many)} or more), already high at position ${edge(x.position, r.high ?? 8, pos, (v) => v.toFixed(2))} (better than ${r.high ?? 8}), but clicked ${n(x.clicks)} ${x.clicks === 1 ? "time" : "times"} (${edge(rateOf(x), r.low_ctr ?? 0.01, ctrFine, (v) => `${(v * 100).toFixed(3)}%`, 100)}, under ${(r.low_ctr ?? 0.01) * 100}%): a clearer title and description can win the clicks.`;
+  if (x.rule === "near") return `At position ${edge(x.position, x.position < 14 ? near[0] : near[1], pos, (v) => v.toFixed(2))} (${near[0]} to ${near[1]}: the foot of page one or page two) and shown ${n(x.impressions)} times (${n(r.some)} or more): a stronger page can lift it to the top.`;
+  return "";
+}
+/* The cells that met the query's rule. */
+export const HITS = { low_ctr: ["impressions", "ctr", "position"], near: ["impressions", "position"] };
+const hit = (x, key, text) => (HITS[x.rule]?.includes(key) ? h("span", { class: "se-hit", title: "This met the rule" }, text) : text);
 const RULE_KIND = { low_ctr: "warn", near: "info" };
 
 /* A move in position: positive is up (a smaller number is a better place). */
@@ -61,6 +79,58 @@ export function changesWhy(ch, label) {
     return `Not yet: this needs whole days from ${from}${ch.history_first ? `, and the history here starts ${short(ch.history_first)}` : ""}${ch.not_whole ? ` (${plural(ch.not_whole, "day")} missing or still provisional)` : ""}. Pick a shorter period, or fetch more history in Settings.`;
   }
   return "Not available.";
+}
+
+// ------------------------------------------------------------------ the tiles' change (SKALD-66)
+
+/* A tile's change against the N days just before (reports.py `earlier`), or null when the
+   earlier period is not whole. Clicks and impressions by %, CTR in points, position in
+   places: a smaller position is better, so a fall is drawn "up" (green) with "better". */
+export function changeOf(kind, now, before) {
+  if (now == null || before == null) return null;
+  if (kind === "clicks" || kind === "impressions") {
+    if (!before) return now ? { dir: "up", arrow: "▲", text: "new: none before", words: `up from none` } : { dir: "same", arrow: "", text: "no change", words: "no change" };
+    const p = ((now - before) / before) * 100;
+    if (Math.abs(p) < 0.5) return { dir: "same", arrow: "", text: "no change", words: "no change" };
+    const big = Math.abs(p) >= 10 ? Math.round(Math.abs(p)) : Math.abs(p).toFixed(1).replace(/\.0$/, "");
+    return { dir: p > 0 ? "up" : "down", arrow: p > 0 ? "▲" : "▼", text: `${big}%`, words: `${p > 0 ? "up" : "down"} ${big}%` };
+  }
+  if (kind === "ctr") {
+    const d = (now - before) * 100;
+    if (Math.abs(d) < 0.005) return { dir: "same", arrow: "", text: "no change", words: "no change" };
+    const v = Math.abs(d) < 0.1 ? Math.abs(d).toFixed(2) : Math.abs(d).toFixed(1);
+    return { dir: d > 0 ? "up" : "down", arrow: d > 0 ? "▲" : "▼", text: `${v} pts`, words: `${d > 0 ? "up" : "down"} ${v} percentage points` };
+  }
+  const d = now - before;                      // position: lower is better
+  if (Math.abs(d) < 0.05) return { dir: "same", arrow: "", text: "no change", words: "no change" };
+  const v = Math.abs(d).toFixed(1);
+  return d < 0 ? { dir: "up", arrow: "▼", text: `${v} better`, words: `${v} places better` }
+    : { dir: "down", arrow: "▲", text: `${v} worse`, words: `${v} places worse` };
+}
+
+/* The tile's own change element: arrow, change, and what it was before. */
+export function changeEl(kind, now, e, fmt) {
+  if (!e || e.state !== "ok") return null;
+  // CTR from the clicks and impressions: the stored one is rounded to 4 places (SKALD-66 review).
+  const was = kind === "ctr" ? (e.impressions ? e.clicks / e.impressions : null) : e[kind];
+  const c = changeOf(kind, now, was);
+  if (!c) return null;
+  return h("span", { class: `se-chg ${c.dir}`, title: `${c.words}; ${short(e.first)} to ${short(e.last)}: ${fmt(was)}` },
+    c.arrow ? h("span", { "aria-hidden": "true" }, `${c.arrow} `) : null, h("span", { class: "vh" }, `${c.words}. `), h("span", { "aria-hidden": "true" }, c.text),
+    h("span", { class: "was" }, ` · before ${fmt(was)}`));
+}
+
+/* One line under the tiles: what the change is against, or why there is none. */
+export function earlierLine(e, label, provisional, engine = "google") {
+  if (!e) return engine === "bing" ? "Bing's figures are not set against an earlier period." : null;
+  if (e.state === "ok") {
+    const prov = provisional ? ` The newest ${provisional === 1 ? "day is" : `${n(provisional)} days are`} provisional, so the newer figures may still change.` : "";
+    return `Each change is against the ${label} just before: ${short(e.first)} to ${short(e.last)}.${prov}`;
+  }
+  if (e.state === "too_long") return `No change for ${label}: Search Console keeps 16 months, so there is no earlier ${label} to set them against.`;
+  if (e.state === "now_short") return "No change: these days are not all in the history, so they are not set against the days before.";
+  if (e.state === "short") return `No change: the ${label} before (${short(e.first)} to ${short(e.last)}) are not all in the history (${plural(e.missing, "day")} missing). A change is never worked out from part of a period.`;
+  return null;
 }
 
 // ------------------------------------------------------------------ the shared bits
@@ -103,7 +173,7 @@ export function spark(points, { W = 84, H = 22 } = {}) {
 
 /* A query's or a page's position per bucket, for its drawer: 1 at the top, dashed into a
    provisional bucket, a hollow ring on it, a gap where it had no row. */
-export function positionChart(posBlock, row) {
+export function positionChart(posBlock, row, marks = []) {
   const b = posBlock?.buckets || [];
   const pts = row?.points || [];
   if (!b.length || !pts.some((p) => p != null)) return null;
@@ -129,6 +199,8 @@ export function positionChart(posBlock, row) {
     if (b[i].provisional) out.push(`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--surface)" stroke="${COLOR}" stroke-width="2"/>`);
     else if (lone) out.push(`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="${COLOR}"/>`);
   });
+  // SKALD-64: the page's updates, a dashed mark in their day's slot (page-dates.js).
+  out.push(markerSvg(marks, b, x, T, H - B));
   const el = h("div", { class: "chart se-poschart" });
   const per = posBlock.size === 1 ? "day" : `${posBlock.size} days`;
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`Average position per ${per}, from ${pos(have[0])} to ${pos(have.at(-1))}; 1 is the top`)}">${out.join("")}</svg>`;
@@ -175,21 +247,36 @@ export function opportunities(period, { open, label }) {
       { key: "query", label: "Query", copy: "text", copyValue: (x) => x.query, fmt: (v, x) => h("span", { class: "se-q" }, h("span", null, v), pill(RULE_KIND[x.rule], RULE_WORDS[x.rule])) },
       { key: "rule", label: "Rule", hide: true, copy: false, filter: "enum", fmt: (v) => RULE_WORDS[v] },
       { key: "path", label: "Page", path: true, href: (x) => x.page, fmt: (v) => v ?? h("span", { class: "muted" }, "Not known"), csv: (x) => x.page || "" },
-      { key: "impressions", label: "Impressions", num: true },
+      { key: "impressions", label: "Impressions", num: true, fmt: (v, x) => hit(x, "impressions", n(v)) },
       { key: "clicks", label: "Clicks", num: true },
-      { key: "ctr", label: "CTR", type: "num", fmt: pct },
-      { key: "position", label: "Position", type: "num", fmt: pos, title: "Average position: 1 is the top result" },
+      { key: "ctr", label: "CTR", type: "num", fmt: (v, x) => hit(x, "ctr", ctrFine(rateOf(x))) },
+      { key: "position", label: "Position", type: "num", fmt: (v, x) => hit(x, "position", pos(v)), title: "Average position: 1 is the top result" },
+      { key: "why", label: "Why it is listed", cls: "se-why-c", copy: false, filter: false, sort: (x) => x.rule, fmt: (_, x) => h("span", { class: "se-why" }, whyOpp(x, r)), csv: (x) => whyOpp(x, r) },
     ], { caption: "Search opportunities", ns: "seopp", rows, file: `search-opportunities-${label.replace(/\s+/g, "")}.csv`, sortKey: "impressions", limit: 10,
       placeholder: "Search opportunities", empty: o.days ? "No query meets either rule in these days." : "No query figures in these days.", rowDrill: false,
       onRow: (x) => open("query", x.query) });
     const line = o.count ? `${plural(o.count, "query", "queries")}: ${n(by.low_ctr || 0)} shown a lot but rarely clicked, ${n(by.near || 0)} at positions 8-20.` : null;
-    wrap.replaceChildren(...[headOf("Opportunities", helpEl, tools), line ? h("p", { class: "se-line" }, line) : null, keepAll(t, `opp-${pick}`)].filter(Boolean));
+    const near = r.near || [8, 20];
+    const rules = h("ul", { class: "se-rules" },
+      h("li", null, h("b", null, `${RULE_WORDS.low_ctr}: `), `shown ${n(r.many)} times or more in ${label}, at position better than ${r.high ?? 8}, and clicked by under ${(r.low_ctr ?? 0.01) * 100}% of the people who saw it. Fix: a clearer title and description.`),
+      h("li", null, h("b", null, `${RULE_WORDS.near}: `), `at position ${near[0]} to ${near[1]} and shown ${n(r.some)} times or more. Fix: more on the page about the query, to reach the top of page one.`),
+      h("li", { class: "muted" }, "The figures that put a query on the list are highlighted in its row."));
+    wrap.replaceChildren(...[headOf("Opportunities", helpEl, tools), line ? h("p", { class: "se-line" }, line) : null, o.count ? rules : null, keepAll(t, `opp-${pick}`)].filter(Boolean));
   };
   paint();
   return wrap;
 }
 
 // ------------------------------------------------------------------ new and lost
+
+/* What new and lost mean, in this period's own days (SKALD-66). */
+export function changesWords(ch, period) {
+  if (!ch || ch.state !== "ok") return [];
+  const out = [`New: a query that showed the site from ${span(ch.now.first, ch.now.last)} and on no day from ${span(ch.before.first, ch.before.last)}. Lost: a query that showed it in the earlier days and not since.`];
+  if (period?.last && period.last !== ch.now.last) out.push(`Whole days only: this ends ${short(ch.now.last)}, the newest final day, so it differs from the figures above (to ${short(period.last)}).`);
+  if (ch.folded_days) out.push(`Skald keeps Google's top 500 queries a day, and on ${plural(ch.folded_days, "day")} of these some queries were below that line: a query can look new or lost when it only moved across it.`);
+  return out;
+}
 
 export function changes(period, { open, label }) {
   const ch = period.changes;
@@ -218,7 +305,7 @@ export function changes(period, { open, label }) {
     const shownCount = part.count > (part.rows || []).length ? ` The ${n(part.rows.length)} most shown are listed.` : "";
     const line = `${span(ch.now.first, ch.now.last)} against ${span(ch.before.first, ch.before.last)}: ${plural(part.count, s === "new" ? "new query" : "lost query", s === "new" ? "new queries" : "lost queries")}, ${n(part.clicks)} clicks, ${n(part.impressions)} impressions${s === "lost" ? " before" : ""}.${shownCount}`;
     wrap.replaceChildren(...[headOf("New and lost queries", helpEl, tools), h("p", { class: "se-line" }, line),
-      ch.folded_days ? h("p", { class: "note" }, `On ${plural(ch.folded_days, "day")} some queries were below the day's top list.`) : null,
+      h("ul", { class: "se-rules" }, changesWords(ch, period).map((w) => h("li", null, w))),
       keepAll(t, s)].filter(Boolean));
   };
   paint();

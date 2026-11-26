@@ -3,7 +3,7 @@
 Part of [DATA-CONTRACT.md](../DATA-CONTRACT.md) (kept apart to hold that file
 under 1000 lines); the rules there apply. Built by `agent_files.py`, recounted
 by `audit_agent_files.py` (`audit_more.RECOUNTS`); drawn by Traffic › Agent
-files (`js/tabs/tr-agentfiles.js`, sums in `agent-files-sum.js`, a file's
+files (`js/tabs/tr-agentfiles.js`, one section per kind in `agent-files-kind.js` (SKALD-65), sums in `agent-files-sum.js`, a file's
 drawer `agent-files-drawer.js`, route key `afile`).
 
 **What it counts.** Every request for a file a site publishes for machines

@@ -24,6 +24,7 @@ import { encode as encodeRules } from "./rules.js";
 import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
 import { readsSection, foldReads, foldWords } from "./tabs/ai-reads.js";
+import { pageSearch } from "./tabs/page-search.js";
 
 const STATUS_CLASS = (code) => (code >= 500 ? "5xx" : code === 404 ? "404" : code >= 400 ? "4xx" : code >= 300 ? "3xx" : "2xx");
 const landing = (j) => j.landing || j.trail?.[0]?.path || j.trail?.[0]?.[0] || "";
@@ -322,6 +323,12 @@ export function drillView(m, s) {
     const t = m.live.figures;
     for (let i = ser.length - 1; i >= 0; i -= 1) if (ser[i].optional && !t.ai_reads?.by_name?.[value]) ser.splice(i, 1);
     body.append(h("div", { class: "dd-kpis" }, ser.map((x) => h("div", null, h("b", null, n(x.get(t))), h("span", null, `${x.name}, today so far`)))));
+  }
+
+  // ---- a page's Google Search figures, dates and updates (SKALD-64; tabs/page-search.js)
+  if ((dim === "path" || dim === "landing") && chain.length === 1) {
+    const gs = pageSearch(m, value, { days: r.kind === "history" ? r.length : 28, width: chartWidth() });
+    if (gs) body.append(gs);
   }
 
   // ---- a crawler's cost and what it fetched (crawler_cost.json)

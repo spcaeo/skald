@@ -35,6 +35,8 @@ Hover or focus a cell for its figures. Click it to list the visitors behind it, 
 
 The **retention curve** under it is the share back at each step, over every cohort counted there: the visitors back, summed, over the new visitors in those cohorts. On a phone the triangle and the curve become two tables.
 
+**Why the curve goes up or down.** Each point averages every cohort old enough for it, so a later point can rest on fewer cohorts: a cohort first seen last week has no "+2 weeks" yet. A move from one point to the next can then be partly *who* is counted, not what people did. Under the curve, each step is read in one line: how it moved as drawn, and how it moved on the cohorts counted at both steps only, the same people. For example: *week +1 → week +2: down 1.1 points (5.2% → 4.1%). On the 2 Nov – 8 Nov cohort only (749 new visitors): 4.5% → 4.1% (34 → 31 people). Part of the move is that week +2 counts fewer cohorts (1 of 2).* When the same people moved the other way (the curve rises while that cohort fell), it says the curve's move comes only from which cohorts are counted. When both steps count the same cohorts, it says the change is in what people did. A curve with one point so far says so. A point over fewer than 100 new visitors is marked **too few to trust**, and pointing at a point says when it rests on fewer cohorts than the one before. These lines add up the triangle's own cells, which the audit already counts twice; nothing new is counted.
+
 ## Options
 
 - **Weeks or Days**: weekly cohorts over the last 12 weeks (8 weeks after each), or daily cohorts over the last 30 days (14 days after each).

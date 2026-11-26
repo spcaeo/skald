@@ -290,6 +290,42 @@ class Opportunities(Base):
                          [(None, 0, None), (None, 0, None)])
 
 
+class Earlier(Base):
+    """SKALD-66: the tiles' change is set against the N days just before, whole or nothing."""
+
+    def test_the_seven_days_before(self):
+        e = self.got()["7"]["earlier"]
+        self.assertEqual((e["state"], e["first"], e["last"]), ("ok", "2026-10-03", "2026-10-09"))
+        # 10 clicks a day, and "old feature name" (1 click, 10 shown) up to 10-06;
+        # 330 shown a day, and the rare query's 1 on the even days (10-04, 10-06, 10-08).
+        self.assertEqual((e["clicks"], e["impressions"]), (74, 7 * 330 + 40 + 3))
+        self.assertEqual(e["ctr"], round(74 / 2353, 4))
+        self.assertEqual(e["provisional"], [])
+        # the position weighted by impressions, from each day's own total
+        with self.history() as h:
+            stored, _ = days.read(h.db, SITE, "google", date(2026, 10, 3), date(2026, 10, 9))
+        w = sum(stored[d]["total"]["total"]["position"] * stored[d]["total"]["total"]["impressions"] for d in stored)
+        self.assertAlmostEqual(e["position"], round(w / 2353, 2))
+
+    def test_a_provisional_earlier_day_is_named(self):
+        with self.history() as h, h.db:
+            h.db.execute("UPDATE search_days SET final = 0 WHERE day = '2026-10-05'")
+        self.assertEqual(self.got()["7"]["earlier"]["provisional"], ["2026-10-05"])
+        with self.history() as h:
+            self.assertEqual(audit.check(h.db, SITE), [], "the recount names it too")
+
+    def test_whole_periods_only(self):
+        got = self.got()
+        self.assertEqual(got["28"]["earlier"]["state"], "ok")
+        self.assertEqual(got["90"]["earlier"]["state"], "now_short", "the 90 days start before the history")
+        self.assertEqual(got["480"]["earlier"], {"state": "too_long"})
+        with self.history() as h, h.db:
+            h.db.execute("DELETE FROM search_days WHERE day = '2026-10-05'")
+        e = self.got()["7"]["earlier"]
+        self.assertEqual((e["state"], e["missing"]), ("short", 1))
+        self.assertNotIn("clicks", e, "never a part of a period")
+
+
 class SearchJson(Base):
     def test_the_periods_carry_the_reports_bing_only_coverage(self):
         with self.history() as h:
@@ -339,6 +375,35 @@ class SecondRoad(Base):
             problems = audit.check(h.db, SITE)
         self.assertTrue(any("lost" in p for p in problems), problems)
         self.assertTrue(any("positions query" in p for p in problems), problems)
+
+    def test_it_matches_an_earlier_period_with_a_gap(self):
+        with self.history() as h, h.db:
+            h.db.execute("DELETE FROM search_days WHERE day = '2026-10-05'")
+        with self.history() as h:
+            self.assertEqual(audit.check(h.db, SITE), [])
+
+    def test_it_catches_an_earlier_period_summed_wrong(self):
+        real = reports.earlier
+
+        def off(*a):
+            got = real(*a)
+            if got.get("state") == "ok":
+                got["clicks"] += 1
+            return got
+
+        with mock.patch.object(reports, "earlier", off), self.history() as h:
+            problems = audit.check(h.db, SITE)
+        self.assertTrue(any("7 days: earlier period" in p for p in problems), problems)
+
+    def test_it_catches_an_earlier_period_a_day_off(self):
+        real = reports.earlier
+
+        def shifted(stored, finals, first, n, cov):
+            return real(stored, finals, first - timedelta(days=1), n, cov)
+
+        with mock.patch.object(reports, "earlier", shifted), self.history() as h:
+            problems = audit.check(h.db, SITE)
+        self.assertTrue(any("7 days: earlier period" in p and "2026-10-02" in p for p in problems), problems)
 
     def test_it_catches_buckets_cut_from_the_wrong_end(self):
         def from_the_start(first, last, n):     # the short bucket last, not first

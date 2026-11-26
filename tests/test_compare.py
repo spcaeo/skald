@@ -119,6 +119,63 @@ class Week(unittest.TestCase):
         with self.assertRaises(compare.Invalid):
             self.run_compare(colour="red")
 
+    def test_landing_pages_follow_the_filters(self):
+        """SKALD-62: visitors by landing page, from the visit cube, so Traffic's shared
+        filter can narrow Traffic › Pages; they add up to the visitors, filtered or not."""
+        got = self.run_compare()
+        land = {r["name"]: (r["a"], r["b"]) for r in got["dimensions"]["landing_pages"]}
+        self.assertEqual(sum(a for a, _ in land.values()), 20)
+        self.assertEqual(land["/new/"], (1, 0))
+        ca = self.run_compare(country="CA")
+        land = {r["name"]: r["a"] for r in ca["dimensions"]["landing_pages"]}
+        self.assertEqual(land, {"/pricing/": 2 + 4, "/": 7})
+        self.assertEqual(ca["dimension_counts"]["landing_pages"], "visitors")
+        # One page's own figures come from the pages blob, which has no landing split.
+        self.assertIsNone(self.run_compare(page="/pricing/")["dimensions"]["landing_pages"])
+
+    def test_the_audit_recounts_every_combination_of_the_visit_records(self):
+        """SKALD-62: Traffic's shared filter shows crossed figures (CA on mobile). Swap the
+        countries of two visits: every field's total still matches, the combinations do not,
+        and the audit (audit_visit_combos.py) withholds the day."""
+        run = lambda: self.box.run("--today", "2026-10-09", "audit", "--day", "2026-10-07")
+        self.assertEqual(run()[0], 0, run()[2])
+        with sqlite3.connect(self.box.db) as db:
+            blob = json.loads(db.execute("SELECT data FROM day_extras WHERE kind = 'visit_cube' "
+                                         "AND day = '2026-10-07' AND site = 'example.com'").fetchone()[0])
+            rows = blob["rows"]
+            gb = next(r for r in rows if r[0] == "GB")
+            ca = next(r for r in rows if r[0] == "CA" and r[-1] > 1)
+            gb[0] = "CA"
+            ca[-1] -= 1
+            rows.append(["GB", *ca[1:-1], 1])
+            db.execute("UPDATE day_extras SET data = ? WHERE kind = 'visit_cube' AND "
+                       "day = '2026-10-07' AND site = 'example.com'", (json.dumps(blob),))
+        code, out, err = run()
+        self.assertEqual(code, 1)
+        self.assertIn("visit records GB", err)
+        self.assertNotIn("visit cube country", err, "every field's total still matches")
+    def test_page_views_are_never_the_whole_sites_under_a_filter(self):
+        """SKALD-63: page views are counted per page for every visitor, so a filter on the
+        visitors leaves them unsplit (null), never the whole site's. Before, country=CA
+        answered 13 visitors beside the whole site's page views, /new/ (read only by the GB
+        visitor) included. A page with another filter is refused: its figures are not split
+        by a visitor's labels, and used to answer the page's every visitor."""
+        whole = self.run_compare()
+        self.assertEqual({r["name"]: r["a"] for r in whole["dimensions"]["pages"]},
+                         {"/": 13, "/pricing/": 6, "/new/": 1})
+        for f in ({"country": "CA"}, {"source": "Search engine"}, {"device": "Mobile"},
+                  {"continent": "Europe"}, {"landing": "/"}):
+            got = self.run_compare(**f)
+            self.assertIsNone(got["dimensions"]["pages"], f)
+            self.assertTrue(got["reconciled"], (f, got["problems"]))
+        self.assertIsNotNone(self.run_compare(country="CA")["dimensions"]["countries"])
+        page = self.run_compare(page="/pricing/")
+        self.assertEqual({r["name"]: r["a"] for r in page["dimensions"]["pages"]}, {"/pricing/": 6},
+                         "a page filter alone keeps its own page's views")
+        with self.assertRaises(compare.Invalid) as why:
+            self.run_compare(page="/pricing/", country="CA")
+        self.assertIn("page cannot be combined", str(why.exception))
+
     def test_ranges_are_checked(self):
         for bad in ("2026-10-08..2026-10-01", "yesterday", "2025-01-01..2026-10-01"):
             with self.subTest(bad=bad), self.assertRaises(compare.Invalid):
@@ -272,6 +329,9 @@ class Lifecycle(unittest.TestCase):
         code, got = get("/traffic/example.com/api/page?path=/launch/")
         self.assertEqual((code, got["published"]), (200, "2026-10-03"))
         self.assertEqual(get("/traffic/example.com/api/page?path=/nowhere/")[0], 404)
+        # SKALD-64: the page drawer's Google Search answer; no Search Console here
+        code, got = get("/traffic/example.com/api/page-search?path=/launch/")
+        self.assertEqual((code, got["connected"]), (200, False))
 
 
 if __name__ == "__main__":

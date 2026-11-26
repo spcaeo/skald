@@ -186,6 +186,9 @@ def old_story(history, site, path, config, tz, today):
             "published": published, "updated": updated, "date_source": source,
             "updated_source": "website" if updated else None, "lastmod": None,
             "lastmod_seen": [],
+            # the page's own dates (SKALD-64, added later): none in this sandbox
+            "updated_at": None, "published_at": None, "published_from": None, "changes": [],
+            "check": None,
             "first_seen": seen.get(path),
             "days_since_publish": (today - date.fromisoformat(published)).days
             if published else None,

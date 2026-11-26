@@ -29,7 +29,7 @@ list of sites. Until a dashboard
 site's first log line, run-daily and live report it as "waiting for its first
 log lines" (waiting()) and go on: exit 0, nothing stored, no failure mail.
 
-`skald live`, `run-daily`, `dashboard`, `check`, `collect`, `backfill`, `doctor`,
+`skald live`, `run-daily`, `close-day`, `dashboard`, `check`, `collect`, `backfill`, `doctor`,
 `audit`, `verify-bots`, `pagespeed` and the search syncs (`search-console`, `bing`,
 `search`) run for every site in turn (each
 one's exit status counted; the worst is returned); `--site NAME` picks one.
@@ -45,7 +45,7 @@ from pathlib import Path
 from .config import load_config, site_name, views as config_views
 from .files import slug, write_atomic
 
-PER_SITE = ("live", "run-daily", "dashboard", "check", "collect", "backfill", "audit",
+PER_SITE = ("live", "run-daily", "close-day", "dashboard", "check", "collect", "backfill", "audit",
             "verify-bots", "pagespeed", "doctor", "search-console", "bing", "search", "reports",
             "ai-answers", "views", "tools")
 
@@ -248,7 +248,7 @@ def write_sites(out: Path, sites: list[dict], live_names: set[str]) -> list[Path
 # The commands that collect or count. A paused or removed site (Settings > Sites,
 # site_lifecycle.py) is left out of them; `dashboard`, `doctor` and `audit` still
 # see a paused site, and a removed one is left out of everything unless --site names it.
-COLLECTING = ("live", "run-daily", "check", "collect", "backfill", "verify-bots", "pagespeed",
+COLLECTING = ("live", "run-daily", "close-day", "check", "collect", "backfill", "verify-bots", "pagespeed",
               "search-console", "bing", "search", "reports", "ai-answers", "views",
               "tools")
 

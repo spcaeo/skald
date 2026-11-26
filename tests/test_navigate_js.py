@@ -260,6 +260,12 @@ class Node(unittest.TestCase):
     def test_leads_and_sales_one_period(self):
         self.assertIn("sales-period: all passed", self.run_js("sales-period.mjs"))
 
+    def test_yesterday_next_to_today(self):
+        """SKALD-61: Yesterday is a button of the period group; before close-day has stored
+        it the page says it is not counted yet, after it says when it was counted; Leads &
+        sales names its days from the lead store."""
+        self.assertIn("yesterday: all passed", self.run_js("yesterday.mjs"))
+
     def test_leads_and_sales_rates(self):
         self.assertIn("sales-rate: all passed", self.run_js("sales-rate.mjs"))
 

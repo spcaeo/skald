@@ -25,7 +25,10 @@ lifecycle.page_dates only for the figures it shows, to compare them.
                 date kept once (its first pair), the last `cap`; `lastmod` the
                 latest date
   updated       the website's list's `updated` for the page when it gives one
-                ("website"), else the page's lastmod ("sitemap"), else null
+                ("website"), else the page's own latest modified date
+                (SKALD-64: audit_page_dates.own_modified, by that audit's own
+                SQL over the page_dates rows; "page"), else the page's lastmod
+                ("sitemap"), else null
 
 A problem is a figure shown that the stored files do not give. Nothing is
 changed: the run's outcome says the recount does not match.
@@ -134,8 +137,10 @@ def check_file(kept: dict, days: dict, folder: Path) -> list[str]:
     return problems
 
 
-def expected(kept: dict, meta_file) -> dict:
-    """{page: {"updated", "updated_source", "lastmod", "lastmod_seen"}} by the rule."""
+def expected(kept: dict, meta_file, own: dict | None = None) -> dict:
+    """{page: {"updated", "updated_source", "lastmod", "lastmod_seen"}} by the rule;
+    `own` is {page: the local day of its own latest modified date}."""
+    own = own or {}
     cap = int(kept.get("cap") or 0)
     pairs: dict[str, list] = {}
     for path, entry in (kept.get("paths") or {}).items():
@@ -148,29 +153,32 @@ def expected(kept: dict, meta_file) -> dict:
         if isinstance(entry, dict) and str(entry.get("path", "")).startswith("/"):
             meta[_page(entry["path"])] = entry
     out = {}
-    for page in set(pairs) | set(meta):
+    for page in set(pairs) | set(meta) | set(own):
         kept_dates, seen = set(), []
         for day, d in sorted(pairs.get(page) or []):
             if d not in kept_dates:
                 kept_dates.add(d)
                 seen.append([d, day])
         latest = max(kept_dates) if kept_dates else None
-        own = (meta.get(page) or {}).get("updated")
-        out[page] = {"updated": own or latest,
-                     "updated_source": "website" if own else "sitemap" if latest else None,
+        site_said = (meta.get(page) or {}).get("updated")
+        mine = own.get(page)
+        out[page] = {"updated": site_said or mine or latest,
+                     "updated_source": "website" if site_said else "page" if mine
+                     else "sitemap" if latest else None,
                      "lastmod": latest, "lastmod_seen": seen[-cap:] if cap else []}
     return out
 
 
-def recheck(config: dict, folder: Path, shown: dict) -> list[str]:
-    """Every check; `shown` is lifecycle.page_dates' answer for the site."""
+def recheck(config: dict, folder: Path, shown: dict, own: dict | None = None) -> list[str]:
+    """Every check; `shown` is lifecycle.page_dates' answer for the site, `own`
+    the pages' own modified days (audit_page_dates.own_modified)."""
     kept = _json(folder / "sitemaps" / "lastmod" / "history.json")
     if not isinstance(kept, dict):
         return ["lastmod: sitemaps/lastmod/history.json cannot be read"]
     days = _json(folder / "sitemaps" / "days.json")
     problems = check_file(kept, days if isinstance(days, dict) else {}, folder)
-    want = {} if _off(config) else expected(
-        kept, ((config or {}).get("report") or {}).get("pages_meta"))
+    meta = ((config or {}).get("report") or {}).get("pages_meta")
+    want = expected({} if _off(config) else kept, meta, own)
     for page in sorted(set(want) | set(shown)):
         a, b = shown.get(page) or {}, want.get(page) or {}
         for field in ("updated", "updated_source", "lastmod", "lastmod_seen"):
@@ -185,9 +193,16 @@ def daily(ctx, day) -> list[str] | None:
     if not set_up(ctx):
         return None
     from . import lifecycle
+    from .audit_page_dates import own_modified
+    from .window import zone
     folder = Path(ctx.live_dir)
-    shown = lifecycle.page_dates(ctx.config, folder)
-    problems = recheck(ctx.config, folder, shown)
+    if getattr(ctx, "history", None) is None:       # no history at hand: the sitemap's only
+        shown, own = lifecycle.page_dates(ctx.config, folder), {}
+    else:
+        with ctx.history() as history:
+            shown = lifecycle.page_dates(ctx.config, folder, history, ctx.site)
+            own = own_modified(history.db, ctx.site, zone(ctx.config))
+    problems = recheck(ctx.config, folder, shown, own)
     ctx.out(f"sitemap lastmod: {sum(1 for v in shown.values() if v.get('lastmod'))} pages "
             "with a change date rechecked from the stored files")
     return problems

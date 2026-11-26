@@ -27,8 +27,15 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-25-2.58.0",
+  id: "2026-11-26-2.59.0",
   items: [
+    ["One filter for four Traffic tabs", "Visitors, Sources, Pages and Places & devices share one Country, Source and Device bar: pick the USA and all four show only visits from the USA.", "getting-started"],
+    ["Search: up or down, and why", "each Search figure shows its change against the days before; each opportunity says why it is listed; New and lost say what they mean.", "search"],
+    ["Why the Retention curve moves", "a line under the curve reads each step, and tells a real change apart from fewer weeks of visitors being counted.", "retention"],
+    ["When to release", "Traffic › Time shows the busiest and quietest hours and the busiest day of the week, and says when one unusual day makes them.", "getting-started"],
+    ["Every event on Events", "Events shows every event your site sends, forms and booking tools included, with what each means; what is not set up is one line.", "funnels-and-goals"],
+    ["Each page's own dates", "with Page dates on, a page shows the dates it says it was published and updated, every update kept, and its Google figures in the drawer.", "crawl-health"],
+    ["Yesterday next to Today", "Yesterday is a button beside Today, and shows yesterday from soon after midnight.", "getting-started"],
     ["Agent files", "Traffic › Agent files shows who reads the files a site made for AI: Markdown copies, OKF bundles, llms.txt, agent cards, robots.txt and sitemaps, by AI, search engines, other bots and people.", "ai-and-bots"],
     ["NeetoCal bookings", "NeetoCal joins Calendly and Cal.com under Leads & tools: its webhook brings each booking, move and cancellation, joined to the visitor's pages.", "demo-bookings"],
     ["Security alerts stay open overnight", "an exposure seen yesterday no longer closes at midnight and comes back after the morning run, so the 01:00 summary lists it.", "security"],

@@ -162,13 +162,15 @@ def days_stored(config: dict, history_path, site: str, tz, now: datetime, live_d
         states = {d: history.state(site, d) for d in span}
     finally:
         history.close()
-    # Yesterday comes with today's daily run: not missing before it ran.
+    # Yesterday comes with today's daily run: not missing before it ran. close-day
+    # (SKALD-61) may have stored it, or withheld it, after midnight: the morning run
+    # counts it again, so neither is a problem before that run.
     ran = runs.load(Path(live_dir)).get("run-daily") or {}
     stamps = [t for t in (_when(ran.get("last_ok")), _when(ran.get("last_fail"))) if t]
     midnight = datetime.combine(today, datetime.min.time(), tzinfo=tz)
-    later = states.get(last) is None and not (stamps and max(stamps) >= midnight)
+    later = states.get(last) in (None, "withheld") and not (stamps and max(stamps) >= midnight)
     missing = [d for d, s in states.items() if s is None and not (later and d == last)]
-    held = [d for d, s in states.items() if s == "withheld"]
+    held = [d for d, s in states.items() if s == "withheld" and not (later and d == last)]
     if not missing and not held:
         note = "; yesterday comes with today's daily run" if later else ""
         return item("days", part, OK, f"the last {len(span)} days are stored{note}")

@@ -4,9 +4,11 @@
 // From GET <page>/api/page?path= (milestones kept for good, days from the
 // publish date); without it, what the stored days show, said as such.
 // Also the Pages filter "Published between", from page_index.json.
-// Change dates: `updated` is the website's own date, else the latest <lastmod> of the
-// sitemap (`updated_source` "sitemap"), said as "changed (from your sitemap)": a change
-// date, never a publish date. `lastmod_seen` lists each date with the day Skald first saw it.
+// Change dates: `updated` is the website's own date, else the page's own modified date
+// (`updated_source` "page", SKALD-64: Skald read it from the page), else the latest <lastmod>
+// of the sitemap ("sitemap"), said as "changed (from your sitemap)": a change date, never a
+// publish date. `changes` (the page's own and the sitemap's, with times) or, without them,
+// `lastmod_seen` (each sitemap date with the day Skald first saw it) are the timeline's updates.
 // Beside the firsts: Googlebot's and Bingbot's latest fetch with its status (latestCrawls), and
 // under the chart the time on page from the log over the whole days (timeOnPageWords).
 
@@ -21,6 +23,7 @@ import { eventLabel } from "./events.js";
 import { withUrl } from "../urlactions.js";
 import { readyBlock } from "./aiready.js";
 import { changeTracker } from "./pagechange.js";
+import { whenWords, fromWords, checkWords } from "../page-dates.js";
 
 const hasApi = (m) => Array.isArray(m.files) && m.files.includes("page_index");
 const STORIES = new Map();
@@ -61,11 +64,22 @@ function after(at, start) {
   return d < 0 ? "before publishing" : d === 0 ? "the same day" : d === 1 ? "the next day" : `${d} days after`;
 }
 // "changed 24 Oct (from your sitemap)" / "updated 24 Oct": the change date and where it comes from.
-export const changedWords = (p, fmt = short) => (!p?.updated ? "" : p.updated_source === "sitemap" ? `changed ${fmt(p.updated)} (from your sitemap)` : `updated ${fmt(p.updated)}`);
-// Each change date the sitemap gave, with the day Skald first saw it: timeline entries.
+export const changedWords = (p, fmt = short) => (!p?.updated ? "" : p.updated_source === "sitemap" ? `changed ${fmt(p.updated)} (from your sitemap)`
+  : p.updated_source === "page" ? `updated ${p.updated_at ? whenWords(p.updated_at, fmt) : fmt(p.updated)} (from the page)` : `updated ${fmt(p.updated)}`);
+// Each update Skald kept (the page's own and the sitemap's, SKALD-64), else each change date
+// the sitemap gave with the day Skald first saw it: timeline entries.
 function changes(st) {
+  if (st.changes?.length) {
+    return st.changes.map((c) => ({ key: "lastmod", kind: "change", at: c.day, words: c.sources.includes("sitemap") && c.sources.length === 1 ? "Changed (from your sitemap)" : "Updated (from the page)",
+      when: `${whenWords(c.at)}${c.sources.length > 1 ? `; ${c.sources.map(fromWords).join(" and ")} agree` : ""}` }));
+  }
   return (st.lastmod_seen || []).map(([d, seen]) => ({ key: "lastmod", kind: "change", at: d, words: "Changed (from your sitemap)",
     when: `${long(d)}${seen && seen !== d ? `, in the sitemap Skald read on ${long(seen)}` : ""}` }));
+}
+// "Published 5 Nov 2024 (from the page's structured data)": where the publish date comes from.
+function publishedWords(st) {
+  if (st.date_source === "page") return `Published ${st.published_at ? whenWords(st.published_at) : long(st.published)} (from ${fromWords(st.published_from)})`;
+  return st.published ? `Published ${long(st.published)}` : "";
 }
 function timeline(st) {
   const start = st.published || st.first_seen;
@@ -132,11 +146,16 @@ export function pageStory(m, s) {
     if (!st) { body.replaceChildren(h("p", { class: "empty" }, `Nothing was recorded for ${path} in the stored days.`)); return; }
     const start = st.published || st.first_seen;
     const since = start ? dayDiff(start, m.anchor) + 1 : null;
+    // A page older than the logs (its own publish date, SKALD-64): its days before them are "before",
+    // left off the chart and said in one line; Compare's first week starts at the first counted day.
+    const before = (st.days || []).filter((d) => d.state === "before");
+    const counted = (st.days || []).find((d) => d.state !== "before")?.day;
+    const early = before.length && counted ? counted : start;
     // Compare this page: A its last 7 whole days, B its first 7 after publishing (Compare mode on Pages).
     // A plain button: the story's one primary is Mark a change (pagechange.js, 2.42).
     const cmp = h("button", { type: "button", class: "btn", onclick: () => S.set({ tab: "traffic/pages", path, pathmode: "contains", page: "",
-      range: "custom", from: addDays(m.anchor, -6), to: m.anchor, cmp: "custom", cb: `${start}..${addDays(start, 6)}` }) }, "Compare this page");
-    const days = (st.days || []).map((d) => ({ ...d, ai: d.ai ?? ((d.ai_asked ?? 0) + (d.ai_training ?? 0)) }));
+      range: "custom", from: addDays(m.anchor, -6), to: m.anchor, cmp: "custom", cb: `${early}..${addDays(early, 6)}` }) }, "Compare this page");
+    const days = (st.days || []).filter((d) => d.state !== "before").map((d) => ({ ...d, ai: d.ai ?? ((d.ai_asked ?? 0) + (d.ai_training ?? 0)) }));
     const ok = days.filter((d) => d.state === "ok");
     const sum = (k) => ok.reduce((a, d) => { const o = d[k]; if (o) for (const [x, v] of Object.entries(o)) a[x] = (a[x] || 0) + v; return a; }, {});
     const gaps = days.filter((d) => d.state !== "ok").map((d) => short(d.day));
@@ -152,14 +171,16 @@ export function pageStory(m, s) {
     const width = Math.round(innerWidth > 1000 ? ((full - 18) * 2.2) / 3.2 - 34 : full - 34);
     body.replaceChildren(...[
       h("div", { class: "ps-head" }, h("div", null, h("h2", { class: "ps-path" }, withUrl(h("span", null, path), path, { cls: "ua-after" })), st.title ? h("p", { class: "ps-title" }, st.title) : null,
-        h("p", { class: "ps-meta" }, st.published ? `Published ${long(st.published)}` : st.first_seen ? `First seen ${long(st.first_seen)}; the website does not give a publish date` : "Listed in your sitemap, not seen in the logs yet",
-          st.updated ? `, ${changedWords(st, long)}` : "", since ? `. Day ${since} since ${st.published ? "publishing" : "first seen"}.` : ".")), start ? cmp : null),
+        h("p", { class: "ps-meta" }, st.published ? publishedWords(st) : st.first_seen ? `First seen ${long(st.first_seen)}; the website does not give a publish date` : "Listed in your sitemap, not seen in the logs yet",
+          st.updated ? `, ${changedWords(st, long)}` : "", since ? `. Day ${since} since ${st.published ? "publishing" : "first seen"}.` : "."),
+        checkWords(st) ? h("p", { class: "note" }, checkWords(st)) : null), start ? cmp : null),
       st.local ? h("p", { class: "note" }, "This server does not keep page histories yet, so the story below is what the stored days show: the first day the page was read and fetched, its page views and the visitors who started on it.") : null,
       changeTracker(m, s),        // Did my change work? (pagechange.js)
       h("div", { class: "ps-grid" },
         h("section", { class: "s ps-tl" }, h("h3", null, "Firsts"), timeline(st), latestCrawls(st)),
         h("section", { class: "s" }, h("h3", null, "Every day since"), series.length && ok.length > 1 ? h("div", { class: "sheet" }, legend(series.map((x) => [x.name, x.color]), true),
           lines(days, series, { label: `${path}, every day since ${st.published ? "publishing" : "first seen"}`, H: 220, width })) : h("p", { class: "empty" }, "Fewer than two whole days so far."),
+          before.length > 1 && counted ? h("p", { class: "note" }, `The chart starts on ${short(counted)}, when Skald's logs of this site began: the page is older.`) : null,
           gaps.length ? h("p", { class: "note" }, `Not drawn: ${gaps.join(", ")} (not whole, verified days).`) : null,
           st.time_on_page ? h("p", { class: "note ps-time" }, timeOnPageWords(st.time_on_page)) : null)),
       // AI readiness (2.35): can AI read it well? psec=ai opens the story here.
@@ -201,8 +222,8 @@ export function published(m, s) {
     pubTable(rows, rel, { caption: "Pages by publish date", file: file("published"), empty: s.chgfrom ? "No page in these dates changed since then." : "No page was published in these dates.", dated }),
     copies.length ? h("details", { class: "md-copies" }, h("summary", null, `.md copies (${copies.length}): Markdown versions of pages, kept for AI assistants`),
       pubTable(copies, rel, { caption: "Markdown copies by publish date", file: file("published-md-copies"), empty: "", dated })) : null,
-    h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : "the first day the page was seen in the logs"}; * marks a page the website gives no date for.`,
-      dated ? ` Changed: the website's own updated date, else the last change date your sitemap gives (its lastmod), a change date, not a publish date${lm?.day ? `; ${n(lm.dated || 0)} of the sitemap's pages had one on ${short(lm.day)}${odd.length ? ` (${odd.join(", ")}: left out)` : ""}` : ""}.` : "",
+    h("p", { class: "note" }, `Publish dates come from ${idx.meta?.source === "website" ? "the website" : idx.pages.some((p) => p.date_source === "page") ? "the page itself where Skald read one (marked \"from the page\"), else the first day the page was seen in the logs" : "the first day the page was seen in the logs"}; * marks a page with no publish date known.`,
+      dated ? ` Changed: the website's own updated date, else the page's own modified date, else the last change date your sitemap gives (its lastmod), a change date, not a publish date${lm?.day ? `; ${n(lm.dated || 0)} of the sitemap's pages had one on ${short(lm.day)}${odd.length ? ` (${odd.join(", ")}: left out)` : ""}` : ""}.` : "",
       " Select a page for its story."));
 }
 
@@ -211,10 +232,11 @@ export const isCopy = (path) => /\.md\/?$/i.test(path || "");
 function pubTable(rows, rel, { caption, file, empty, dated }) {
   return table([
     { key: "path", label: "Page", path: true, fmt: (v, p) => h("span", null, v, p.title ? h("small", { class: "ps-t" }, p.title) : null) },
-    { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? short(v) : p.first_seen ? h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`) : h("span", { class: "muted", title: "Listed in your sitemap; no request for it in the logs yet" }, "not seen yet")), sort: (p) => p.published || p.first_seen || "" },
+    { key: "published", label: "Published", type: "date", fmt: (v, p) => (v ? (p.date_source === "page" ? h("span", { title: `From ${fromWords(p.published_from)}` }, short(v), h("small", { class: "ps-t" }, "from the page")) : short(v)) : p.first_seen ? h("span", { class: "muted", title: "The website gives no date; first seen" }, `${short(p.first_seen)}*`) : h("span", { class: "muted", title: "Listed in your sitemap; no request for it in the logs yet" }, "not seen yet")), sort: (p) => p.published || p.first_seen || "" },
     ...(dated ? [{ key: "updated", label: "Changed", type: "date", sort: (p) => p.updated || "",
-      fmt: (v, p) => (!v ? h("span", { class: "muted" }, "no date") : p.updated_source === "sitemap" ? h("span", { title: "From your sitemap (lastmod): a change date, not a publish date" }, short(v), h("small", { class: "ps-t" }, "from your sitemap")) : h("span", { title: "From the website's own page list" }, short(v))),
-      csv: (p) => (p.updated ? `${p.updated}${p.updated_source === "sitemap" ? " (sitemap)" : ""}` : "") }] : []),
+      fmt: (v, p) => (!v ? h("span", { class: "muted" }, "no date") : p.updated_source === "sitemap" ? h("span", { title: "From your sitemap (lastmod): a change date, not a publish date" }, short(v), h("small", { class: "ps-t" }, "from your sitemap"))
+        : p.updated_source === "page" ? h("span", { title: `The page's own modified date: ${whenWords(p.updated_at || v)}` }, short(v), h("small", { class: "ps-t" }, "from the page")) : h("span", { title: "From the website's own page list" }, short(v))),
+      csv: (p) => (p.updated ? `${p.updated_at || p.updated}${p.updated_source === "sitemap" ? " (sitemap)" : p.updated_source === "page" ? " (page)" : ""}` : "") }] : []),
     { key: "days_since_publish", label: "Days since", num: true },
     { key: "views_7d", label: "Views, 7 days", num: true },
     { key: "views_30d", label: "Views, 30 days", num: true },

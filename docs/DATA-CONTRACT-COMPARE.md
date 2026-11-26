@@ -24,7 +24,7 @@ to 400 days long and go back as far as history keeps (`report.retention_days`,
    "ai_asked":2,"ai_training":180,"search":160,"leads":0}],"b":[]},
  "dimensions":{"pages":[{"name":"/pricing/","a":40,"b":25,"delta":15,"delta_pct":60.0,"new":false,"gone":false}],
                "sources":[],"assistants":[],"countries":[],"continents":[],"devices":[],
-               "browsers":[],"os":[],"campaigns":[]},
+               "browsers":[],"os":[],"campaigns":[],"landing_pages":[]},
  "dimension_counts":{"pages":"page views","sources":"visitors"},
  "reconciled":true,"problems":[]}
 ```
@@ -44,7 +44,9 @@ to 400 days long and go back as far as history keeps (`report.retention_days`,
 - `delta = a - b` and `delta_pct = (a - b) / b * 100` (null when b is 0):
   **A is the range being looked at, B what it is compared with.** `new`: in A, not in B; `gone`: in B, not in A.
 - Dimensions count visitors (readers, once each, by the first page they
-  read), except `pages`, which counts page views. Rows are every value seen,
+  read), except `pages`, which counts page views. `landing_pages` (SKALD-62,
+  for Traffic's shared filter) is the visitors by the page they landed on, from
+  the same visit cube, so it follows every filter; `null` with `page=`. Rows are every value seen,
   biggest first (no top-N cut; at most 1,000 rows, then `"(all others)"`).
   `continents` are derived from the country (Africa, Antarctica, Asia,
   Europe, North America, Oceania, South America, Unknown). There are no
@@ -53,6 +55,14 @@ to 400 days long and go back as far as history keeps (`report.retention_days`,
   ai_asked / ai_training / search = fetches of that page; `sources`,
   `assistants`, `countries` and `continents` are that page's readers'; the
   other dimensions and metrics are null.
+- SKALD-63: `pages` (page views) is null under any filter on the visitors
+  (country, continent, source, assistant, device, browser, os, campaign,
+  landing): page views are kept per page for every visitor, so they cannot be
+  split by a visitor's labels. Before, the whole site's page views came back
+  under such a filter. `page=` cannot be combined with another filter (an
+  error, `ok: false`): a page's figures are not split by a visitor's labels,
+  and it used to answer the page's every visitor. A page group's compare is
+  asked under the group's own address, `<page>/<group>/api/compare`.
 - `series.a` / `series.b`: one entry per calendar day of each range, with its
   state and the figures `visitors`, `pages_read`, `visitors_from_ai`,
   `ai_asked`, `ai_training`, `search`, `leads` - null on a day not counted,
@@ -66,7 +76,8 @@ The data under it, both kept `report.retention_days` (400) days:
 `day_extras` kind `visit_cube` (every reader's visit as
 [country, landing, source, assistant, device, browser, os, campaign] → n, all
 pages, no cap; verified against the readers breakdowns and recounted by the
-audit), kind `pages` (every page: views, readers, AI and search fetches,
+audit: each field's totals by `audit_release2.compare_visit_cube`, and every combination of
+its fields but the assistant by `audit_visit_combos.py`, SKALD-62), kind `pages` (every page: views, readers, AI and search fetches,
 sources, assistants, countries; read for a `page=` filter) and kind
 `page_counts` (the same pages, compact: `{path: [views, readers, ai_asked,
 ai_training, search]}`; read for the page views of an unfiltered compare).

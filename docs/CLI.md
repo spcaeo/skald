@@ -19,7 +19,7 @@ They go before the command: `skald --config /etc/skald/config.yml --site example
 
 ## Commands
 
-`check` · `collect` · `backfill` · `dashboard` · `mail` · `export` · `audit` · `live` · `run-daily` · `compare` · `page` · `version` · `user` · `token` · `report` · `verify-bots` · `backup` · `forget` · `mark-deploy` · `markers` · `leads` · `alerts` · `favicons` · `pagespeed` · `events` · `notify-failure` · `accounts` · `org` · `member` · `account` · `site` · `mcp` · `hooks` · `conversions` · `plan` · `usage` · `billing` · `llms-txt` · `updates` · `migrate` · `upgrade` · `doctor` · `logo` · `settings` · `ours` · `search-console` · `bing` · `search` · `tools` · `reports` · `ai-answers` · `stack` · `views` · `try-log` · `summary-mail`
+`check` · `collect` · `backfill` · `dashboard` · `mail` · `export` · `audit` · `live` · `run-daily` · `compare` · `page` · `version` · `user` · `token` · `report` · `verify-bots` · `backup` · `forget` · `mark-deploy` · `markers` · `leads` · `alerts` · `favicons` · `pagespeed` · `events` · `notify-failure` · `accounts` · `org` · `member` · `account` · `site` · `mcp` · `hooks` · `conversions` · `plan` · `usage` · `billing` · `llms-txt` · `updates` · `migrate` · `upgrade` · `doctor` · `logo` · `settings` · `ours` · `search-console` · `bing` · `search` · `tools` · `reports` · `ai-answers` · `stack` · `views` · `try-log` · `summary-mail` · `close-day`
 
 ### skald check
 
@@ -700,3 +700,9 @@ The daily summary: one mail per person with what to look at on every site (secur
 | `--dry-run` | print the mails instead of sending them |
 | `--html` DIR | with --dry-run: write each mail's HTML part into DIR (summary-<user id>.html), to look at it in a browser |
 | `--after` HH:MM | do nothing before this time of day (the site's zone): for an hourly cron line |
+
+### skald close-day
+
+Store yesterday now (check, collect, audit, dashboard); the scheduler runs it soon after midnight.
+
+No arguments.

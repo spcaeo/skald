@@ -24,7 +24,7 @@ import { rove } from "../place.js";
 import { countryWords } from "./readers.js";
 import { info } from "./tiles.js";
 import { head, notBuiltNote } from "./common.js";
-import { figures } from "../data.js";
+import { figures, need } from "../data.js";
 import { subView } from "../tablestate.js";
 import { withUrl, copyIf } from "../urlactions.js";
 import * as R from "./tr-search-reports.js";
@@ -33,6 +33,7 @@ import { poll, redraw, watchBuilt, arrivedBox } from "../ui/live.js";
 import { pill } from "../ui/pill.js";
 import { call } from "./ipmanager.js";
 import { searchState, searchAhead, searchBusy } from "../live-words.js";
+import { rowFor, datesLine, updateMarks, checkWords } from "../page-dates.js";
 
 const PERIODS = [["7", "7 days"], ["28", "28 days"], ["90", "3 months"], ["480", "16 months"]];
 const ENGINES = [["google", "Google"], ["bing", "Bing"]];
@@ -55,8 +56,12 @@ let metric = "clicks";
 const KEPT = { engine: subView("seeng"), per: subView("seper"), metric: subView("semet"), sec: subView("sesec") };
 const SECTIONS = ["figures", "opps", "changes", "positions", "cross"];
 
+// The page's model, for the drawers' page dates (page_index.json, fetched when first needed).
+let model = null;
 const pct = (v) => (v == null ? "-" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`);
 const pos = (v) => (v == null ? "-" : v.toFixed(1));
+// SKALD-66: a CTR under 1% with two decimals, so the tile, its "before" and the change in points agree.
+export const ctrPct = (v) => (v == null ? "-" : `${(v * 100).toFixed(v < 0.01 ? 2 : v < 0.1 ? 1 : 0)}%`);
 const ctrOf = (c, i) => (i ? c / i : null);
 const nameOf = (e) => (e === "bing" ? "Bing" : "Google");
 const toolOf = (e) => (e === "bing" ? "Bing Webmaster Tools" : "Search Console");
@@ -243,7 +248,9 @@ function trend(daysIn, key) {
 function rowDrawer(kind, row, part, period, s, file) {
   const e = engine;
   const facts = [["Clicks", n(row.clicks)], ["Impressions", n(row.impressions)], ["CTR", pct(row.ctr)], ["Average position", pos(row.position)]];
-  const body = [h("dl", { class: "se-facts" }, facts.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)])),
+  // SKALD-64: the page's published and last updated dates, under Average position (page-dates.js).
+  const datesP = h("p", { class: "se-dates", hidden: true });
+  const body = [h("dl", { class: "se-facts" }, facts.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)])), datesP,
     h("p", { class: "note" }, `${toolOf(e)}'s figures, ${short(period.first)} to ${short(period.last)}${e === "google" ? " (Pacific Time days)" : ""}. Summed from each day's top rows: on a day this ${kind} was below the top list it counts in "(all others)" instead.`)];
   if (kind === "page") {
     const path = pagePath(row.key);
@@ -251,8 +258,10 @@ function rowDrawer(kind, row, part, period, s, file) {
     if (ours && e === "google") body.push(h("p", null, `Skald's people from Google search on this page, over the cross-check's days: ${n(ours.skald_visits)} (Search Console: ${n(ours.search_console_clicks)} clicks).`));
     body.push(h("p", null, h("a", { href: S.hashFor({ ...s, tab: "traffic/pages", page: path, dd: "" }) }, `Open ${path}: its story since it was published`)));
   }
+  let pageFor = kind === "page" ? pagePath(row.key) : null;
   if (kind === "query") {
     const opp = (period.opportunities?.rows || []).find((o) => String(o.query) === String(row.key));
+    if (opp?.page) pageFor = R.pathOf(opp.page);
     if (opp?.page) body.push(h("p", null, "Shown most on ", withUrl(R.pathOf(opp.page), opp.page, { cls: "ua-after" }),
       opp.pages > 1 && opp.page_share != null ? ` (${Math.round(opp.page_share * 100)}% of its impressions, of ${n(opp.pages)} pages)` : "",
       `. ${R.RULE_WORDS[opp.rule]}: an opportunity.`));
@@ -260,9 +269,26 @@ function rowDrawer(kind, row, part, period, s, file) {
   }
   // Its average position over time, when it is among the tracked (search/reports.py).
   const tracked = (period.positions?.[kind]?.rows || []).find((r) => String(r.key) === String(row.key));
-  const chart = tracked && R.positionChart(period.positions, tracked);
+  let chart = tracked && R.positionChart(period.positions, tracked);
+  const markNote = h("span");
   if (chart) body.push(h("h3", null, "Average position over time"), chart,
-    h("p", { class: "note" }, `Google's position is an average, weighted by impressions; 1 is the top. ${R.moveWords(tracked.change) === "-" ? "" : `Move: ${R.moveWords(tracked.change)}.`} A gap: no row that ${period.positions.size === 1 ? "day" : "stretch"}. Hollow: provisional.`));
+    h("p", { class: "note" }, `Google's position is an average, weighted by impressions; 1 is the top. ${R.moveWords(tracked.change) === "-" ? "" : `Move: ${R.moveWords(tracked.change)}.`} A gap: no row that ${period.positions.size === 1 ? "day" : "stretch"}. Hollow: provisional.`, markNote));
+  // The page's dates and its updates on the chart, once page_index.json is here.
+  if (pageFor && model) {
+    need(model, ["page_index"]).then(() => {
+      const p = rowFor(model, pageFor);
+      if (!p) return;
+      const words = [datesLine(p) ? `${kind === "query" ? `The page it showed most, ${pageFor}: ` : ""}${datesLine(p)}.` : "", checkWords(p)].filter(Boolean).join(" ");
+      if (words) { datesP.textContent = words; datesP.hidden = false; }
+      const marks = updateMarks(p);
+      const fresh = marks.length && chart && R.positionChart(period.positions, tracked, marks);
+      if (fresh && chart.isConnected) {
+        chart.replaceWith(fresh);
+        chart = fresh;
+        markNote.textContent = " Dashed marks: the page's updates (hover for the date and where it comes from); Google's days are Pacific Time, the updates the site's own days.";
+      }
+    }).catch(() => {});
+  }
   // In the address as sq=<kind>.<engine>:<key> (js/overlays.js): a link reopens it.
   const title = kind === "query" ? copyIf("text", textOf(kind, row.key), String(row.key), { label: "query" }) : kind === "page" ? withUrl(textOf(kind, row.key), String(row.key), { cls: "ua-after" }) : textOf(kind, row.key);
   return openDrawer({ title, subtitle: `${nameOf(e)} search, ${KINDS.find((x) => x[0] === kind)[2].toLowerCase()}`, body: h("div", null, body), size: "md", key: "search-row",
@@ -271,6 +297,7 @@ function rowDrawer(kind, row, part, period, s, file) {
 
 /* sq=<kind>.<engine>:<key>, from a link: the row in the period on screen, else the plain line. */
 export function openSearchKey(m, s, value) {
+  model = m;
   const [, kind, e, key] = /^([a-z]+)\.(google|bing):(.*)$/s.exec(String(value)) || [];
   const file = m?.x?.search;
   const part = file?.engines?.[e];
@@ -362,6 +389,7 @@ function crossBlock(x, s) {
 // ------------------------------------------------------------------ the tab
 
 export default function search(m, s) {
+  model = m;
   const file = m.x.search;
   const root = h("div", { class: "se" });
   const { r } = figures(m, s);
@@ -417,14 +445,21 @@ export default function search(m, s) {
     // How much of the period the history holds, plainly: days before it, gaps, provisional.
     const cov = R.coverageLines(period.coverage, toolOf(engine));
     if (cov.length) out.push(h("div", { class: "se-cov" }, cov.map((line) => h("p", null, line))));
-    const tile = (label, value, line, about) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label, info(about, label)), h("div", { class: "k-n" }, line), h("div", { class: "k-v" }, value), h("div", { class: "k-c" }));
+    // SKALD-66: each tile against the N days just before (reports.py `earlier`, whole or nothing).
+    const e = period.earlier;
+    const tile = (label, value, line, about, kind, fmt) => h("div", { class: "kpi" }, h("div", { class: "k-l" }, label, info(about, label)), h("div", { class: "k-n" }, line), h("div", { class: "k-v" }, value),
+      h("div", { class: "k-c" }, R.changeEl(kind, kind === "ctr" ? ctrNow : t[kind], e, fmt)));
     const when = `${short(period.first)} to ${short(period.last)}${google ? ", Pacific Time days" : ""}`;
+    const label = PERIODS.find(([k]) => k === per)?.[1] || "days";
+    const against = R.earlierLine(e, label, period.provisional_days?.length || 0, engine);
+    const ctrNow = t.impressions ? t.clicks / t.impressions : t.ctr;     // not the stored CTR, rounded to 4 places
     out.push(h("section", { class: "s" }, h("div", { class: "kpis" },
-      tile("Clicks", n(t.clicks), when, `Clicks on the site in ${nameOf(engine)}'s results. A click is not a visit${google ? ": see Cross-check" : ""}.`),
+      tile("Clicks", n(t.clicks), when, `Clicks on the site in ${nameOf(engine)}'s results. A click is not a visit${google ? ": see Cross-check" : ""}.`, "clicks", n),
       tile("Impressions", n(t.impressions), period.provisional_days?.length ? `${period.provisional_days.length} provisional day${period.provisional_days.length === 1 ? "" : "s"}` : "every day final",
-        `How often a result of the site was shown in ${nameOf(engine)}'s results.`),
-      tile("CTR", pct(t.ctr), "clicks per impression", "Clicks divided by impressions over these days."),
-      tile("Average position", pos(t.position), "1 is the top result", "The average of the site's best position in each result shown, weighted by impressions. Lower is better."))));
+        `How often a result of the site was shown in ${nameOf(engine)}'s results.`, "impressions", n),
+      tile("CTR", ctrPct(ctrNow), "clicks per impression", "Clicks divided by impressions over these days.", "ctr", ctrPct),
+      tile("Average position", pos(t.position), "1 is the top result", "The average of the site's best position in each result shown, weighted by impressions. Lower is better.", "position", pos)),
+      against ? h("p", { class: "note se-against" }, against) : null));
     // Search Console: one section at a time, in the address (sesec_view); Bing has only the figures.
     const sec = google && SECTIONS.includes(KEPT.sec.get()) ? KEPT.sec.get() : "figures";
     if (google) {

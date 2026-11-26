@@ -10,13 +10,17 @@ withheld or missing day is left out and named, never counted as a quiet day.
                pages per visitor, 404s people met - from history's totals
   dimensions   pages (page views, every page: day_extras "pages"), and
                sources, AI assistants, countries, continents, devices,
-               browsers, systems and campaigns (visitors: day_extras
-               "visit_cube", every reader's visit by all its labels at once)
+               browsers, systems, campaigns and landing pages (visitors:
+               day_extras "visit_cube", every reader's visit by all its
+               labels at once; landing pages added for SKALD-62, so Traffic's
+               shared filter can narrow Traffic › Pages)
 
 Filters slice the visitors by any cube field (and continent), or by one
-page (its readers, views and fetches from the pages blob). A metric a
-filter cannot apply to comes back null on both sides, never as a whole-site
-figure under a filter. `reconciled` says the dimension rows add up to the
+page (its readers, views and fetches from the pages blob), never both: a
+page's figures are not split by a visitor's labels (SKALD-63). A metric or
+a dimension a filter cannot apply to comes back null on both sides, never
+as a whole-site figure under a filter: page views under a filter on the
+visitors are null. `reconciled` says the dimension rows add up to the
 visitors (and the page rows to the page views) over the measured days.
 """
 from __future__ import annotations
@@ -34,7 +38,7 @@ MAX_ROWS = 1000
 FILTERS = (*VISIT_DIMS, "continent", "page")
 DIMENSIONS = {"sources": "source", "assistants": "assistant", "countries": "country",
               "continents": "continent", "devices": "device", "browsers": "browser",
-              "os": "os", "campaigns": "campaign"}
+              "os": "os", "campaigns": "campaign", "landing_pages": "landing"}
 METRICS = (("visitors", "Visitors"), ("pages_read", "Pages read"),
            ("visitors_from_ai", "Visitors from AI"), ("ai_asked", "AI fetches, someone asked"),
            ("ai_training", "AI fetches, to train or index"), ("search", "Search-engine fetches"),
@@ -330,6 +334,11 @@ def compare(history, site: str, view_slug: str | None, a_text: str, b_text: str,
     if unknown:
         raise Invalid(f"unknown filter {unknown[0]!r}; one of {', '.join(FILTERS)}")
     filters = {k: v for k, v in filters.items() if v not in (None, "")}
+    # SKALD-63: one page's figures come from the pages blob, which is not split by a visitor's
+    # labels: a page with a country (say) used to answer the page's every visitor, quietly.
+    if "page" in filters and len(filters) > 1:
+        raise Invalid("page cannot be combined with other filters: a page's own figures are "
+                      "not split by country, source, device or any other label")
     key = view_key(site, view_slug)
     a_first, a_last = parse_range(a_text)
     b_first, b_last = parse_range(b_text)
@@ -344,7 +353,11 @@ def compare(history, site: str, view_slug: str | None, a_text: str, b_text: str,
             row["delta"] = round(x - y, 2)
             row["delta_pct"] = round((x - y) / y * 100, 1) if y else None
         metrics.append(row)
-    dims = {"pages": _table(a["pages"], b["pages"])}
+    # Page views are counted per page for every visitor (page_counts): under a filter on the
+    # visitors they are not split, so null, never the whole site's (SKALD-63). A page filter
+    # alone keeps its own page's views.
+    visitor_filters = [k for k in filters if k != "page"]
+    dims = {"pages": None if visitor_filters else _table(a["pages"], b["pages"])}
     page = filters.get("page")
     for name in DIMENSIONS:
         if page and name not in ("sources", "assistants", "countries", "continents"):

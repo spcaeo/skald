@@ -159,6 +159,45 @@ class YourTools(unittest.TestCase):
         self.assertIn("Search Console: answering", r["content"][0]["text"])
 
 
+class PagePanel(unittest.TestCase):
+    """The page drawer's Google Search answer (SKALD-64, search/page_panel.py): the
+    MCP's per-page figures over Google's own days, with the days before."""
+
+    def answer(self, path, days=7, site=SITE):
+        from skald.search import page_panel
+        with History(FX.box.db) as h:
+            return page_panel.answer(h.db, site, path, days)
+
+    def test_one_page_against_the_days_before(self):
+        got = self.answer("/pricing/")
+        self.assertEqual((got["connected"], got["first"], got["last"], got["address"]),
+                         (True, "2026-09-29", "2026-10-05", "/pricing/"))
+        days = {d["day"]: (d["clicks"], d["impressions"]) for d in got["days"]}
+        self.assertEqual(days, {"2026-10-01": (4, 100), "2026-10-02": (0, 0),
+                                "2026-10-03": (None, None), "2026-10-05": (2, 40)})
+        self.assertEqual((got["totals"]["clicks"], got["totals"]["impressions"],
+                          got["not_in_page_table"], got["provisional_days"]),
+                         (6, 140, ["2026-10-03"], ["2026-10-05"]))
+        self.assertEqual([(q["query"], q["clicks"]) for q in got["queries"]],
+                         [("log analytics", 2), ("skald price", 1)])
+        self.assertEqual(got["before"], {"first": "2026-09-22", "last": "2026-09-28",
+                                         "totals": None, "totals_partial": False,
+                                         "missing_days": [f"2026-09-{d}" for d in range(22, 29)]})
+
+    def test_the_other_spelling_when_the_page_has_no_row(self):
+        got = self.answer("/pricing")
+        self.assertEqual((got["path"], got["address"], got["totals"]["impressions"]),
+                         ("/pricing", "/pricing/", 140))
+
+    def test_not_connected_and_refusals(self):
+        self.assertEqual(self.answer("/", site="other.example.com"),
+                         {"ok": True, "connected": False, "path": "/"})
+        self.assertFalse(self.answer("pricing")["ok"])
+        self.assertEqual(self.answer("/pricing/", days="lots")["length"], 28)
+        self.assertEqual(self.answer("/pricing/", days=900)["length"], 93)
+        self.assertEqual(self.answer("/pricing/", days=1)["length"], 7)
+
+
 class Audit(unittest.TestCase):
     def test_the_second_count_agrees(self):
         with History(FX.box.db) as h:
@@ -179,6 +218,20 @@ class Audit(unittest.TestCase):
         with History(FX.box.db) as h, mock.patch.object(tools_search, "figures", wrong):
             problems, _ = audit_search_pages.check(h.db, SITE)
         self.assertTrue(problems)
+
+    def test_a_pages_queries_are_recounted(self):
+        from unittest import mock
+        from skald.mcp import tools_search
+        real = tools_search.figures
+
+        def wrong(*a, **k):
+            got = real(*a, **k)
+            for q in got.get("top_queries") or []:
+                q["impressions"] += 5
+            return got
+        with History(FX.box.db) as h, mock.patch.object(tools_search, "figures", wrong):
+            problems, _ = audit_search_pages.check(h.db, SITE)
+        self.assertTrue(any(" query " in p for p in problems), problems)
 
 
 if __name__ == "__main__":

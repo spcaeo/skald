@@ -30,6 +30,7 @@ import { call } from "./ipmanager.js";
 import { mayFind } from "./person.js";
 import { openVisitor } from "./visitor.js";
 import { time as tzTime } from "../tz.js";
+import { steps as readSteps, stepWords, FEW } from "./ret-reading.js";
 
 const SPLITS = [["", "Everyone"], ["source", "First source type"], ["country", "Country"], ["device", "Device"], ["landing", "Landing page"]];
 const GRAINS = [["week", "Weeks"], ["day", "Days"]];
@@ -128,7 +129,9 @@ function curveChart(points, g, metric) {
     const p = points[Number(r.dataset.k) - 1];
     const show = (cx, cy) => tip(cx, cy, `${step(g, p.k)} after the first visit`, p.share == null ? [{ value: "", label: "no cohort counted here yet" }]
       : [{ value: pct1(p.back, p.size), label: metric === "deep" ? "came back and read 2 or more pages" : "came back" },
-        { value: n(p.back), label: `of ${n(p.size)} new visitors` }, { value: n(p.cohorts), label: p.cohorts === 1 ? "cohort counted" : "cohorts counted" }]);
+        { value: n(p.back), label: `of ${n(p.size)} new visitors` }, { value: n(p.cohorts), label: p.cohorts === 1 ? "cohort counted" : "cohorts counted" },
+        ...(p.k > 1 && points[p.k - 2]?.share != null && p.cohorts < points[p.k - 2].cohorts ? [{ value: "", label: `fewer cohorts than ${step(g, p.k - 1)} (${n(points[p.k - 2].cohorts)}): the newer ones are not ${p.k} ${unit(g)}s old yet` }] : []),
+        ...(p.size < FEW ? [{ value: "", label: `too few to trust: under ${FEW} new visitors` }] : [])]);
     r.addEventListener("pointermove", (e) => show(e.clientX, e.clientY));
     r.addEventListener("pointerleave", untip);
     r.addEventListener("focus", () => { const b = r.getBoundingClientRect(); show(b.left + b.width / 2, b.top + 20); });
@@ -141,6 +144,17 @@ function curveChart(points, g, metric) {
 function curveWords(p, g, metric) {
   if (p.share == null) return `${step(g, p.k)}: no cohort counted yet`;
   return `${step(g, p.k)}: ${pct1(p.back, p.size)} ${metric === "deep" ? "came back and read 2 or more pages" : "came back"}, ${n(p.back)} of ${n(p.size)} new visitors in ${n(p.cohorts)} cohorts`;
+}
+
+/* Why the curve goes up or down: each step as drawn, and on the same cohorts (ret-reading.js). */
+function reading(counted, K, pick, g, points) {
+  const all = readSteps(counted, K, pick);
+  const one = points.filter((p) => p.share != null);
+  if (!all.length && one.length === 1) return h("p", { class: "note ret-read" }, `One point so far (${step(g, one[0].k)}): the curve can move once a cohort has had ${one[0].k + 1} ${unit(g)}s.`);
+  if (!all.length) return null;
+  return h("section", { class: "s ret-read" }, h("h3", null, "Why the curve goes up or down"),
+    h("p", { class: "sub" }, `Each point averages every cohort old enough for it, so a later point can rest on fewer cohorts. Each step is also read on the cohorts counted at both steps: the same people.`),
+    h("ul", null, all.map((st) => h("li", null, stepWords(st, unit(g), (c) => cohortName(g, c))))));
 }
 
 // ------------------------------------------------------------------ the triangle
@@ -369,6 +383,7 @@ export default function retention(m, s) {
     h("section", { class: "s ret-desk" }, h("h2", null, "Retention curve"),
       h("p", { class: "sub" }, `The share of new visitors who ${word} in each ${unit(g)} after their first, over every cohort counted there.`),
       h("div", { class: "sheet" }, curveChart(points, g, metric))),
+    reading(counted, K, pick, g, points),
     h("p", { class: "note" }, [
       "A cohort is counted from the kept visits while every day it reads is still kept, and recounted by the audit; once its inputs are pruned it stays as last counted (\"inputs expired\").",
       removed ? ` ${n(removed)} visits of forgotten addresses are in no cohort.` : "",

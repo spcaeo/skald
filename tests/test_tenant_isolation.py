@@ -87,7 +87,8 @@ class Isolation(TenantServer):
                  "settings/audit", "settings/retention-preview?key=report.retention_days&"
                  "value=30", "sites", "api/v1/", "api/v1/overview", "api/v1/requests",
                  "api/compare?a=2026-10-01..2026-10-07&b=2026-10-08..2026-10-10",
-                 "api/page?path=/", "funnels", "ours", "bot-policy", "data/sites.json"]
+                 "api/page?path=/", "api/page-search?path=/", "funnels", "ours", "bot-policy",
+                 "data/sites.json"]
         for me in self.directions():
             _, theirs, (cookie, _), _ = self.other(me)
             for route in reads:

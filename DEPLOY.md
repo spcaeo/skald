@@ -164,6 +164,21 @@ local time (`report.timezone`) is past 01:00, whatever the server clock and summ
 `summary-mail --dry-run` prints the mails without sending them. Docker runs it by itself at
 `SKALD_SUMMARY_AT` (01:00; `off` stops it).
 
+The day's close (SKALD-61): yesterday checked, collected, audited and drawn soon
+after midnight, so Yesterday and the 7, 30 and 90 days show it from then instead of only after
+run-daily (before, every site's yesterday was "not collected" until about an hour after the
+daily run). run-daily still counts the day again from the log, late lines included, and that
+count is kept. Pick a time 15 to 30 minutes after midnight in `report.timezone` (server clock;
+05:20 UTC is 00:20 in New York in winter, 01:20 in summer):
+
+```cron
+20 5 * * * skald . /etc/skald/env && cd /opt/skald && ./bin/skald --config /etc/skald/config.yml close-day >>/var/log/skald/close-day.log 2>&1
+```
+
+A day stored whole and verified already is left alone, so running it twice is harmless. It
+sends no mail of its own: a day that does not add up at that hour is withheld and counted again
+by run-daily. Docker runs it by itself at `SKALD_CLOSE_AT` (00:20; `off` stops it).
+
 That is all: run-daily runs `verify-bots` first when `bots.ranges_dir`
 is set, and the live run checks the alerts and markers itself. Set it: without
 `bots.ranges_dir` no crawler claim is checked (a fake Googlebot counts as
@@ -667,14 +682,14 @@ location ^~ /traffic/ {
     }
     # Every per-site route the helper answers, /traffic/<site>/[<view>/]<route>:
     # refresh; me; ours (internal addresses); funnels; bot-policy (crawler
-    # settings); api/v1, api/compare, api/page, api/realtime; team, account, tokens, audit
+    # settings); api/v1, api/compare, api/page, api/page-search, api/realtime; team, account, tokens, audit
     # (team_api.py); settings and settings/* (settings_api.py); sites and
     # sites/* (sites_api.py); billing and billing/* (saas, 404 while off);
     # integrations and integrations/* (integrations_api.py; integrations/search
     # and integrations/search/* are search/api.py); people and people/*
     # (people/api.py); logo and logo/* (the site's logo, logo_api.py); recorded
     # and recorded/* (recorded journeys, journeys_api.py).
-    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|ai-answers(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?|recorded(?:/[a-z]+)?)$ {
+    location ~ ^/traffic/[a-z0-9.-]+/(?:[a-z0-9-]+/)?(?:refresh|me|ours(?:/(?:add|remove|add-mine|pause|resume|edit))?|funnels(?:/(?:save|delete))?|bot-policy|api/(?:v1/(?:[a-z_]+)?|compare|page|page-search|realtime)|team(?:/[a-z-]+)?|account(?:/[a-z-]+(?:/[a-z]+)?)?|tokens(?:/[a-z]+)?|audit|settings(?:/[a-z-]+)?|sites(?:/[a-z]+)?|billing(?:/[a-z]+)?|integrations(?:/[a-z]+(?:/[a-z]+)?)?|ai-answers(?:/[a-z]+(?:/[a-z]+)?)?|people(?:/[a-z-]+)?|logo(?:/[a-z]+)?|recorded(?:/[a-z]+)?)$ {
         limit_except GET POST { deny all; }
         set $skald_path $uri;
         gzip off;
@@ -785,6 +800,9 @@ location = /traffic-beacon {
     access_log /var/log/nginx/skald-beacon.log skald_beacon;
     add_header Cache-Control "no-store" always;
     add_header X-Robots-Tag "noindex" always;
+    # SKALD-15: a page that closes before the helper answers (a form sent, a link out)
+    # is still logged with the helper's 204 and site, not "499 -" for an event it kept.
+    proxy_ignore_client_abort on;
     include snippets/skald-beacon.conf;
 }
 

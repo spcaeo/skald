@@ -79,6 +79,6 @@ The site's own logo (Settings > This site > Site > Names & time > Logo) is shown
 
 ## When a send fails
 
-A scheduled send that fails (the mail server is down, say) is tried once more 30 minutes later. After that it waits for its next scheduled day. If the period's last day is not stored yet when the report is due, it waits for the morning run until 18:00, then goes with that day listed as not recorded.
+A scheduled send that fails (the mail server is down, say) is tried once more 30 minutes later. After that it waits for its next scheduled day. If the period's last day is not stored yet when the report is due, it waits for the morning run until 18:00, then goes with that day listed as not recorded. Yesterday is stored soon after midnight, but a report waits for the morning run's count of it all the same: that count also takes in log lines that reached the server late, and a report is never sent twice.
 
 A report needs a mail server (Settings > This site > Mail & reports). Without one, reports can still be made, previewed and downloaded, and the page says why they are not sent.
