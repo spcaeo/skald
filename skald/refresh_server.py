@@ -129,6 +129,7 @@ FUNNELS_PATH = re.compile(PAGE + r"funnels(?:/(?P<act>save|delete))?$")
 API_PATH = re.compile(PAGE + r"api/v1/(?P<name>[a-z_]{1,40})?$")
 COMPARE_PATH = re.compile(PAGE + r"api/compare$")
 PAGE_STORY_PATH = re.compile(PAGE + r"api/page$")
+PAGE_SEARCH_PATH = re.compile(PAGE + r"api/page-search$")       # SKALD-64
 TOKEN_PATH = re.compile(r"^/traffic-api/v1/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
                         r"(?P<name>[a-z_]{1,40})$")
 
@@ -375,7 +376,8 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             return {k: v for k, v in parse_qsl(raw)[:20]}
 
         def _history_answer(self, m, what: str) -> None:
-            """compare / page, from history opened read-only."""
+            """compare / page / search (one page's Search Console figures), from
+            history opened read-only."""
             from datetime import datetime, timezone
             from . import compare, lifecycle
             from .store import History
@@ -386,7 +388,11 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             tz = zone(config or {})
             history = History.reader(history_path)
             try:
-                if what == "compare":
+                if what == "search":
+                    from .search import page_panel
+                    got = page_panel.answer(history.db, m.group("site"), q.get("path", ""),
+                                            q.get("days", page_panel.DEFAULT_DAYS))
+                elif what == "compare":
                     a, b = q.pop("a", ""), q.pop("b", "")
                     q.pop("view", None)
                     got = compare.compare(history, m.group("site"), m.group("view"), a, b, q,
@@ -682,6 +688,9 @@ def make_handler(runner: Runner, allowed: set[str], config: dict | None = None,
             m = route(PAGE_STORY_PATH, self.path)
             if m is not None:
                 return self._history_answer(m, "page")
+            m = route(PAGE_SEARCH_PATH, self.path)
+            if m is not None:
+                return self._history_answer(m, "search")
             m = route(API_PATH, self.path)
             if m is not None:
                 if not m.group("name"):

@@ -221,6 +221,7 @@ class IdentityFromTheCookieOnly(Server):
         for method, path in (("GET", T + "me"), ("GET", T + "funnels"),
                              ("GET", T + "api/v1/"), ("GET", T + "api/v1/overview"),
                              ("GET", T + "api/compare?a=x&b=y"), ("GET", T + "api/page?path=/"),
+                             ("GET", T + "api/page-search?path=/"),
                              ("GET", T + "bot-policy"), ("GET", T + "ours"),
                              ("GET", "/traffic/sites.json"), ("GET", T + "data/sites.json"),
                              ("POST", T + "refresh"), ("POST", T + "ours/add"),

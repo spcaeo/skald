@@ -93,7 +93,7 @@ The log holds IP addresses, which are personal data in places like the EU. You c
 
 ## How fresh is today?
 
-Today's figures are recounted every few minutes: on a server with many sites, one round of them all takes a few minutes. The foot of every page says when they were last updated and about when the next update is due. If your server allows it, **More** (the three dots at the top right) > **Recount today now** recounts at once. Yesterday becomes a whole, checked day after the morning's run.
+Today's figures are recounted every few minutes: on a server with many sites, one round of them all takes a few minutes. The foot of every page says when they were last updated and about when the next update is due. If your server allows it, **More** (the three dots at the top right) > **Recount today now** recounts at once. Yesterday becomes a whole, checked day soon after midnight, and the morning's run counts it again.
 
 ## Why does a card say Loading?
 

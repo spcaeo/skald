@@ -150,6 +150,8 @@ SCHEMA: dict[str, Key] = {
     # Per site: POST paths a page's own script sends, not forms (form_names.py).
     "site.script_posts": Key("postpaths", "admin", ("site",), ("site", "script_posts"), [],
                              label="Sent by the site's own pages, not forms"),
+    "site.page_dates": Key("bool", "admin", ("site",), ("site", "page_dates"), False,  # SKALD-64
+                           label="Read each page's own published and updated dates"),
     "backup.daily": Key("int", "install", ("install",), ("backup", "daily"), 14, 1, 60,
                         shrink=True, label="Daily backup copies"),
     "backup.weekly": Key("int", "install", ("install",), ("backup", "weekly"), 8, 0, 52,

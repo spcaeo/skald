@@ -24,6 +24,7 @@ import { parseAmount } from "./tablestate.js";
 import { country, countryName, withFlag, flagEl, city, cityName } from "./tabs/readers.js";
 import { encode as encodeDrill } from "./drill.js";
 import { savedViews, saveView, deleteView, viewLink, copyText, renameInPlace, describe } from "./extras.js";
+import { SHARED } from "./narrow.js";
 
 const GROUPS = [
   ["Where they were", ["country", "city"]],
@@ -372,11 +373,15 @@ export function filtersButton(m, s) {
 export function filterChips(m, s, { noData = false } = {}) {
   const tree = fromState(s);
   const group = groupName(m, s);
-  if ((!tree.items.length && !group) || noData) return h("div", { class: "chips", "aria-label": "Active filters" });
+  // SKALD-62: on the four Traffic tabs that share the bar's filter (chips: "shared"), the bar under
+  // the strip shows its country, source and device itself; the chips here show the rest.
+  const bar = opt(s.tab, "chips", s, "") === "shared" ? [...singles(tree)].filter(([k]) => SHARED.includes(k)).map(([, x]) => x) : [];
+  const items = tree.items.filter((x) => !bar.some((y) => x === y || sameRule(x, y)));
+  if ((!items.length && !group) || noData) return h("div", { class: "chips", "aria-label": "Active filters" });
   const groupChip = group ? h("span", { class: "chip" }, "Page group ", h("b", null, group),
     h("button", { type: "button", "aria-label": `Show all pages, not only the page group ${group}`, onclick: () => S.set({ view: "all" }) }, "×")) : null;
   const drop = (item) => S.set(toState({ mode: tree.mode, items: tree.items.filter((x) => x !== item) }));
-  const chips = tree.items.map((x) => {
+  const chips = items.map((x) => {
     const on = applies(s, x, tree);
     if (isLeaf(x)) {
       const w = ruleWords(x, valueWords);
@@ -387,7 +392,7 @@ export function filterChips(m, s, { noData = false } = {}) {
     const words = treeWords({ mode: "all", items: [x] }, valueWords);
     return h("span", { class: `chip grp${on ? "" : " off"}` }, h("b", null, words), h("button", { type: "button", "aria-label": `Remove the group ${words}`, onclick: () => drop(x) }, "×"));
   });
-  const join = tree.items.length > 1 ? h("span", { class: "chips-join" }, tree.mode === "any" ? "Any of" : "All of") : null;
+  const join = items.length > 1 ? h("span", { class: "chips-join" }, tree.mode === "any" ? "Any of" : "All of") : null;
   const edit = h("button", { type: "button", class: "chip-edit", onclick: (e) => openFilters(m, S.read(), document.querySelector(".fp-btn") || e.currentTarget) }, "Edit filters");
   return h("div", { class: "chips", "aria-label": "Active filters" }, groupChip, join, chips, edit);
 }

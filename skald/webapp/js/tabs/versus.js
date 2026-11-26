@@ -32,7 +32,8 @@ const DIMS = [
   ["countries", "Countries", "Country", "country"], ["continents", "Continents", "Continent", null], ["devices", "Devices", "Device", "device"],
   ["browsers", "Browsers", "Browser", "browser"], ["os", "OS", "System", "os"], ["campaigns", "Campaigns", "Campaign", "campaign"],
 ];
-let CUBE = null, CUBE_ASKED = false;
+// The page's own daily cube, by page group: one group's cube never answers for another (SKALD-63).
+const CUBES = new Map();
 const ANSWERS = new Map();   // the server's answers, by query, for this page's life
 
 // ---------------------------------------------------------------- numbers
@@ -153,24 +154,28 @@ function query(s, a, b) {
   for (const [k, v] of S.activeFilters(s)) q.set(k === "path" ? "page" : k, v);
   return q.toString();
 }
-function answer(m, s, a, b) {
+export function answer(m, s, a, b) {   // exported for tests/js/compare-group.mjs
   if (Array.isArray(m.files) && m.files.includes("page_index")) {
     const q = query(s, a, b);
     // If the server's compare does not answer, the page works it out itself and says so.
-    if (!ANSWERS.has(q)) ANSWERS.set(q, getJSON(`api/compare?${q}`, true).then((r) => (r && r.ok ? r : Promise.reject(new Error(r?.error || "no answer"))))
+    // A page group's compare is the group's own: its address is under the group (refresh_server
+    // COMPARE_PATH); asked at the site's own address it answered for the whole site (SKALD-63).
+    const at = s.view && s.view !== "all" ? `${s.view}/` : "";
+    const key = `${at}${q}`;
+    if (!ANSWERS.has(key)) ANSWERS.set(key, getJSON(`${at}api/compare?${q}`, true).then((r) => (r && r.ok ? r : Promise.reject(new Error(r?.error || "no answer"))))
       .catch((e) => inBrowser(m, s, a, b).then((res) => ({ ...res, problems: [DEMO.on ? "In the demo, these two periods are worked out on this page from the days it holds; a running Skald's server answers any two periods and any filters."
         : `The server's compare did not answer (${e.message || e}), so these figures are worked out on this page from the days it holds.`, ...res.problems] }))));
-    return ANSWERS.get(q);
+    return ANSWERS.get(key);
   }
   return inBrowser(m, s, a, b);
 }
 function inBrowser(m, s, a, b) {
   const mode = filterMode(s);
-  if ((mode.kind === "cube" || mode.kind === "one") && !CUBE && !CUBE_ASKED && (!Array.isArray(m.files) || m.files.includes("cube"))) {
-    CUBE_ASKED = true;
-    return getJSON(`${base(s.view)}cube.json`).then((f) => { CUBE = f; return local(m, s, a, b, cubeCtx(CUBE, mode.f)); }, () => local(m, s, a, b, null));
+  const view = s.view || "all";
+  if ((mode.kind === "cube" || mode.kind === "one") && !CUBES.has(view) && (!Array.isArray(m.files) || m.files.includes("cube"))) {
+    CUBES.set(view, getJSON(`${base(s.view)}cube.json`).catch(() => null));
   }
-  return Promise.resolve(local(m, s, a, b, CUBE ? cubeCtx(CUBE, mode.f) : null));
+  return (CUBES.get(view) || Promise.resolve(null)).then((cube) => local(m, s, a, b, cube ? cubeCtx(cube, mode.f) : null));
 }
 
 // ------------------------------------------------------------------- page

@@ -73,7 +73,7 @@ class Layout(unittest.TestCase):
     def test_the_top_bar(self):
         main = code(JS / "main.js")
         bar = main[main.index("function drawBar"):main.index("function fitBar") if "function fitBar" in main else len(main)]
-        self.assertIn('MAIN_RANGES = ["7d", "30d", "90d"]', main)
+        self.assertIn('MAIN_RANGES = ["yesterday", "7d", "30d", "90d"]', main)  # SKALD-61
         for gone in ("help-btn", "exportMenu(", "searchBox(", "saved()", '"btn refresh"'):
             self.assertNotIn(gone, bar)
         more = main[main.index("function moreMenu"):main.index("async function doRefresh")]

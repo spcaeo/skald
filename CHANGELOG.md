@@ -4,6 +4,310 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.59.0 (2026-11-26)
+
+Traffic's tabs say more and hide less: one Country / Source / Device filter for Visitors,
+Sources, Pages and Places & devices (SKALD-62), and Compare stays honest under it (SKALD-63);
+Search figures up or down with why each query is an opportunity, why the Retention curve
+moves, when to release on Time, and every event the site sends on Events (SKALD-66); each
+page's own published and updated dates and Google's figures in the page drawer (SKALD-64);
+Yesterday next to Today, counted soon after midnight (SKALD-61); Agent files by kind
+(SKALD-65); and Events no longer withheld when a page closes before Skald answers (SKALD-15).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`), and keep a copy off the server: this
+  release changes the schema.
+- **Schema:** history schema 16 (two new tables for page dates; the upgrade copies the file
+  aside first).
+- **Setting:** Page dates is off on every site until an admin turns it on (Settings › Sites ›
+  Page dates).
+- **No recount:** no stored figure changes. Events days already withheld by the beacon's 499s
+  stay withheld; new days match.
+- **The image's nginx changes** (SKALD-15 `proxy_ignore_client_abort on` on the beacon; SKALD-64
+  passes `api/page-search`). A server with its own nginx adds both (DEPLOY.md, docs/UPGRADING.md).
+- **Without Docker:** add the `close-day` cron line (DEPLOY.md section 5) for Yesterday after
+  midnight; the image runs it by itself at 00:20.
+
+### Added
+
+- **Traffic: Search figures up or down, why a query is an opportunity, why the Retention
+  curve moves, when to release, and a plainer Events page (SKALD-66).** Palak asked on 26 Nov:
+  the Search tiles gave no sense of direction, Opportunities did not say why a query was
+  listed, New and lost were unexplained, the dashed ◆ lines on the Cross-check chart were a
+  mystery, the Retention curve fell with no reason given, Time had no figures to plan a release
+  by, and Events was hard to read.
+  - **Search:** each tile (clicks, impressions, CTR, average position) has an arrow and its
+    change against the same number of days just before, and what it was then; a line under the
+    tiles names those days. Only whole periods: 16 months has no change (Search Console keeps
+    16 months), and a period whose earlier days are not all stored says so. The earlier
+    totals are new in search.json (`earlier`) and recounted by SQL in
+    `audit_search_reports.py`. Example, one site on 26 Nov, 7 days: clicks 131, down
+    11% from 148; impressions 264,931, up 103%.
+  - **Opportunities:** each row says why it is listed in its own numbers, and the figures that
+    met the rule are highlighted; the two rules are listed above the table with this period's
+    thresholds and what usually helps.
+  - **New and lost:** plain words above the list: what new and lost mean, that it ends at the
+    newest final day (so its days differ from the tiles), and that a query may only have moved
+    across the day's top 500.
+  - **Chart markers:** a chart with a marker says what the dashed line and ◆ are, and a
+    recount reads "Skald recounted 14 past days from the logs", not the command line. The two
+    lines on one site's Cross-check were such recounts (12 and 17 Nov).
+  - **Retention:** under the curve, one line per step: the move as drawn, and the move on the
+    cohorts counted at both steps (the same people), so a fall that is only fewer cohorts
+    being old enough is told apart; points over fewer than 100 new visitors are marked.
+  - **Time:** busiest three hours, quietest three hours (a time to release) and the busiest day
+    of the week, above the charts, from the same verified hour counts the charts draw.
+  - **Events:** every event the site sends is shown, biggest first, with what it is, its rate
+    per 100 visitors and its top pages. **Fixed:** Form started, Form sent, phone and email
+    clicks and the booking tools' events were never shown at the top, nor in By page and By
+    source: one site's 44 forms started and 26 sent in 7 days were hidden while the page said
+    its forms were "Not set up". Through the forms now uses the pairs the site sends; what is
+    not set up is one line with the how behind one button.
+  - **Who:** every site. **What to do:** nothing. No schema change, no setting, no recount.
+  - **Checked:** tests (search reports and their audit, including a planted error; node tests
+    for each part); a local copy of production data with the new audit run on every site; the
+    pages checked in Chrome.
+
+- **Each page's own published and updated dates, every update kept, and Google's figures in
+  the page drawer (SKALD-64).** Palak asked for it on 26 Nov. Skald's "published" date was the
+  first day the logs saw a page, on every site: a guide that says "Nov 5, 2024 · Updated Nov
+  26, 2026" showed as published 29 Oct 2026, the day the site was connected. Its "updated"
+  date came only from the sitemap, as a date, read once a day, so a change made after the
+  morning read showed a day late, and only the last 20 sitemap dates per page were kept.
+  - **The setting:** Settings › Sites › **Page dates**, per site, off until an admin turns it
+    on.
+  - **What is read:** each page's own dates from its HTML. First an article's or a web page's
+    `datePublished` and `dateModified` in its structured data (JSON-LD), else its
+    `article:published_time` and `article:modified_time` meta tags, else a date tag the page
+    marks as its own. The page's own node comes first; a node nested in another that is not
+    the page (a related post in a listing, a comment) is never read, nor the organisation's
+    date or a bare `<time>`. A page that gives no date says so.
+  - **When:** every live run reads a few pages (at most 6 a run and 500 a day, a short pause
+    between them):
+    - a page never read, once (a published date does not change);
+    - a page whose sitemap date changed since its last read;
+    - a page whose last read failed, at most once a day;
+    - every page once in 30 days.
+
+    The pages are the sitemap's list and the 200 pages people read most in the last 7 days
+    that it does not list, never a feed, API or other not-a-page address. The sitemap's dates
+    are read again every 6 hours for this (the list Crawl health uses stays the day's first);
+    a page's new value is kept with its time. A read where more than half the pages get one
+    and the same new value keeps nothing: that sitemap stamps its build time. A page that
+    fails is recorded and the run goes on.
+  - **Skald's own request:** the request is `site-page-dates/1`, which Skald always counts as
+    its own, never as a visitor or a bot. Redirects are followed only on the site's own hosts.
+    A page behind a bot check or one that errors is "could not read", with the reason, and
+    keeps the sitemap's date.
+  - **Every date kept:** each value ever seen, with its time and where it came from (the
+    page's structured data, meta tags, date tag, or the sitemap), in two new history tables,
+    never pruned. When a site is turned on, the dates its sitemap history already holds are
+    copied in.
+  - **Where it shows:**
+    - Traffic › Pages, Pages by publish date: the page's own dates, marked "from the page".
+    - The page story: "Published 5 Nov 2024 (from the page's structured data)", every update
+      on the timeline with its time, and why a page could not be read.
+    - The Search query drawer: the page's published and last updated dates under Average
+      position, and a dashed mark on the position chart for each update.
+    - The page drawer (Traffic › Pages, select a page) has a new **Google Search** section:
+      the same dates; Search Console's clicks, impressions, CTR and average position against
+      the days before; a chart of impressions and position with the update marks; and the
+      page's top queries and countries. Google has no figures for today and is two or three
+      days late, so the section uses Google's own days (the last 28, or the drawer's period
+      when longer, up to 93) and says so. A day the page was below Google's top list is a gap,
+      never 0. A site without Search Console gets one line pointing to Settings.
+  - **Rules:** "published" is the website's page list's date, then the page's own, then the
+    first day seen. "Updated" is the website's, then the page's own modified date, then the
+    sitemap's. Changed in the last 30 days (Overview and Pages) follows the same rule.
+  - **Second counts:** `audit_page_dates.py` (new, run-daily) reads the stored rows by its own
+    SQL and works out every page's published, updated and update list again. The sitemap-date
+    audit takes the page's own date first, as the page does. The Search Console page audit
+    now also recounts each page's queries.
+  - **Who it affects:** sites where an admin turns Page dates on (one site first). Every other site sees nothing new except the Google Search section in the page
+    drawer, from the Search Console figures it already has. No traffic figure changes.
+  - **Upgrade:** history schema 16 (two new tables; the upgrade copies the file aside first).
+    Download the production backup before the deploy. The helper answers a new
+    `api/page-search`, which the image's nginx passes on. A server with its own nginx in front
+    of the helper adds `page-search` to its list of helper routes (docs/UPGRADING.md). Then
+    turn Page dates on for the sites wanted.
+  - **Page story:** a page older than Skald's logs (as its own publish date now often shows)
+    charts from the first counted day, and Compare this page starts there, with one line
+    saying so, instead of listing every day before the logs.
+  - **Checked:**
+    - Tests cover the HTML reading (each place, broken and future values, a bare `<time>`, a
+      listing with a related post), and the fetch rules (new, changed, retry, monthly, the
+      batch and the day cap, a redirect off the site, a bot check, a page that raises, a
+      locked history, an encoded path). They also cover the sitemap's build stamp and a date
+      going back, the state kept when the day's sitemap list is written, the schema upgrade,
+      the rows and both audits (published, updated, changes), the page drawer's answer (a
+      gap, the other spelling, no Search Console) and the page's words and marks in node.
+    - An independent review was done, and its findings were fixed.
+    - A local copy of the 26 Nov production data was used, with Page dates on for one site
+      only. 20 of its pages were read live (all dated, none blocked): a guide shows published
+      5 Nov 2024 06:42 UTC and updated 26 Nov 2026 05:42 UTC, both from the page. The sitemap
+      read kept 364 dates with their times.
+      audit_page_dates, audit_lastmod and audit_page_trends matched. The Search Console page
+      audit, with the new query recount, matched on all 14 sites with Search Console: 18,698
+      figures, 0 differences.
+    - The page drawer, the query drawer, Page story, Pages by publish date and the Settings
+      card were looked at in a browser, with no console error.
+
+- **Traffic: one Country / Source / Device filter for Visitors, Sources, Pages and Places &
+  devices (SKALD-62).** Palak asked for it on 26 Nov. On Traffic › Visitors, the Source,
+  Device and Country chips above "Each visit" narrowed only that one table. Picking USA there
+  did nothing on Sources, Pages or Places & devices, and those tabs could not cross their own
+  breakdowns (USA visitors by source).
+  - **The strip:** Visitors, Sources, Pages and Places & devices now sit in one shaded box on
+    the Traffic strip, with a filter mark. Places & devices moved up beside Pages.
+  - **The bar:** under the strip, one bar holds Country, Source and Device chips, each with its
+    visits in the period. A pick sets the address's own `country=`, `source=` and `device=`, the
+    same filters as the top-bar Filters button. So it stays from tab to tab, a link keeps it,
+    and these four tabs show it in the bar instead of as chips. The rows count together: with
+    USA picked, Source and Device count only USA visits.
+  - **Sources:** shows the matching visits' source types and campaigns.
+  - **Pages:** shows their landing pages.
+  - **Places & devices:** shows their devices, browsers, systems and countries. Cities still
+    follow a country picked on its own.
+  - **Visitors:** as before. Its list keeps only the New / Returning chips, because that is
+    known for the 7 days of kept visits only.
+  - **What the filter cannot narrow** is said in place and never shown as the whole site's
+    figure: social networks, referring sites, page views, Before and Change, the trend, the
+    page columns, and leads crossed with another dimension.
+  - **Compare** works on the filtered figures.
+  - **Where the figures come from:** for whole days, the server's compare (the visit records,
+    every visit with all its labels at once, kept 400 days). A new `landing_pages` breakdown in
+    its answer serves Pages (docs/DATA-CONTRACT-COMPARE.md). A page group asks its own
+    group's answer. For today, today's visits, used for a list only when they add up exactly
+    to today's own list. Without the server (the demo), the page's daily cube is used, and
+    the page says what it leaves out.
+  - **A new second count for the combinations.** The audit held each label's total in the
+    visit records (visitors by country, by device) but never their combinations, which this
+    filter now shows (USA on mobile). `audit_visit_combos.py`, run by `audit` and the daily
+    run, labels each visit with the audit's own labels and holds every combination of country,
+    landing page, source, device, browser, system and campaign to the stored rows. A test
+    swaps two visits' countries, so that every total still matches, and the audit withholds
+    the day. It adds one figure to each day's "figures recounted"; when combinations differ,
+    it names the first 20 and counts the rest.
+  - Agent files, Search, Retention, Time and Events are unchanged.
+  - **Who it affects:** everyone who uses Traffic. Nothing to do, and no stored figure
+    changes.
+  - **Checked:**
+    - A compare test pins the new landing-page split.
+    - A node test covers the check on today's visits, the server answer and its B, the
+      withheld answer, the browser fallback, the bar's counts, the strip and the three
+      filtered tabs.
+    - A local review build was run on a generated log of 12 days. Every filtered figure shown
+      (USA by source and device, USA on mobile, mobile by country, landing pages, today, B of
+      Compare) equals a count made directly from the generated visits. `audit --day` matched
+      on the days checked. Light, dark and phone width were looked at.
+    - On a copy of the 25 Nov production history, `landing_pages` was compared with the stored
+      readers by landing page one day at a time: 373 days on 21 sites, 9,998 named pages, no
+      difference.
+    - An independent review was done. Its findings were fixed: the page group, today's landing
+      pages, unknown counts shown as 0, Compare's B before the records began, the page story,
+      a stuck "Counting…", focus and screen-reader words, and the audit gap above.
+
+### Changed
+
+- **Yesterday is a button next to Today, and it shows yesterday from soon after midnight
+  (SKALD-61).** The period group is now Today · Yesterday · 7 days · 30 days · 90 days · More;
+  More keeps All time and Custom. Until now a day was stored only by the morning run (07:15
+  in the site's zone, about an hour for every site). So from midnight to about 08:15 New York
+  time, yesterday was "not collected" on every site. Seen live on 26 Nov at 02:40 EST: all 23
+  sites had 25 Nov missing and 0 visits for it. Yesterday showed nothing, 7, 30 and 90 days
+  each lost their last day (the visit list stopped on 24 Nov), and Overview's changes said
+  "Not compared". In India that window is 10:30 to about 18:45. A new scheduler job,
+  `close-day` at `SKALD_CLOSE_AT` (00:20; `off` stops it), runs run-daily's own check,
+  collect and audit for yesterday, then redraws the dashboard: no mail, no recount beside the
+  log, no network. The morning run is unchanged and counts the day again, taking in lines that
+  reached the server late; its count is the one kept. A day already stored whole and verified
+  is left alone. Just after midnight a remote sender's late lines can still land between the
+  collect and its audit: an audit that does not match is followed by one more count of the
+  whole day, and only a second mismatch leaves the day withheld. Until the morning run has
+  run, a withheld or missing yesterday is not a set-up problem in `doctor` (so not in the
+  01:00 summary mail), and a scheduled client report waits for the morning's count (a report
+  is never sent twice). Alerts that read the stored yesterday now see it from soon after
+  midnight instead of after 07:15. Yesterday's period line says when its count was made
+  ("counted 26 Nov 00:24 EST"). Before the day is stored, it says "not counted yet" instead
+  of "not collected".
+  Leads & sales names a whole-day period's days from the lead store, as its 7 days already
+  did: before, Yesterday said "0 whole days recorded, 1 not" for a day its own 7 days called
+  "whole days, verified". app.json's last day carries `counted_at`. Who: everyone. Do: Docker,
+  nothing (the job is on by default). Without Docker: add the `close-day` cron line
+  (DEPLOY.md section 5). No schema change, no recount. Checked: `tests/test_close_day.py` (a
+  day closed, audited and drawn; a second close leaves it alone; the morning run counts it
+  again with a late line; a mismatched audit counts the day once more; a day that does not add
+  up is not stored; doctor and client reports before the morning run; the scheduler's 00:20
+  and `off`), `tests/js/yesterday.mjs` (the bar, the words before and after the close, the Leads &
+  sales line), the full suite, and a local container with a set clock.
+
+- **Traffic › Agent files: one section per kind of file, and Copy + Open with the full
+  address on every file (SKALD-65).** Palak asked for it on 26 Nov. The page mixed every
+  kind of file together: one Needs a look list, one file list and one name table, narrowed
+  by a row of chips. In Needs a look and in the file list, a file's address had a copy icon
+  only, and it copied the path alone (`/blog/sitemap.xml`), while the page links beside it had
+  Copy and Open and copied the full address. Now each kind someone fetched has its own
+  section, in this order: Markdown copies, llms.txt, Sitemaps, robots.txt, agent cards, the OKF
+  bundle. Each section has its requests, the AI share, its files listed, who asked (the groups and
+  the busiest names), its own Needs a look and its own file list. robots.txt is one file, so
+  it is one line, with a note when it needs a look. Every file's address has Copy and Open,
+  as page links do: Copy writes `https://<site>/<path>` and Open opens the file in a new tab.
+  The cards now show robots.txt and Sitemaps apart, say how many files need a look, and a
+  click goes to the kind's section. The chips are gone. "Who fetches them" (all agent files)
+  moved to the bottom; its table is unchanged. Who it affects: everyone who opens Agent files. What to do:
+  nothing. Counting does not change and nothing is recounted. Checked with a new node test
+  (`tests/js/agent-files-page.mjs`: section order, figures, Needs a look per kind, Copy and
+  Open with the full address, robots.txt line, card jumps, page order, empty range, ranges
+  older than the 30 days files are kept, files only beyond the busiest 50, two robots.txt
+  spellings, the OKF bundle, an absolute-form address from the log), an independent review,
+  the full suite, and a local container with example.com data at 1440 px, 1280 px and phone
+  width. Fixed from the review before it was merged: a logged absolute-form address
+  (`GET http://other.example/llms.txt`) gets no Copy or Open, so a link never leaves the site;
+  "files" counts the files listed and says "not listed" rather than 0; robots.txt is one
+  line only when its requests and its answers cover the same days.
+
+### Fixed
+
+- **Events withheld every day on two sites: a page that closed before Skald answered (SKALD-15).**
+  Two sites have had every event day withheld since 16 and 17 Nov, so their Traffic › Events
+  showed no figures. Each day the audit found the spool 1 to 17 events
+  ahead of nginx's count: a form sent or a link out can close the page before the beacon helper
+  answers, and nginx then logs `499 -` (no 204, no site) for an event the helper had kept. 638
+  such lines since 12 Nov; on every day they outnumber the gap. The beacon location now has
+  `proxy_ignore_client_abort on`: nginx waits for the helper and logs its 204 and site, so the
+  two counts agree again. Also in docs/BEACON.md and DEPLOY.md for installs without the image.
+  - **Who:** every site with the tag; the two above most (their pages send events as they close).
+  - **What to do:** nothing with the image. A server set up from DEPLOY.md or docs/BEACON.md adds
+    the line to its `location = /traffic-beacon`, then `nginx -t` and a reload. Days before the
+    release stay withheld: their 499 lines name no site, so they cannot be counted back to one.
+  - **Checked:** a slow stand-in helper behind two nginx copies, clients closing after 0.3 s:
+    without the line every early close logged `499 -` though the helper kept it; with it,
+    `204 <site>`. `nginx -t` on the image's config; a test pins the line.
+
+- **Compare no longer shows the whole site's page views under a filter, and a page group's
+  compare is the group's own (SKALD-63).** Found while building SKALD-62.
+  - **Page views under a filter:** `GET <page>/api/compare` with a country, source, device or
+    any other visitor filter narrowed the visitors, but still answered `dimensions.pages` with
+    the whole site's page views. On the test data, `country=CA` gave 13 visitors beside every
+    visitor's page views, including a page only a visitor from the UK read. The same list fed
+    the MCP `compare` tool's "Pages that moved most". Under a visitor filter, `pages` is now
+    null ("cannot be split by these filters"); a page filter alone keeps its own page's views.
+  - **A page with another filter:** `page=` with another filter (country, say) quietly
+    answered the page's every visitor. It is now refused with a clear error, because a page's
+    figures are not split by a visitor's labels.
+  - **Page groups:** the Compare page (`tabs/versus.js`) asked `api/compare` at the site's own
+    address, so a page group's compare was the whole site's. Its fallback cube was kept once
+    for every group. Both now go under the group (`<group>/api/compare`,
+    `<group>/data/cube.json`). That page is not linked from the dashboard today (old `#compare`
+    links open the tabs with Compare on), so it mattered only if reopened. The demo now also
+    treats a group's helper address as one it never asks.
+  - **Who it affects:** anyone using the compare API or the MCP `compare` tool with a filter.
+    No stored figure changes. Nothing to do.
+  - **Checked:** compare tests (filtered page views null for country, source, device,
+    continent and landing; a page alone keeps its views; page plus a filter refused); a node
+    test (a group's address and cube; the demo asks nothing); the full suite.
+
 ## 2.58.0 (2026-11-25)
 
 Traffic › Agent files: who reads the files a site made for AI (SKALD-56); NeetoCal bookings

@@ -284,9 +284,13 @@ def _words(why: BaseException) -> str:
 
 
 def fetch(url: str, method: str = "GET", deadline: float | None = None,
-          max_bytes: int = MAX_BYTES, headers: dict | None = None) -> Answer:
-    """One request, checked as the module says; no redirect is followed."""
+          max_bytes: int = MAX_BYTES, headers: dict | None = None,
+          agent: str | None = None) -> Answer:
+    """One request, checked as the module says; no redirect is followed.
+    `agent`: another User-Agent than the site check's (page_dates.py's own)."""
     more = {"headers": headers} if headers else {}
+    if agent:
+        more["agent"] = agent
     scheme, host, port, target = check_url(url)
     addresses = resolve(host, port)
     last = None

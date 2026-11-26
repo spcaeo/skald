@@ -8,7 +8,7 @@ import * as S from "../state.js";
 import { link, drillRow } from "../drill.js";
 import { withUrl, copyIf, dimKind } from "../urlactions.js";
 import { info } from "./tiles.js";
-import { time as tzTime, sameAsSite, siteZone, city, daysNote } from "../tz.js";
+import { time as tzTime, stamp, sameAsSite, siteZone, city, daysNote } from "../tz.js";
 
 export function rangeWords(r) {
   if (r.kind === "today") return "Today so far";
@@ -46,11 +46,31 @@ export function periodWords(r, cov) {
     else if (r.inc) bits.push(`Last ${r.length} days including today, ${short(r.first)} to ${short(r.last)} (today so far)`);
     else bits.push(r.length === 1 ? long(r.first) : preset ? `Last ${r.length} whole days, ${short(r.first)} to ${short(r.last)}` : `${short(r.first)} to ${short(r.last)}, ${r.length} days`);
     if (cov) bits.push(cov.complete ? "every day whole and verified" : `${cov.ok} whole day${cov.ok === 1 ? "" : "s"} recorded, ${r.length - cov.ok} not`);
+    const when = countedWords(r);
+    if (when) bits.push(when);
   }
   const views = m ? [["all", "All pages"], ...(m.views || []).map((v) => [v.slug, v.name])] : [];
   bits.push((views.find(([k]) => k === (s?.view || "all")) || [null, "All pages"])[1]);
   if (daysNote()) bits.push(daysNote());
   return bits.join(" · ");
+}
+
+/* Yesterday's count, when it was stored (SKALD-61): "counted 26 Nov 00:24 EST". close-day
+   stores yesterday soon after midnight and run-daily counts it again in the morning, so the
+   line says which of the two counts the page shows. Only for a one-day range on yesterday. */
+export function countedWords(r) {
+  const d = r.length === 1 ? (r.days || [])[0] : null;
+  return d && d.counted_at && (d.state === "ok" || d.state === "partial") ? `counted ${stamp(d.counted_at)}` : "";
+}
+
+/* Yesterday not stored yet (SKALD-61): the minutes after midnight before close-day has
+   stored it, or a night it could not. Said as what it is, never "not collected". */
+function yesterdayWaits(m, r) {
+  const d = r.length === 1 ? (r.days || [])[0] : null;
+  if (!d || d.state !== "missing" || !m.today) return false;
+  const y = new Date(`${m.today}T12:00:00Z`);
+  y.setUTCDate(y.getUTCDate() - 1);
+  return d.day === y.toISOString().slice(0, 10);
 }
 
 // On a page group (view): its days begin where they were counted (Settings > Site > Views).
@@ -135,6 +155,11 @@ export function nothing(m, r, what = "figures") {
     if (L.state === "empty") return stateNote("No requests logged yet today.");
   }
   const days = r.days || [];
+  if (yesterdayWaits(m, r)) {
+    const note = stateNote(`Yesterday, ${long(r.first)}, is not counted yet. It is stored when the day closes after midnight, or at the latest by the morning run, which counts it again. Until it is stored, no ${what} are shown rather than zeros.`);
+    if (m.live && m.live.day === m.today && m.live.state === "ok") note.lastChild.append(" ", h("button", { type: "button", class: "btn", onclick: () => S.set({ range: "today" }) }, "Show today so far"));
+    return note;
+  }
   const partial = days.filter((d) => d.state === "partial").map((d) => `${short(d.day)}${d.partial ? ` (${d.partial})` : ""}`);
   const withheld = days.filter((d) => d.state === "withheld").length;
   const before = days.filter((d) => d.state === "before" || d.state === "missing").length;

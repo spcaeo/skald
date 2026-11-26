@@ -19,7 +19,7 @@ The honesty rules are the dashboard's own, carried in the data:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import live
@@ -172,6 +172,17 @@ def journey(j: dict, day: str | None = None) -> dict:
             "exit": j.get("exit", ""), "flags": flags}
 
 
+def _local(stamp: str, tz) -> str | None:
+    """A stored UTC time in the site's zone, ISO to the minute; None when unreadable."""
+    try:
+        when = datetime.fromisoformat(str(stamp))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when.astimezone(tz).isoformat(timespec="minutes")
+
+
 def _partial(entry: dict) -> str:
     bits = []
     if entry.get("partial_from"):
@@ -220,6 +231,10 @@ def build(history: History, key: str, site: str, tz, now: datetime, snap: dict |
                 item["first_touch"] = touch
             if entry["state"] == "partial":
                 item["partial"] = _partial(entry)
+        # Yesterday's count, when it was stored (SKALD-61): close-day soon after midnight,
+        # then run-daily in the morning; Yesterday's period line says which count it shows.
+        if d == anchor and entry.get("collected_at"):
+            item["counted_at"] = _local(entry["collected_at"], tz)
         days.append(item)
     out = {
         "version": VERSION, "site": site, "tz": str(tz),

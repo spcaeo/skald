@@ -48,6 +48,17 @@ positions      each query's and page's average position over the period, in
                  with fewer than two points}}
                  A bucket where the key had no row is null, never 0.
 
+earlier        the N days just before the period, for the tiles' change (SKALD-66):
+               whole or nothing, never a part of a period
+  state          "ok"; "too_long" (the two periods are longer than the 16 months
+                 Search Console keeps); "now_short" (the period itself is not whole:
+                 a day before the history or missing); "short" (a day of the earlier
+                 N is not stored: `missing` says how many)
+  first, last    the earlier N days
+  clicks, impressions, ctr, position   the engine's own daily totals summed (the
+                 position weighted by impressions), as the tiles sum the period
+  provisional    [day]: earlier days the engine may still change (normally none)
+
 opportunities  queries a page could win more clicks from, by two rules:
   "low_ctr"   shown at least MANY times (the larger of MANY[0] and MANY[1]
               per stored day), a click rate under LOW_CTR, and an average
@@ -165,6 +176,32 @@ def changes(stored: dict, finals: dict, last_final: str | None, n: int,
             "queries_now": len(cur), "queries_before": len(old), "folded_days": folded}
 
 
+# ---------------------------------------------------------------------- earlier
+
+def earlier(stored: dict, finals: dict, first: date, n: int, cov: dict) -> dict:
+    """The N days before the period, summed from each day's total; whole or nothing."""
+    if n >= max(PERIODS):
+        return {"state": "too_long"}
+    span = _span(first - timedelta(days=n), first - timedelta(days=1))
+    out = {"first": span[0], "last": span[-1]}
+    if cov["stored"] < cov["days"]:
+        return {**out, "state": "now_short"}
+    have = [d for d in span if "total" in (stored.get(d) or {})]
+    if len(have) < n:
+        return {**out, "state": "short", "missing": n - len(have)}
+    c = i = w = seen = 0
+    for d in span:
+        t = stored[d]["total"].get("total") or {}
+        c += t.get("clicks") or 0
+        i += t.get("impressions") or 0
+        if t.get("position") is not None and t.get("impressions"):
+            w += t["position"] * t["impressions"]
+            seen += t["impressions"]
+    return {**out, "state": "ok", "clicks": sd._clean(c), "impressions": sd._clean(i),
+            "ctr": _ctr(c, i), "position": _pos(w, seen),
+            "provisional": [d for d in span if not finals.get(d)]}
+
+
 # -------------------------------------------------------------------- positions
 
 def buckets(first: date, last: date, n: int) -> list[list[str]]:
@@ -248,7 +285,8 @@ def opportunities(stored: dict, first: date, last: date) -> dict:
 # --------------------------------------------------------------------- together
 
 def periods(stored: dict, finals: dict, summary: dict, full: bool = True) -> dict:
-    """{str(N): {"coverage", and with full "changes", "positions", "opportunities"}}
+    """{str(N): {"coverage", and with full "earlier", "changes", "positions",
+    "opportunities"}}
     for each period ending at the newest stored day."""
     if not summary.get("last"):
         return {}
@@ -260,6 +298,7 @@ def periods(stored: dict, finals: dict, summary: dict, full: bool = True) -> dic
         first = last - timedelta(days=n - 1)
         got = {"coverage": coverage(stored, finals, first, last, summary.get("first"))}
         if full:
+            got["earlier"] = earlier(stored, finals, first, n, got["coverage"])
             got["changes"] = changes(stored, finals, last_final, n, summary.get("first"))
             got["positions"] = positions(stored, finals, first, last, n)
             got["opportunities"] = opportunities(stored, first, last)

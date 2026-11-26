@@ -18,7 +18,8 @@ webhooks (Slack too). This adds a mail to each person on the site's team who wan
              open, closed); neither mails by itself any more (2.36: one mail per item and
              per site made 44 mails in a minute for one person). An item closes only when
              what would show it gone was read (SKALD-60, _found): never between midnight
-             and run-daily for want of yesterday, so the 01:00 summary keeps it
+             and the day's storing (close-day at 00:20, else run-daily) for want of
+             yesterday, so the 01:00 summary keeps it
   right away after every site of a live run or run-daily, right_away(): ONE mail per
              person with every item due on every site they chose "right away" for
   once       each person gets each item once; a reminder only while the item is still
@@ -360,7 +361,8 @@ def _found(config: dict, live_dir, history, site: str, snap: dict | None, day,
     """(the items open now, the kinds whose open items must stay open). Exposures come from
     today so far (the live snapshot) and yesterday, `day`, as collected; advisories from the
     stack's last check. An item not seen is closed only when every source that could show it
-    was read (SKALD-60). Between local midnight and run-daily, yesterday is not stored yet:
+    was read (SKALD-60). Between local midnight and close-day (00:20, SKALD-61) or, without
+    it, run-daily, yesterday is not stored yet:
     an exposure seen only yesterday would close at 00:00 and come back after run-daily, so
     the 01:00 summary missed it. Held the same: a withheld day, a live count that did not
     reconcile (`need_today`: run-daily has no live count of its own, so it reads the saved

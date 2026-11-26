@@ -21,13 +21,13 @@
 // A control that does not apply stays in its place, greyed, with the reason on hover and
 // to a screen reader (never silently ignored).
 
-import { h, n } from "../ui.js";
+import { h, n, long } from "../ui.js";
 import * as S from "../state.js";
 import { head, context } from "./common.js";
 import { info } from "./tiles.js";
-import { leadsOn } from "./leadfigs.js";
+import { leadsOn, convFile } from "./leadfigs.js";
 import { sourceLink } from "../ui/connect.js";
-import { headWords, openWords } from "./sa-period.js";
+import { headWords, openWords, periodDays, spanWords } from "./sa-period.js";
 import { daysNote } from "../tz.js";
 
 /* Today so far, beside a period that ends before today (2.23; since #32 only Yesterday and a
@@ -46,6 +46,20 @@ export function todayNote(m, s, r) {
     h("button", { type: "button", class: "linkish sa-today-go", onclick: () => S.set({ range: "today" }) }, "Show today (live)", h("span", { "aria-hidden": "true" }, " →")));
 }
 
+/* The period line of a Leads & sales tab on whole days (Yesterday, a custom period): its
+   days as the lead figures count them, from the lead store, not the log's days (SKALD-61).
+   Before, Yesterday said "0 whole days recorded, 1 not" from the log while the 7 days said
+   the same day was whole and verified. undefined: not a Leads & sales period of whole days. */
+export function leadsPeriod(m, s, r) {
+  if (!m || !r || r.kind !== "history" || r.live || S.sectionOf(s?.tab)?.key !== "sales" || !convFile(m)) return undefined;
+  const got = leadsOn(m, periodDays(m, r));
+  if (!got) return undefined;
+  const days = got.whole ? "every day whole and verified" : `${n(got.ok)} of ${n(got.of)} days recorded`;
+  // Its own dates, never "Last 7 days": a custom period of 7 days ending before today is not that.
+  const when = r.length === 1 ? long(r.first) : `${spanWords(r.first, r.last, m.today)}, ${n(r.length)} days`;
+  return [when, days, daysNote()].filter(Boolean).join(" · ");
+}
+
 let seq = 0;
 const uid = (p) => `${p}-${++seq}`;
 
@@ -55,7 +69,7 @@ const uid = (p) => `${p}-${++seq}`;
 export function tabHead(title, question, r, { help = "", more = "", period, source = "", action = null } = {}) {
   const { m, s } = context();
   // #32: a period that ends today names its days, today marked "so far" (sa-period.js).
-  const own = period ?? (r?.live && m?.today ? [headWords(r, m), daysNote()].filter(Boolean).join(" · ") : undefined);
+  const own = period ?? (r?.live && m?.today ? [headWords(r, m), daysNote()].filter(Boolean).join(" · ") : leadsPeriod(m, s, r));
   const top = head(title, r, null, { banner: false, period: own });
   const bar = top[0];
   if (help) bar.insertBefore(info(help, title, more), bar.querySelector(".period"));

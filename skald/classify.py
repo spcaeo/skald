@@ -133,8 +133,10 @@ AI_LIKELY_MANY = "(more than one)"
 # hourly as "site-version-check/1"; it used to land in bots on every site.
 # Insights' "Check again" (todo_check.py, 2.44) asks a to-do's addresses as
 # "site-todo-check/1": its 404s must never become lost pages of their own.
+# SKALD-64: page_dates.py reads a page's own dates as "site-page-dates/1".
 OWN_AGENTS = (("site-version-check/", "Skald (robots.txt check)"),
-              ("site-todo-check/", "Skald (to-do check)"))
+              ("site-todo-check/", "Skald (to-do check)"),
+              ("site-page-dates/", "Skald (page dates)"))
 
 # A person who followed a citation. Identified by where they came FROM, since
 # their user agent is an ordinary browser's.

@@ -14,6 +14,9 @@ with what mcp/tools_search.figures gives, over the last WINDOW stored days:
             complete (no "(all others)", nothing unattributed), else unknown
   countries (2.48) each of those pages' countries over the window, summed by SQL
             from the page_country rows, against the tool's list
+  queries   (SKALD-64, the page drawer shows them) each of those pages' QUERIES
+            largest queries over the window, summed by SQL from the query_page
+            rows ("<query><TAB><address>"), against the tool's list
   index     each address's newest answer, counted by status
 
 It shares only the table names, the status names and the window's rules.
@@ -25,6 +28,7 @@ from datetime import date, timedelta
 
 WINDOW = 28
 PAGES = 25
+QUERIES = 25                            # search/page_panel.TOP_QUERIES
 TOL = 0.011
 
 
@@ -128,6 +132,31 @@ def check(db, site: str) -> tuple[list[str], int]:
             if want is None or abs(want[0] - row["clicks"]) > TOL \
                     or abs(want[1] - row["impressions"]) > TOL:
                 problems.append(f"search_performance {site} {path} country {row['country']}: "
+                                f"tool {row['clicks']}/{row['impressions']}, recount {want}")
+    # The pages' queries.
+    pq: dict = {}
+    for key, c, i in db.execute(
+            "SELECT json_extract(r.value, '$[0]'), json_extract(r.value, '$[1]'), "
+            "json_extract(r.value, '$[2]') FROM search_days AS s, json_each(s.data, '$.rows') AS r "
+            "WHERE s.site = ? AND s.engine = 'google' AND s.kind = 'query_page' "
+            "AND s.day BETWEEN ? AND ?", (site, first.isoformat(), last.isoformat())):
+        query, _, url = str(key).partition("\t")
+        cell = pq.setdefault(_path(url), {}).setdefault(query, [0, 0])
+        cell[0] += c
+        cell[1] += i
+    for path in shown:
+        told = figures(db, site, "google", path, first, last, QUERIES).get("top_queries") or []
+        mine = pq.get(path) or {}
+        ranked = sorted(mine, key=lambda q: (-mine[q][0], -mine[q][1], q))[:QUERIES]
+        if [r["query"] for r in told] != ranked:
+            problems.append(f"search_performance {site} {path}: queries listed differ from "
+                            "the recount's")
+        for row in told:
+            n += 1
+            want = mine.get(row["query"])
+            if want is None or abs(want[0] - row["clicks"]) > TOL \
+                    or abs(want[1] - row["impressions"]) > TOL:
+                problems.append(f"search_performance {site} {path} query {row['query']!r}: "
                                 f"tool {row['clicks']}/{row['impressions']}, recount {want}")
     # The index counts.
     try:

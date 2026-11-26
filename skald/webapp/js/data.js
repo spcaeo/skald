@@ -25,7 +25,8 @@ export const color = (g) => `var(--g-${g})`;
 const cache = new Map();
 export async function getJSON(url, fresh) {
   // The demo has no helper: its answers are files beside the page, or there is none to ask.
-  if (DEMO.on && /^api\//.test(url)) { url = demoFile(url); if (!url) return null; }
+  // A page group's helper address (blog/api/compare, SKALD-63) is a helper address too.
+  if (DEMO.on && /^(?:[a-z0-9-]+\/)?api\//.test(url)) { url = demoFile(url); if (!url) return null; }
   if (!fresh && cache.has(url)) return cache.get(url);
   // no-cache: the browser keeps the file and asks again each time (If-None-Match), so an
   // unchanged file costs a 304 and a changed one is never shown stale (DEPLOY.md, Cache-Control).

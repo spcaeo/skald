@@ -38,6 +38,19 @@
 .se-spark { display: inline-block; line-height: 0; vertical-align: middle; }
 .se-poschart { margin: 4px 0 6px; }
 .se-poschart svg { display: block; width: 100%; max-width: 560px; height: auto; }
+/* SKALD-66: each tile's change against the days before; why a query is an opportunity. */
+.se-chg { font-weight: 600; flex-wrap: wrap; }
+.se-chg.up { color: var(--good); }
+.se-chg.down { color: var(--bad); }
+.se-chg.same { color: var(--ink-3); font-weight: 500; }
+.se-chg .was { font-weight: 500; color: var(--ink-3); }
+.se-against { margin: 8px 0 0; }
+.se-rules { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+.se-hit { font-weight: 700; color: var(--ink); background: color-mix(in srgb, var(--warn) 22%, transparent); border-radius: 4px; padding: 1px 5px; }
+td.se-why-c, th.se-why-c { min-width: 16em; max-width: 26em; white-space: normal; }
+.se-why { font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+/* SKALD-66: Time's busiest and quietest hours: the line under each figure stays on screen. */
+.tm-stats .tm-line { font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
 .se-send { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; background: var(--sunk); padding: 10px; border-radius: 8px; margin: 6px 0 0; }
 
 /* A line that sends the reader to the one place a figure lives now. */
@@ -76,13 +89,50 @@
 
 /* Traffic › Agent files (SKALD-56, js/tabs/tr-agentfiles.js). AI crawlers: the AI colour, lighter. */
 :root { --af-training: color-mix(in srgb, var(--g-answer_engines) 55%, var(--surface)); }
-.af-kpis { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-.af-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0 0 var(--sp-5); }
-.af-chip { border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); border-radius: 999px;
-  padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-.af-chip:hover { color: var(--ink); border-color: var(--ink-3); }
-.af-chip.on { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); }
-.af-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.af-kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.kpis.af-kpis .kpi { flex-basis: 140px; }   /* seven cards on one row at 1280 px and wider */
+/* SKALD-65: a kind's card scrolls to its section; one section per kind of file. */
+.kpi.af-jump { font: inherit; color: inherit; text-align: left; border: 0; border-radius: 0; cursor: pointer; }
+.kpi.af-jump:hover { background: var(--sunk); }
+.kpi.af-jump:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.af-kw { font-size: 12px; color: var(--warn); font-weight: 600; display: flex; gap: 6px; align-items: center; margin-top: 3px; }
+.af-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+.af-sec { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); scroll-margin-top: 120px; }
+.af-sh { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); align-items: flex-start; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--rule); }
+.af-st { flex: 1 1 320px; min-width: 0; }
+.af-st .sub { margin: 2px 0 0; }
+.af-st h2:focus { outline: none; }
+.af-st h2:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.af-hfs { display: flex; gap: var(--sp-5); text-align: right; }
+.af-hf b { display: block; font-family: var(--round); font-size: 17px; font-weight: 680; font-variant-numeric: tabular-nums; }
+.af-hf span { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.af-hf-w b { color: var(--warn); }
+.af-sb { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.af-sb > .af-part:last-child { margin-bottom: 0; }
+.af-sb h3 { font-size: 13px; margin: 0 0 var(--sp-1); display: flex; gap: 6px; align-items: center; }
+.af-sb .sub { margin: 0 0 var(--sp-2); }
+.af-who { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-5); margin: 0 0 var(--sp-4); }
+.af-busy { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.af-busy li { background: var(--sunk); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+.af-busy b { font-variant-numeric: tabular-nums; }
+.af-one { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, .7fr)); border: 1px solid var(--rule); border-radius: var(--r); }
+.af-one.go { cursor: pointer; }
+.af-one.go:hover { background: var(--sunk); }
+.af-one-c { padding: var(--sp-2) var(--sp-3); min-width: 0; }
+.af-one-c + .af-one-c { border-left: 1px solid var(--rule); }
+.af-one-v { font-weight: 600; margin-top: 2px; }
+/* The file's Copy and Open show when the pointer is anywhere on its cell, as in a table. */
+.af-one-c:hover > .af-one-v > .ua-host > .ua:not(.ua-gone) { opacity: 1; pointer-events: auto; }
+.af-note { display: flex; gap: var(--sp-2); align-items: flex-start; margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--rule)); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); border-radius: var(--r); }
+.af-note .af-dot { margin-top: 6px; }
+.af-small { font-size: 12px; margin: var(--sp-2) 0 0; }
+@media (max-width: 767px) {
+  .af-who { grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+  .af-hfs { gap: var(--sp-4); text-align: left; }
+  .af-one { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .af-one-c:nth-child(3) { border-left: 0; }
+  .af-one-c:nth-child(n+3) { border-top: 1px solid var(--rule); }
+}
 .af .band { margin: var(--sp-3) 0 var(--sp-2); }
 .af-path { display: inline-block; min-width: 16ch; max-width: 46ch; font-size: 12.5px; overflow-wrap: anywhere; }
 .af-ans { white-space: nowrap; }
@@ -97,3 +147,23 @@
 .af-fv { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .af-part { margin: 0 0 var(--sp-5); }
 .af-part h3 { font-size: 14px; margin: 0 0 var(--sp-2); }
+
+/* Traffic's shared filter bar (SKALD-62, tabs/tr-filter.js): under the strip of the four tabs
+   that share it. The chips are the visit list's own (.vq, app.css). */
+.tf { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2) var(--sp-5); margin: -4px 0 14px;
+  padding: 10px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+.tf .vq { margin: 0; }
+.tf-tag { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-3); }
+.tf-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: var(--sp-2);
+  max-width: 300px; font-size: 12.5px; color: var(--ink-3); text-align: right; }
+.tf-side p { margin: 0; }
+.tf-x { font-size: 11px; opacity: .85; }
+.tf-none { font-size: 12px; color: var(--ink-3); }
+.tf .tf-more { border-style: dashed; }
+.tf-list { padding-left: 69px; }        /* under the Country chips: .vq-l's width and gap */
+.tf-list[hidden] { display: none; }
+@media (max-width: 760px) {
+  /* A phone: each row of chips scrolls sideways, as the visit list's did (app.css). */
+  .tf { grid-template-columns: minmax(0, 1fr); padding: 10px; }
+  .tf-side { align-items: flex-start; text-align: left; max-width: none; }
+}

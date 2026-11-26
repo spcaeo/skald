@@ -16,6 +16,7 @@ What is pinned:
 - agent_files.json: the days, files only for the last 30 days, today; a
   view says whole site only;
 - the range sums in agent-files-sum.js (node);
+- the page drawn section-wise, one section per kind (node, SKALD-65);
 - the recount shares only agent_files' name lists and classify's names.
 """
 from __future__ import annotations
@@ -274,6 +275,15 @@ class TestTheRangeSums(unittest.TestCase):
         out = subprocess.run(["node", str(script)], capture_output=True, text=True, cwd=str(ROOT))
         self.assertEqual(out.returncode, 0, out.stderr + out.stdout)
         self.assertIn("ok", out.stdout)
+
+    def test_the_page_section_wise(self):
+        """SKALD-65: one section per kind (owner's order), Needs a look inside each, Copy and
+        Open with the full address on every file, robots.txt one line, cards jump, no chips,
+        Who fetches them at the bottom (tests/js/agent-files-page.mjs)."""
+        script = (ROOT / "tests" / "js" / "agent-files-page.mjs")
+        out = subprocess.run(["node", str(script)], capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(out.returncode, 0, out.stderr + out.stdout)
+        self.assertIn("agent-files-page: all passed", out.stdout)
 
 
 class TestTheRecountStandsApart(unittest.TestCase):

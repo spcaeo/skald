@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.59.0: one Country / Source / Device filter for four Traffic tabs; Search figures up or down and why each opportunity; why the Retention curve moves; when to release; every event on Events; each page's own dates and Google figures; Yesterday from soon after midnight** ([changelog](CHANGELOG.md#2590-2026-11-26)).
 - **2.58.0: Traffic › Agent files shows who reads the files a site made for AI; NeetoCal bookings; security items no longer close at midnight; set-up steps name the site as it was added; "Visits count as people" reads the saved file paths** ([changelog](CHANGELOG.md#2580-2026-11-25)).
 - **2.57.0: Google Analytics on Overview › Today with more of its own figures and a drawer; AI training counts pages with files apart; Overview's AI card split by why the AI came; a compact Requests per minute chart** ([changelog](CHANGELOG.md#2570-2026-11-24)).
 - **2.56.1: a missing picture in a site's own asset folder no longer withholds the day; a withheld day no longer sends a failure mail that calls it a crash** ([changelog](CHANGELOG.md#2561-2026-11-23)).

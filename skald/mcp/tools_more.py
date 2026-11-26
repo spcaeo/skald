@@ -142,9 +142,11 @@ def _custom(ctx, site, view, args):
                                                     "just before A, as many as A has."},
               "b_to": {**TO_ARG, "description": "B's last day."},
               "filters": {"type": "object", "additionalProperties": {"type": "string"},
-                          "description": "Optional, e.g. {\"country\": \"CA\"}: page, "
-                                         "country, continent, source, assistant, device, "
-                                         "browser, os, campaign, landing."}}))
+                          "description": "Optional, e.g. {\"country\": \"CA\"}: country, "
+                                         "continent, source, assistant, device, browser, os, "
+                                         "campaign, landing; or page alone (a page's figures "
+                                         "are not split by the others). Page views are null "
+                                         "under a filter on the visitors."}}))
 def compare_tool(ctx, args):
     from .. import compare
     site = ctx.site(args.get("site"))

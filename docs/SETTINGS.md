@@ -84,6 +84,7 @@ user (`skald accounts`); it is for settings that apply to every site of the inst
 | `site.not_pages_off` | Sites (Not pages) | entries of the not-a-page list counted as pages again: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, `sitemap_page` (none) | admin | site | `site.not_pages_off` |
 | `site.not_pages_extra` | Sites (Not pages) | up to 20 of the site's own: `/path`, `/prefix*` or `?key`, not `/` alone (none) | admin | site | `site.not_pages_extra` |
 | `site.script_posts` | What counts (Not forms) | up to 20 POST paths the site's own pages send by themselves, not forms: `/path` or `/prefix*`, not `/` alone (none) | admin | site | `site.script_posts` |
+| `site.page_dates` | Sites (Page dates) | read each page's own published and updated dates from its HTML (page_dates.py, SKALD-64): new pages once, again when the sitemap says a page changed, every page monthly; at most 500 pages a day (off) | admin | site | `site.page_dates` |
 | `site.logo.source` | Sites (Logo) | auto, upload, letter (auto) | admin | site | `site.logo_source` |
 | `site.logo.color` | Sites (Logo) | `#1d4ed8`, `#0f766e`, `#9a6400`, `#17212b` (one picked from the name) | admin | site | `site.logo_color` |
 | `beacon.visitor_ids` | Sites (Script tag) | true / false (false) | admin | site | `beacon.visitor_ids` |
@@ -545,6 +546,11 @@ security:
 - **Kept:** nothing written. Each answer is cached in memory for an hour (5 minutes when the
   site did not answer); the limits are in memory. The address typed is never logged; once an
   hour the helper writes one line of counts to stderr.
+
+Yesterday is stored soon after midnight by the day's close (`skald close-day`; Docker
+`SKALD_CLOSE_AT`, 00:20, `off` stops it; without Docker its cron line, DEPLOY.md section 5),
+and counted again by the morning's `run-daily`, whose count is kept. A client report waits for
+the morning's count.
 
 Each person's own security mail (Security > Alerts, "Your security alerts") goes in the
 daily summary by default (`skald summary-mail`, 01:00, `SKALD_SUMMARY_AT`; one mail per person

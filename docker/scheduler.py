@@ -4,6 +4,10 @@
     live        every SKALD_LIVE_MINUTES minutes (2), and once at start
     run-daily   at SKALD_DAILY_AT (07:15) in the site's time zone; on failure,
                 one `notify-failure` mail (at most one per 12 hours)
+    close-day   at SKALD_CLOSE_AT (00:20; "off" turns it off) in the same zone:
+                yesterday checked, collected, audited and drawn, so it shows from
+                soon after midnight, not only after run-daily (SKALD-61,
+                day_close.py). run-daily still counts it again in the morning.
     backup      at SKALD_BACKUP_AT (03:30) in the same zone; on failure, the same
     reports     every SKALD_REPORTS_MINUTES minutes (15; 0 turns it off): the client
                 reports whose time has come (`skald reports --due`; each report keeps
@@ -182,7 +186,7 @@ class Scheduler:
     def __init__(self, config: str, tz: str, live_minutes: int, daily_at: str, backup_at: str,
                  report_minutes: int = 15, search_hours: int = 0, search_at: str = "01:40",
                  answers_minutes: int = 0, summary_at: str | None = None,
-                 tools_hours: int = 0, tools_at: str = "02:10"):
+                 tools_hours: int = 0, tools_at: str = "02:10", close_at: str | None = None):
         self.config = config
         ti = [sys.executable, str(APP / "bin/skald"), "--config", config]
         self.ti = ti
@@ -191,6 +195,10 @@ class Scheduler:
             self.jobs.append(Job("live", ti + ["live"], lambda t: next_every(t, live_minutes)))
         self.jobs.append(Job("run-daily", ti + ["run-daily"],
                              lambda t: next_daily(t, daily_at, tz), notify=True))
+        if close_at:
+            # No failure mail: run-daily counts the same day again at daily_at and mails then.
+            self.jobs.append(Job("close-day", ti + ["close-day"],
+                                 lambda t: next_daily(t, close_at, tz)))
         self.jobs.append(Job("backup", ti + ["backup"],
                              lambda t: next_daily(t, backup_at, tz), notify=True))
         if report_minutes > 0:
@@ -310,13 +318,17 @@ def site_timezone(config: str) -> str:
     return str(setting(load_config(Path(config)), "report", "timezone", "UTC"))
 
 
-def summary_time(raw: str | None) -> str | None:
-    """SKALD_SUMMARY_AT: "01:00" when unset, None for "off"; a bad time raises."""
-    text = str(raw if raw is not None else "01:00").strip() or "01:00"
+def daily_time(raw: str | None, default: str = "01:00") -> str | None:
+    """A daily job's time that "off" turns off: SKALD_SUMMARY_AT ("01:00" when unset),
+    SKALD_CLOSE_AT ("00:20"). None for "off"; a bad time raises."""
+    text = str(raw if raw is not None else default).strip() or default
     if text.lower() in ("off", "0", "no", "false"):
         return None
     parse_hhmm(text)
     return text
+
+
+summary_time = daily_time               # its first name (2.36), kept for callers
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -338,15 +350,16 @@ def main(argv: list[str] | None = None) -> int:
     tools_at = os.environ.get("SKALD_TOOLS_AT") or "02:10"
     parse_hhmm(tools_at)
     answers = int(os.environ.get("SKALD_AI_ANSWERS_MINUTES") or 15)
-    summary = summary_time(os.environ.get("SKALD_SUMMARY_AT"))
-    say(f"times in {tz}: run-daily {daily}, backup {backup}, live every {minutes} min, "
+    summary = daily_time(os.environ.get("SKALD_SUMMARY_AT"))
+    close = daily_time(os.environ.get("SKALD_CLOSE_AT"), "00:20")
+    say(f"times in {tz}: close-day {close or 'off'}, run-daily {daily}, backup {backup}, live every {minutes} min, "
         f"client reports every {reports} min, search sync every {search_hours} h from {search_at}, "
         f"tools sync every {tools_hours} h from {tools_at}, "
         f"AI answers every {answers} min, summary mail {summary or 'off'}")
     return Scheduler(a.config, tz, minutes, daily, backup, report_minutes=reports,
                      search_hours=search_hours, search_at=search_at,
                      answers_minutes=answers, summary_at=summary, tools_hours=tools_hours,
-                     tools_at=tools_at).run()
+                     tools_at=tools_at, close_at=close).run()
 
 
 if __name__ == "__main__":

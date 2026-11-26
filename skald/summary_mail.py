@@ -155,8 +155,8 @@ def more_link(config: dict, part: str, kind: str | None = None) -> str:
 
 def upto(site: str, out) -> str | None:
     """The last whole day the site's to-dos count (todos.json window.last), or None. The
-    mail goes out at 01:00, before that morning's run counts yesterday, so this is usually
-    two days before the mail's own day: the mail says so."""
+    mail goes out at 01:00: after close-day (00:20, SKALD-61) this is yesterday; without
+    it, before that morning's run counts yesterday, two days back. The mail says which."""
     from .refresh_server import data_file
     path = data_file(Path(out) if out else None, site, None, "todos")
     if path is None:

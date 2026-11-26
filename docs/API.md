@@ -46,8 +46,11 @@ none):
 ```
 
 Two more answers come from the history, with the dashboard login only (no
-token): `GET <page>/api/compare?a=FROM..TO&b=FROM..TO` (any two date ranges)
-and `GET <page>/api/page?path=/x` (one page's story). [DATA-CONTRACT-COMPARE.md](DATA-CONTRACT-COMPARE.md) and
+token): `GET <page>/api/compare?a=FROM..TO&b=FROM..TO` (any two date ranges; filters such as
+`&country=CA`, or `&page=/x` on its own, never both, and page views are null under a
+filter on the visitors; a page group's is `<page>/<group>/api/compare`) and
+`GET <page>/api/page?path=/x` (one page's story), and `GET <page>/api/page-search?path=/x&days=28`
+(one page's Search Console figures, SKALD-64). [DATA-CONTRACT-COMPARE.md](DATA-CONTRACT-COMPARE.md) and
 [DATA-CONTRACT-PAGE-LIFECYCLE.md](DATA-CONTRACT-PAGE-LIFECYCLE.md) have their fields. A third, `GET <page>/api/realtime`, is
 what Overview > Real time polls every 15 seconds (the live snapshot's visits and the newest
 log lines' requests per minute, no address and no user agent;

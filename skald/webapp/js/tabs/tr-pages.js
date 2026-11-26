@@ -32,6 +32,8 @@ import { periodLine } from "../period-line.js";
 import { urlFold } from "../ui/fold.js";
 import { help } from "../ui/help.js";
 import { pageSums, perVisit, leftShare, workScore, workLists, SORTS, sortOf, changedSince, pageKey, OTHER, WORK, LEFT_WORDS } from "../page-figs.js";
+import { filtered } from "../narrow.js";
+import { waiting, totalsOf, howNote, notSplit } from "./tr-narrowed.js";
 
 const TOUCH = "landing page: the page recorded with the lead (its first visit's, when known)";
 const few = (title) => h("span", { class: "few", title }, "-");
@@ -45,7 +47,7 @@ export const pageCols = (sums) => (sums ? [
     fmt: (_, x) => (x.left == null ? few("Not recorded for these days") : `${pct1(x.one, x.visits)}${x.atLeast ? "+" : ""}`), csv: (x) => (x.left == null ? "" : x.left.toFixed(4)) },
   { key: "reads", label: "AI reads", num: true, title: "Pages read by AI assistants answering a user (ChatGPT-User, Perplexity-User, Claude-User and others): one assistant, one page, once in 30 seconds, as AI & bots › Assistants counts them", sort: (x) => x.reads,
     fmt: (v) => (v == null ? few("Not recorded for these days") : n(v)) },
-  { key: "chg", label: "Changed", type: "date", title: "The page's change date: the website's own, else your sitemap's “last changed”", sort: (x) => x.chg,
+  { key: "chg", label: "Changed", type: "date", title: "The page's change date: the website's own, else the page's own modified date, else your sitemap's “last changed”", sort: (x) => x.chg,
     fmt: (v) => (v ? short(v) : few("No change date")) },
   { key: "work", label: "Needs work", hide: true, title: "Improve the page: many visits, nearly all left at once, no form. Both: search finds it, most leave at once.", sort: (x) => x.work,
     fmt: (_, x) => x.workWhy || "", csv: (x) => x.workWhy || "" },
@@ -127,6 +129,7 @@ export default function pages(m, s) {
     else details.push(fixed("Page leaderboard, with change and each page's detail", ownPeriod(m.x.pages.period, r), leaderboard(m, s, r)));
   }
   const sub = `${s.path ? ` whose path ${s.pathmode === "starts" ? "starts with" : "contains"} ${s.path}` : ""}${s.chgfrom ? `, changed since ${short(s.chgfrom)}` : ""}`;
+  if (filtered(s)) return [...out, narrowed(m, s, r, c, keep, sub)];
 
   if (t.by) {
     const lb = leadsBy(m, s, r, t, "landing");
@@ -157,6 +160,28 @@ export default function pages(m, s) {
     goTo(S.hashFor({ ...s, tab: "ai/assistants", dd: "" }), "Pages AI assistants fetched are under", "AI & bots › Assistants"),
     goTo(S.hashFor({ ...s, tab: "site/notfound", dd: "" }), "Pages people could not find (404) are under", "Site › Not found")));
   return out;
+}
+
+/* With Traffic's filter bar on (SKALD-62): the landing pages of the matching visits only
+   (narrow.js, the visit records' landing page). Leads, Pages per visit, Left after one page and
+   AI reads are each page's whole figures, and page views are not kept by country, source or
+   device, so they are left out and said so; the page and "changed since" filters still apply. */
+function narrowed(m, s, r, c, keep, sub) {
+  return waiting(m, s, r, c, (N, cn) => {
+    const nt = totalsOf(N);
+    if (!nt.by.landing) return [notSplit("Landing pages", "the landing pages are not in the crossed figures this page has for this period."), howNote(m, s, N)];
+    const rows = compareRows(cn, leadRows(nt.by.landing, null, { dim: "landing", keep, whole: nt.readers }), cn.bT?.by?.landing, { dim: "landing", keep, whole: nt.readers });
+    const g = grid({ ns: "lp", caption: "Landing pages", file: fileName("landing-pages", r), columns: landingColumns(false, cn, null),
+      rows, sortKey: "v", placeholder: "Search landing pages", empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page for these visits." });
+    g.classList.add("tr-grid", "tr-paths", "lead-tbl");
+    return [
+      h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Landing pages"),
+        help("Landing pages", { text: [`The first page each matching visitor read${sub}. Select a page for its story since it was published (every visitor's).`, compareNote(cn)?.textContent].filter(Boolean), guide: "getting-started" })),
+        g, h("p", { class: "note" }, "Pages per visit, Left after one page, AI reads and leads are each page's figures for every visitor, so they are left out under this filter."),
+        howNote(m, s, N)),
+      notSplit("Pages read, the page leaderboard and pages by publish date", "page views are not kept by country, source or device."),
+    ];
+  });
 }
 
 // What the page columns cover, in one line.

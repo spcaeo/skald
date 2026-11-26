@@ -178,4 +178,64 @@ const period = {
   assert.match(T.noFigures({ status: { last_sync: "2026-10-25T10:00:00Z", ok: false } }, "google"), /sync is failing/);
 }
 
+// ---- SKALD-66: each tile against the days before, whole periods only
+{
+  assert.deepEqual(R.changeOf("clicks", 131, 148), { dir: "down", arrow: "▼", text: "11%", words: "down 11%" });
+  assert.equal(R.changeOf("impressions", 264931, 130704).text, "103%");
+  assert.equal(R.changeOf("clicks", 833, 785).text, "6.1%", "under 10% keeps one decimal");
+  assert.equal(R.changeOf("clicks", 100, 100).dir, "same");
+  assert.equal(R.changeOf("clicks", 5, 0).text, "new: none before", "never a % over 0");
+  assert.equal(R.changeOf("ctr", 0.0012, 0.0010).text, "0.02 pts", "CTR in points, never a % of a %");
+  const better = R.changeOf("position", 7.0, 8.5);
+  assert.deepEqual([better.dir, better.text], ["up", "1.5 better"], "a smaller position is better, drawn green");
+  assert.equal(R.changeOf("position", 8.1, 7.6).dir, "down");
+  assert.equal(R.changeOf("clicks", null, 4), null);
+  const e = { state: "ok", first: "2026-11-12", last: "2026-11-18", clicks: 148, impressions: 130704, ctr: 0.0011, position: 7.4 };
+  const el = R.changeEl("clicks", 131, e, (v) => String(v));
+  assert.match(text(el), /down 11%\. 11% · before 148/);
+  assert.ok(el.classList.contains("down"));
+  assert.equal(R.changeEl("clicks", 131, { state: "short", first: "2026-11-12", last: "2026-11-18", missing: 2 }, String), null, "no change from part of a period");
+  assert.equal(R.earlierLine(e, "7 days", 3), "Each change is against the 7 days just before: 12 Nov to 18 Nov. The newest 3 days are provisional, so the newer figures may still change.");
+  assert.match(R.earlierLine({ state: "too_long" }, "16 months"), /keeps 16 months, so there is no earlier 16 months/);
+  assert.match(R.earlierLine({ state: "short", first: "2026-05-01", last: "2026-07-29", missing: 12 }, "3 months"), /not all in the history \(12 days missing\)\. A change is never worked out from part of a period\./);
+  assert.match(R.earlierLine({ state: "now_short" }, "3 months"), /not all in the history/);
+  assert.match(R.earlierLine(undefined, "7 days", 0, "bing"), /Bing's figures are not set against/);
+  assert.equal(R.earlierLine(undefined, "7 days", 0, "google"), null, "an older Google file says nothing, never Bing's words");
+  // CTR from the clicks and impressions, not the stored one rounded to 4 places
+  const ctrEl = R.changeEl("ctr", 6 / 596296, { state: "ok", first: "2026-11-12", last: "2026-11-18", clicks: 148, impressions: 130704, ctr: 0.0011 }, T.ctrPct);
+  assert.match(text(ctrEl), /before 0\.11%/);
+  assert.match(text(ctrEl), /down 0\.1 percentage points/, "(0.000010 - 0.001132): 0.11 points down, from the clicks");
+  assert.deepEqual([T.ctrPct(0.000494), T.ctrPct(0.0011), T.ctrPct(0.034), T.ctrPct(0.25)], ["0.05%", "0.11%", "3.4%", "25%"], "a small CTR keeps two decimals");
+}
+
+// ---- SKALD-66: why a query is an opportunity, and the figures that put it there
+{
+  go("#traffic/search?sesec_view=opps");
+  const el = R.opportunities(period, { open: () => {}, label: "28 days" });
+  assert.match(text(el), /Rarely clicked: shown 140 times or more in 28 days, at position better than 8/);
+  assert.match(text(el), /Positions 8-20: at position 8 to 20 and shown 30 times or more/);
+  const low = rowsOf(el)[1];
+  assert.match(text(low), /Shown 696 times \(140 or more\), already high at position 4\.2 \(better than 8\), but clicked 2 times \(0\.29%, under 1%\)/);
+  const rules = { many: 450, some: 90, high: 8, low_ctr: 0.01, near: [8, 20] };
+  assert.match(R.whyOpp({ rule: "low_ctr", impressions: 50000, clicks: 498, ctr: 0.01, position: 7.96 }, rules), /position 7\.96 \(better than 8\), but clicked 498 times \(0\.996%, under 1%\)/, "never rounded onto the rule's line");
+  assert.match(R.whyOpp({ rule: "near", impressions: 500, clicks: 1, ctr: 0.002, position: 19.96 }, rules), /At position 19\.96 \(8 to 20/);
+  assert.match(R.whyOpp({ rule: "near", impressions: 500, clicks: 1, ctr: 0.002, position: 8.02 }, rules), /At position 8\.02 \(8 to 20/);
+  assert.match(R.whyOpp({ rule: "low_ctr", impressions: 596296, clicks: 6, ctr: 0, position: 7.2 }, { many: 450, high: 8, low_ctr: 0.01 }), /clicked 6 times \(<0\.01%, under 1%\)/, "never 0.0% beside its clicks");
+  assert.equal(low.querySelectorAll(".se-hit").length, 3, "impressions, CTR and position met the rule");
+  const near = rowsOf(el)[0];
+  assert.match(text(near), /At position 14\.7 \(8 to 20: the foot of page one or page two\) and shown 807 times \(30 or more\)/);
+  assert.equal(near.querySelectorAll(".se-hit").length, 2, "position and impressions met the rule");
+}
+
+// ---- SKALD-66: new and lost said plainly
+{
+  const words = R.changesWords({ ...period.changes, folded_days: 56 }, period);
+  assert.equal(words[0], "New: a query that showed the site from 27 Sep to 24 Oct and on no day from 30 Aug to 26 Sep. Lost: a query that showed it in the earlier days and not since.");
+  assert.equal(words[1], "Whole days only: this ends 24 Oct, the newest final day, so it differs from the figures above (to 25 Oct).");
+  assert.match(words[2], /top 500 queries a day, and on 56 days of these some queries were below that line/);
+  assert.deepEqual(R.changesWords({ state: "short" }, period), []);
+  go("#traffic/search?sesec_view=changes");
+  assert.match(text(R.changes(period, { open: () => {}, label: "28 days" })), /New: a query that showed the site from 27 Sep/);
+}
+
 console.log("search reports: all passed");

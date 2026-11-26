@@ -219,8 +219,10 @@ def search_performance(ctx, args):
     return _text(out), out
 
 
-def figures(db, site: str, engine: str, path: str | None, first: date, last: date) -> dict:
-    """The figures search_performance gives (audit_search_pages recounts them)."""
+def figures(db, site: str, engine: str, path: str | None, first: date, last: date,
+            top_queries: int = TOP_QUERIES) -> dict:
+    """The figures search_performance gives (audit_search_pages recounts them);
+    `top_queries`: how many of a page's queries (the page drawer asks for more)."""
     from ..search import days as sd
     stored, finals = sd.read(db, site, engine, first, last)
     span = _span(first, last)
@@ -245,7 +247,8 @@ def figures(db, site: str, engine: str, path: str | None, first: date, last: dat
         out["not_in_page_table"] = unknown
         out["totals"] = None if len(unknown) == len(have) else _figs(acc)
         out["totals_partial"] = bool(unknown)
-        out["top_queries"] = page_queries(stored, have, path) if engine == "google" else []
+        out["top_queries"] = page_queries(stored, have, path, top_queries) \
+            if engine == "google" else []
         if engine == "google":
             out["countries"], out["countries_not_stored"] = page_countries(stored, have, path)
     else:

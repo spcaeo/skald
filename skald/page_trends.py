@@ -179,7 +179,7 @@ def figures(history, site: str, daily: list[dict], anchor: date, config: dict, f
         out_days.append(row)
         flat.append({"day": d, "ok": ok, "landings": blobs.get("landings") if ok else None,
                      "crawl": blobs.get("crawl_health") if ok else None})
-    dates = lifecycle.page_dates(config, folder)
+    dates = lifecycle.page_dates(config, folder, history, site.split("::", 1)[0])
     return {"first_day": first_day, "days": out_days,
             "changed": changed(dates, flat, anchor), "same_day": same_day(dates)}
 

@@ -47,6 +47,8 @@ Skald reads Search Console with a **service account**: a robot Google account th
 
 Pick **7 days**, **28 days**, **3 months** or **16 months**. Sort any table by a column; click a row for its detail.
 
+**Up or down.** Under each figure, an arrow says how it moved against the same number of days just before (for 7 days, the 7 days before), and what it was then: clicks and impressions by %, CTR in points, average position in places (a smaller position is better, so a fall is green, "better"). A line under the figures names the earlier days. The change is shown only when both periods are whole in the history: **16 months** has none (Search Console keeps 16 months, so there is no earlier 16 months), and a period whose earlier days are not all stored says so instead of showing a change from part of it. When the newest days are provisional, the line says the newer figures may still change. Bing's figures are not compared.
+
 - **Queries**: what people searched for. Google leaves out rare queries to protect searchers, so the queries add up to less than the total. The table shows that gap as **Not given by Google**, never hidden.
 - **Pages**: your pages in the results. Google counts these per page, so this table has its own total.
 - **Countries**, **Devices**, **Search appearance**: how and where you were shown, under Google's own names.
@@ -69,17 +71,34 @@ Queries where a page could win more clicks. Two simple rules, over the period yo
 | **Rarely clicked** | It was shown at least 100 times, or 5 times a day if that is more; under 1% of the people who saw it clicked; and its average position is better than 8. | It already ranks high. A clearer title and description for the page. |
 | **Positions 8-20** | Its average position is from 8 to 20, and it was shown at least 30 times, or once a day if that is more. | It is at the foot of page one or the top of page two. More on the page about that query. |
 
+**Why it is listed.** Each row says why, in its own numbers, for example *Shown 50,000 times (450 or more), already high at position 7.2 (better than 8), but clicked 6 times (0.01%, under 1%)*. The figures that met the rule are highlighted in the row: impressions, CTR and position for **Rarely clicked**, impressions and position for **Positions 8-20**. The two rules, with this period's own numbers, are listed above the table. So yes, many impressions are part of it, but never alone: a query must also rank high and be rarely clicked, or sit at positions 8 to 20.
+
 Each query is linked to the **page** it showed most, by impressions. Skald keeps each query's page from this release on; for days synced before it, the page says **Not known** until the history is fetched again (Settings › This site › Leads & tools › Search Console & Bing, with 3 or 16 months). Choose **Rarely clicked** or **Positions 8-20** to see one rule; click a query for its detail.
 
 The exact numbers are behind the **?** next to the heading.
 
+When the page's dates are known (Settings › Sites › Page dates, see [The page's own dates](crawl-health.md#the-pages-own-dates)), the query's drawer shows the page's **published** and **last updated** dates under Average position, and its position chart marks each update of the page: hover a mark for the date and where it comes from. Without them, your sitemap's change dates are marked.
+
+## A page's Google figures in its drawer
+
+On [Traffic > Pages](#traffic/pages), select a page: its drawer has a **Google Search** section with Search Console's clicks, impressions, CTR and average position for that page, each against the same number of days before, a chart (bars: impressions; line: average position, 1 at the top) with a mark for each of the page's updates, and the page's top queries (click one for its drawer) and countries.
+
+- **Google's own days.** Google has no figures for today and is two or three days late, so this section shows its own days (the last 28, or the period you picked when it is longer, up to 93), in Pacific Time, and says so.
+- **A gap is not 0.** On a day the page was below the top pages Google gave, its figures are not known: the chart leaves a gap and the sums leave the day out, and the note says how many days.
+- Not connected yet? The section says so and links to Settings.
+
 ## New and lost queries
 
-**New**: a query in Search Console's query table in the period and on no day of the same number of days before it. **Lost**: the other way round. Pick **New** or **Lost**.
+**New**: a query that showed your site in the period and on no day of the same number of days before it: people started finding you with it. **Lost**: a query that showed your site in the earlier days and not since. Pick **New** or **Lost**. The section says this above the list, with its own days.
 
 - **Whole days only.** Both stretches end at the newest **final** day, so the provisional days are left out, and every day of both must be in the history. When they are not, the section says which day it needs and where the history starts.
 - **16 months** has no "before": Search Console keeps 16 months, so there is nothing to compare it with.
-- Google gives each day's top queries (Skald keeps 500 a day) and leaves rare and personal queries out. A query just below that line can look new or lost when it only moved across it.
+- **Its days differ from the figures above.** Because it ends at the newest final day, its period ends two or three days before the figures at the top of the tab, and the section says so.
+- Google gives each day's top queries (Skald keeps 500 a day) and leaves rare and personal queries out. A query just below that line can look new or lost when it only moved across it; the section says on how many days that line was reached.
+
+## Chart markers
+
+A dashed line with a ◆ on a day chart marks something that happened that day: a release of your site, a Skald update, a change to the counting rules, a recount of past days. A line under the chart says so; point at the day to see what it was, for example *History recounted: Skald recounted 14 past days from the logs*. Settings can hide the markers.
 
 ## Position tracking
 
@@ -153,4 +172,4 @@ What matters is the ratio over time. When it moves sharply, the panel says so: t
 
 ## How Skald checks these figures
 
-These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. It also works the opportunities, the new and lost queries and the positions out again by that separate road, and compares them with what the tab shows, and does the same for each page's figures and the index status counts that search_performance gives. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.
+These figures are Google's and Bing's, not Skald's count, so Skald cannot recount them from the log. Instead, every day it adds up every stored table again by a separate road, checks the tables against the day's total, and asks Google again for one day's total. It also works the opportunities, the new and lost queries, the positions and the earlier days the figures are set against out again by that separate road, and compares them with what the tab shows, and does the same for each page's figures and the index status counts that search_performance gives. If they disagree, the tab says so. Skald's own side of the cross-check (visits from search) is counted twice, like every Skald figure.

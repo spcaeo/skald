@@ -128,10 +128,10 @@ export function cityShort(label) {
 }
 
 // ------------------------------------------------------------ quick filters
+// New or returning only: Source, Device and Country moved up to Traffic's shared filter bar
+// (SKALD-62, tr-filter.js), which narrows this list and three more tabs. New or returning stays
+// here: it is known for the visits kept (7 days) only, so no other tab could follow it.
 const GROUPS = [
-  ["source", "Source", (j) => j.source || "Unknown", 0],
-  ["device", "Device", (j) => j.device || "Unknown", 0],
-  ["country", "Country", (j) => j.country || "Unknown", 5],
   ["visitor", "Visitor", (j) => visitor(j), 0],
 ];
 function quick(list, onChange) {
@@ -144,12 +144,9 @@ function quick(list, onChange) {
     if (top) vals = vals.slice(0, top);
     if (vals.length < 2) continue;
     const btns = vals.map(([v, k]) => {
-      const words = key === "country" ? country(v) : shown(v);
-      const icon = key === "country" ? flagEl(v)
-        : key === "device" ? mark("device", v) : key === "source" ? mark("source", v) : null;
-      const b = h("button", { type: "button", class: "vq-c", "aria-pressed": "false" }, icon, h("span", null, words), h("span", { class: "vq-n" }, n(k)));
-      b.setAttribute("aria-label", `${key === "country" ? countryName(v) : words}: ${n(k)} visits`);
-      if (key === "country") b.title = countryName(v);
+      const words = shown(v);
+      const b = h("button", { type: "button", class: "vq-c", "aria-pressed": "false" }, h("span", null, words), h("span", { class: "vq-n" }, n(k)));
+      b.setAttribute("aria-label", `${words}: ${n(k)} visits`);
       b.addEventListener("click", () => {
         const on = picked[key] !== v;
         picked[key] = on ? v : null;

@@ -6,6 +6,7 @@
     skald dashboard  [--out DIR]
     skald mail       --daily|--weekly [--dry-run] [--save-html PATH]
     skald run-daily  [--dry-run]
+    skald close-day  (yesterday soon after midnight: check, collect, audit, dashboard)
     skald live       [--out DIR]
     skald export     [--from D --to D] [--table T] [filters] [--format csv|json]
     skald audit      [--day yesterday|YYYY-MM-DD] [--log PATH ...] [--withhold]
@@ -21,7 +22,7 @@ failure; cron then sends one failure mail for a failure only (failmail.py).
 
 live is the near-real-time entry, safe every few minutes: today so far, into
 a snapshot file beside the history and the dashboard's "Today so far" panel.
-It never writes the history and never mails (see live.py).
+It never writes a day to the history (page_dates.py adds pages' own dates), never mails.
 
 Relative paths in the config (history.db, dashboard.out) are taken relative
 to the config file, so cron does not need a particular working directory.
@@ -416,9 +417,9 @@ def cmd_export(ctx: Context) -> int:
 def cmd_live(ctx: Context) -> int:
     """Snapshot today so far, then redraw the dashboard with it.
 
-    Writes only the snapshot file and the dashboard. Never the history,
-    never mail. Exits 1 when today's figures do not reconcile (the panel then
-    says withheld), 0 otherwise - including "nothing logged yet today".
+    Writes the snapshot file, the dashboard and pages' own dates (page_dates.py);
+    never a day of the history, never mail. Exits 1 when today's figures do not
+    reconcile (the panel then says withheld), 0 otherwise - "nothing logged yet" too.
     """
     from . import requests_feed
     from .dimensions import hosts_of as dim_hosts_of
@@ -498,8 +499,9 @@ def _after_live(ctx: Context, snap: dict, feed) -> None:
     except Exception as why:            # noqa: BLE001
         ctx.err(f"robots: {why}")
     try:
-        from . import sitemap           # the site's sitemaps, at most hourly
+        from . import page_dates, sitemap   # the site's sitemaps, at most hourly
         sitemap.refresh(ctx.config, ctx.live_dir)
+        page_dates.live_step(ctx)           # SKALD-64: pages' own dates; never raises
     except Exception as why:            # noqa: BLE001
         ctx.err(f"sitemap: {why}")
     _favicons(ctx, snap, limit=10)
@@ -741,33 +743,8 @@ def cmd_audit(ctx: Context) -> int:
 
 def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
     day = yesterday(ctx.tz, ctx.now)
-    held: dict[str, tuple] = {}
-
-    def do_check() -> int:
-        from .multisite import WAITING, waiting
-        held["figures"] = figures = ctx.analyse(day)
-        if waiting(ctx.config, ctx.db_path, figures[0].lines_read):
-            ctx.waiting = True
-            ctx.out(f"{ctx.site}: {WAITING}; nothing to collect for {day}, "
-                    "nothing stored or mailed")
-            return 0
-        found = ctx.problems(figures)
-        if found:
-            _report_all(ctx, day, found)
-            # Figures that do not reconcile are held back by design; no log
-            # line at all for the day is a failure (logging or format broke).
-            if not any(p.what == "nothing parsed" for _, ps in found for p in ps):
-                ctx.by_design = "the figures do not reconcile"
-            return 1
-        ctx.out(f"check ok: {_describe(day, figures[0])}")
-        return 0
-
-    def do_collect() -> int:
-        with ctx.history() as history:
-            got = collect_day(ctx, history, day, figures=held["figures"])
-        from .retention import after_collect  # the cohorts (audit_retention recounts)
-        after_collect(ctx)
-        return 0 if got == "ok" else 1
+    from .day_close import core_steps   # check, collect, audit: shared with close-day
+    from . import events                # in-page events (beacon); never stops the run
 
     def do_verify_bots() -> int:
         # Fetch the crawler owners' lists and look up DNS before counting, so
@@ -780,26 +757,15 @@ def daily_steps(ctx: Context) -> list[tuple[str, Callable[[], int]]]:
             ctx.err(f"verify-bots: {type(why).__name__}: {why}; counting with the stored lists")
         return 0
 
-    def do_audit() -> int:
-        code = audit_day(ctx, day, withhold=True)
-        if code == 1:                   # the recount disagrees: withheld
-            ctx.by_design = "the audit's recount does not match; the day is withheld"
-        return code
-
     from .bot_verify import ranges_dir
     steps = [("verify-bots", do_verify_bots)] if ranges_dir(ctx.config) else []
-    steps += [
-        ("check", do_check),
-        ("collect", do_collect),
-        ("audit", do_audit),
-    ]
+    steps += core_steps(ctx, day)
     # Second counts beside the log's (the leads recount, audit_more.DAILY):
     # they never stop the run; cmd_run_daily reads their outcome at the end.
     from . import audit_more
     from .conversions import jobs       # the lead DB and outgoing webhooks, first of all
     steps = jobs.daily_steps(ctx) + steps
     steps += audit_more.daily_steps(ctx, day)
-    from . import events                # in-page events (beacon); never stops the run
     if events.enabled(ctx.config):
         steps.append(("events", lambda: events.daily(ctx, day)))
     if setting(ctx.config, "dashboard", "favicons", False) in (True, "true"):

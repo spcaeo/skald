@@ -21,6 +21,9 @@ kept, the opportunity thresholds) and the query_page key's separator.
   opportunities  query sums by SQL, the thresholds applied; the page by SQL
              over query_page, the most shown (then most clicked, then first
              by address)
+  earlier    the N days before the period (the tiles' change, SKALD-66): only
+             when the period itself is whole; then every earlier day must have
+             a `total` row, summed by SQL (position weighted by impressions)
 
 A problem is a figure the tab shows that this road does not give.
 """
@@ -122,11 +125,41 @@ def recount(db, site: str) -> dict:
             "missing": [d for d in days if d not in totals and d >= history_first],
             "provisional": [d for d in have if not day_final.get(d)],
             "empty": bool(have) and not sum(totals[d] or 0 for d in have)}}
+        got["earlier"] = _earlier(db, site, n, first, len(have) == n, day_final)
         got["changes"] = _changes(db, site, n, last_final, day_final, with_query)
         got["positions"] = _positions(db, site, n, first, last)
         got["opportunities"] = _opportunities(db, site, days, with_query, with_qp)
         out[str(n)] = got
     return out
+
+
+EARLIER = """
+SELECT COUNT(*), SUM(json_extract(data, '$.total.clicks')),
+       SUM(json_extract(data, '$.total.impressions')),
+       SUM(CASE WHEN json_extract(data, '$.total.position') IS NOT NULL
+                 AND json_extract(data, '$.total.impressions') > 0
+                THEN json_extract(data, '$.total.position') * json_extract(data, '$.total.impressions')
+                ELSE 0 END),
+       SUM(CASE WHEN json_extract(data, '$.total.position') IS NOT NULL
+                 AND json_extract(data, '$.total.impressions') > 0
+                THEN json_extract(data, '$.total.impressions') ELSE 0 END),
+       GROUP_CONCAT(day)
+  FROM search_days WHERE site = ? AND engine = 'google' AND kind = 'total' AND day BETWEEN ? AND ?
+"""
+
+
+def _earlier(db, site, n, first, whole, day_final) -> dict:
+    if n >= max(PERIODS):
+        return {"state": "too_long"}
+    a, b = _day(first - timedelta(days=n)), _day(first - timedelta(days=1))
+    if not whole:
+        return {"state": "now_short", "first": a, "last": b}
+    k, c, i, w, s, days = db.execute(EARLIER, (site, a, b)).fetchone()
+    if k < n:
+        return {"state": "short", "first": a, "last": b, "missing": n - k}
+    return {"state": "ok", "first": a, "last": b, "clicks": c or 0, "impressions": i or 0,
+            "ctr": _ctr(c or 0, i or 0), "position": _r(_p(w or 0, s or 0)),
+            "provisional": sorted(d for d in (days or "").split(",") if not day_final.get(d))}
 
 
 def _listed(sums: dict) -> list:
@@ -216,6 +249,7 @@ def compare(shown: dict, counted: dict) -> list[str]:
         for f in ("stored", "before_history", "missing", "provisional", "empty"):
             if cov.get(f) != b["coverage"][f]:
                 out.append(f"{where}: coverage {f} {cov.get(f)!r}, recount {b['coverage'][f]!r}")
+        out += _compare_earlier(where, a.get("earlier"), b["earlier"])
         out += _compare_changes(where, a["changes"], b["changes"])
         out += _compare_positions(where, a["positions"], b["positions"])
         out += _compare_opps(where, a["opportunities"], b["opportunities"])
@@ -228,6 +262,28 @@ def _rows_differ(shown_rows, counted_rows) -> str | None:
                                 and _close(x[4], _r(y[3]))):
             return f"{x[0]!r}: shown {x[1:3] + [x[4]]}, recount {[y[1], y[2], _r(y[3])]}"
     return None
+
+
+def _compare_earlier(where, a, b) -> list[str]:
+    if a is None:
+        return [f"{where}: the earlier period is not shown, recount {b['state']!r}"]
+    if a.get("state") != b["state"] or (a.get("first"), a.get("last")) != (b.get("first"), b.get("last")):
+        return [f"{where}: earlier period {a.get('state')!r} {a.get('first')}..{a.get('last')}, "
+                f"recount {b['state']!r} {b.get('first')}..{b.get('last')}"]
+    if b["state"] == "short" and a.get("missing") != b["missing"]:
+        return [f"{where}: earlier period misses {a.get('missing')} days, recount {b['missing']}"]
+    if b["state"] != "ok":
+        return []
+    ctr_a, ctr_b = a.get("ctr"), b["ctr"]
+    same_ctr = (ctr_a is None and ctr_b is None) or (
+        ctr_a is not None and ctr_b is not None and abs(ctr_a - ctr_b) < 0.0001)
+    if not (_close(a.get("clicks"), b["clicks"]) and _close(a.get("impressions"), b["impressions"])
+            and _close(a.get("position"), b["position"]) and same_ctr) \
+            or a.get("provisional") != b["provisional"]:
+        return [f"{where}: earlier period {a.get('clicks')}/{a.get('impressions')}/{a.get('ctr')}/"
+                f"{a.get('position')} provisional {a.get('provisional')}, recount {b['clicks']}/"
+                f"{b['impressions']}/{ctr_b}/{b['position']} provisional {b['provisional']}"]
+    return []
 
 
 def _compare_changes(where, a, b) -> list[str]:

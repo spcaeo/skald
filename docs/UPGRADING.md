@@ -207,6 +207,22 @@ helper, change `api/(?:v1/(?:[a-z_]+)?|compare|page)` to
 [DEPLOY.md](../DEPLOY.md)), then `nginx -t` and reload. Without it nothing breaks: Real time
 shows requests from the live count and says so.
 
+**One more route to add by hand (SKALD-64): `api/page-search`, when you run nginx yourself.**
+The Docker image has it already. The page drawer on Traffic › Pages asks the helper for one
+page's Search Console figures at `/traffic/<site>/api/page-search`. In the same location,
+change `|page|` to `|page|page-search|` in the `api/(?:...)` group (the whole line is in
+[DEPLOY.md](../DEPLOY.md)), then `nginx -t` and reload. Without it nothing breaks: the drawer
+leaves its Google Search section out. The same release moves history to schema 16 (two new
+tables for the pages' own dates); take a backup first, as for every schema change.
+
+**One line to add by hand (SKALD-15, 2.59.0): `proxy_ignore_client_abort on;` in
+`location = /traffic-beacon`, when you run nginx yourself.** The Docker image has it already.
+A page that closes before the beacon helper answers (a form sent, a link out) was logged as
+`499 -` for an event the helper kept, so the events audit found the spool a few lines ahead of
+nginx and withheld the day. With the line nginx waits for the helper and logs its 204 and site.
+Add it beside the location's `access_log` (the whole location is in [DEPLOY.md](../DEPLOY.md)),
+then `nginx -t` and reload. Days withheld before stay withheld: their 499 lines name no site.
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the

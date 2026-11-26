@@ -221,7 +221,15 @@ def _dates(ctx) -> dict:
         except (OSError, ValueError):
             kept = {}
     meta = ((ctx.config or {}).get("report") or {}).get("pages_meta")
-    return expected(kept if isinstance(kept, dict) else {}, meta)
+    own = {}
+    try:                                 # SKALD-64: a page's own modified date comes first
+        from .audit_page_dates import own_modified
+        from .window import zone
+        with ctx.history() as history:
+            own = own_modified(history.db, ctx.site, zone(ctx.config))
+    except Exception:                    # noqa: BLE001 - no history here: none
+        own = {}
+    return expected(kept if isinstance(kept, dict) else {}, meta, own)
 
 
 def daily(ctx, day) -> list[str] | None:
