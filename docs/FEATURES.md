@@ -117,8 +117,10 @@ the [changelog](../CHANGELOG.md) says when each one came.
   error share, distinct paths and re-crawls, per assistant, search crawler and bot. Open one for
   its detail: requests by day, pages, statuses, the share from its owner's checked addresses,
   countries, user agents and when it was last seen.
-- Google's AI Mode told apart: a click from Google that carries AI Mode's `udm=50` reads
-  "google.com (AI Mode)", still under Search engine. Only when Google says so, never guessed.
+- Google's AI Mode label, ready for the day Google marks its clicks: a click from Google that
+  carries `udm=50` reads "google.com (AI Mode)", still under Search engine. Google does not send
+  it today: real AI Mode clicks arrive as an ordinary google.com visit or with no referrer, so
+  they count as Search engine or Direct and no visit has the label yet (tested 27 Nov 2026).
 - AI clicks that lost their referrer, estimated: a direct visit to a page an assistant fetched
   minutes before is shown as "likely" from that assistant, on AI & bots and on Leads & sales.
   Kept apart, never added to any count.

@@ -24,6 +24,7 @@ const GLYPH = {
   home: S('<path d="M2.5 7.2L8 2.5l5.5 4.7v6.3h-11z"/><path d="M6.5 13.5V10h3v3.5"/>'),
   tag: S('<path d="M2 2.5h5.3l6.7 6.7-4.8 4.8L2.5 7.3z"/><circle cx="5.2" cy="5.3" r=".9"/>'),
   arrow: S('<path d="M2.5 8h9M8.5 4.5L12 8l-3.5 3.5"/>'),
+  hidden: S('<path d="M1.8 8s2.3-4 6.2-4 6.2 4 6.2 4-2.3 4-6.2 4-6.2-4-6.2-4z"/><path d="M2.8 13.2L13.2 2.8"/>'),
   page: S('<path d="M4 1.8h5.5L13 5.3v8.9H4z"/><path d="M9.5 1.8v3.5H13"/>'),
   book: S('<path d="M2.5 3c2-.8 3.8-.6 5.5.6 1.7-1.2 3.5-1.4 5.5-.6v10c-2-.8-3.8-.6-5.5.6-1.7-1.2-3.5-1.4-5.5-.6z"/><path d="M8 3.6v10"/>'),
   scales: S('<path d="M8 2.5v11M4.5 13.5h7M3 5h10M3 5l-1.5 4h3zM13 5l-1.5 4h3z"/>'),
@@ -46,6 +47,8 @@ const KNOWN = [
   [/grok/i, "Gk", "#14171a"],
   [/claude|anthropic/i, "A", "#c96442"],
   [/perplexity/i, "P", "#20808d"],
+  // Google's fetch proxy names Gemini but is not credited to it (SKALD-51): Google's mark.
+  [/google fetch proxy/i, "G", "#4285f4"],
   [/gemini|bard/i, "Ge", "#4285f4"],
   [/google|googlebot|adsbot/i, "G", "#4285f4"],
   [/copilot/i, "Co", "#0078d4"],
@@ -87,7 +90,7 @@ const OS = [
   [/windows/i, "windows", "#0078d4"], [/mac/i, "command", "#555555"], [/ios|ipad|iphone/i, "i", "#555555"], [/android/i, "An", "#3ddc84"],
   [/chrome ?os/i, "C", "#1a73e8"], [/linux|ubuntu/i, "L", "#333333"],
 ];
-const SOURCE = { "AI assistant": "sparkle", "Search engine": "search", "Social media": "people", Email: "mail", "Other website": "link", "This site": "home", "Tagged link": "tag", "Returned from payment": "money", "Direct or unknown": "arrow" };
+const SOURCE = { "AI assistant": "sparkle", "Search engine": "search", "Social media": "people", Email: "mail", "Other website": "link", "This site": "home", "Tagged link": "tag", "Returned from payment": "money", "Hidden referral": "hidden", "Direct or unknown": "arrow" };
 const DEVICE = { desktop: "desktop", mobile: "mobile", tablet: "tablet", bot: "bot" };
 const PAGE = [
   [/^\/?$|^\/ca\/?$|^\/ca\/fr\/?$/, "home"], [/pricing|credits|plans?\b/i, "money"], [/compare|alternative|-vs-|\/vs\//i, "scales"],

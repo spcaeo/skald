@@ -25,6 +25,7 @@ import { botDetail } from "./tabs/crawlercost.js";
 import { drillFlow } from "./tabs/flowview.js";
 import { readsSection, foldReads, foldWords } from "./tabs/ai-reads.js";
 import { pageSearch } from "./tabs/page-search.js";
+import { rowFor, titleOf } from "./page-dates.js";
 
 const STATUS_CLASS = (code) => (code >= 500 ? "5xx" : code === 404 ? "404" : code >= 400 ? "4xx" : code >= 300 ? "3xx" : "2xx");
 const landing = (j) => j.landing || j.trail?.[0]?.path || j.trail?.[0]?.[0] || "";
@@ -379,11 +380,13 @@ export function drillView(m, s) {
   const rq = h("div");
   body.append(h("section", { class: "s" }, h("h3", null, "Recent requests behind it"), rq));
   requestPart(m, s, chain, rq);
+  // A page's title (SKALD-70), when the page index knows it: under the path, in the subtitle.
+  const pageTitle = (dim === "path" || dim === "landing") && chain.length === 1 ? rowFor(m, value)?.title || titleOf(value) : null;
   const d = openDrawer({
     // A page: copy and open in a new tab beside its name (urlactions.js).
     title: dim === "path" || dim === "landing" ? withUrl(label(dim, value), value, { cls: "ua-after" }) : label(dim, value), head: [back, crumbs(m, s, chain)], className: "dd", key: "drill", scope: "page", still: wasOpen,
     subtitle: chain.length > 1 ? `${chain.map(([d, v]) => `${DIMS[d].name.toLowerCase()} ${said(d, v)}`).join(", and ")}. Select any value below to narrow further.`
-      : `${DIMS[dim].name}. Select any value below to narrow further.`,
+      : `${pageTitle ? `“${pageTitle}”. ` : ""}${DIMS[dim].name}. Select any value below to narrow further.`,
     body, onClose: () => { wasOpen = false; if (S.read().dd) closeDrill(); },
   });
   wasOpen = true;

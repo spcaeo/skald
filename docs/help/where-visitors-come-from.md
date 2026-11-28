@@ -61,6 +61,21 @@ The payment pages are `checkout.stripe.com` and PayPal (`paypal.com`, `www.paypa
 
 This is different from **Direct, likely checkout or payment return** below: that one is a visit with no referrer at all, guessed from its address.
 
+## Hidden referral: a click whose source was hidden
+
+Some visitors clicked a link on another website, but that website hid its address: a link marked `noreferrer`, a site that sends no referrer at all, some Google AI Mode clicks. With no referrer, they used to land in **Direct**, mixed in with people who typed your address.
+
+Modern browsers say which it was in a request header, `Sec-Fetch-Site`. When your log records it, Skald splits them:
+
+- **Hidden referral**: no referrer and no campaign tag, and the browser said the click came from another site. Skald doesn't know which site, and never calls it AI Mode.
+- **Direct**: typed, a bookmark, or a link opened from an app (mail, Slack, WhatsApp, the ChatGPT app). Links opened from apps look like typed visits, so Direct still holds them.
+
+A visit stays **Direct** when the header isn't there: an older browser (Safari before 16.4), most bots, a site served over plain HTTP, a Vercel or Netlify log drain (they don't pass request headers), and every day before your log started recording it. Days already counted keep their figures. If your site's log is Caddy's, it already recorded the header: only counting those days again (`backfill --force`) would split them.
+
+A Hidden referral never starts a new visit in the middle of one, just like Direct, so your visit totals don't change. **Likely from AI assistants** looks at both Direct and Hidden referral visits; **Direct, likely** below explains the Direct row only.
+
+To turn it on, the log must record the header. On nginx or Apache, add one field at the end of the log format, as [the ingest guide](https://github.com/spcaeo/skald/blob/main/docs/INGEST.md#hidden-referrals-sec-fetch-site) shows. The Skald Cloudflare Worker sends it from its newest version on. Caddy's JSON log already has it. Each day is counted twice, by two separate roads; a day where they disagree is withheld.
+
 ## Direct, likely: what a Direct visit probably was
 
 Some Direct visits say more in their own request, or in the log just before them. Skald shows those as **likely** a cause, never as fact. Each Direct visit gets one reason at most, checked in this order:

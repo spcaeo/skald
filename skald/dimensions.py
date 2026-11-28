@@ -13,7 +13,9 @@ What these labels honestly are:
     self-reported. Brave sends Chrome's agent and is counted as Chrome; an
     iPad asking for the desktop site sends a Mac's and is counted as a Mac.
   * The source is the referrer of the first page read, often stripped:
-    "Direct" includes every visitor whose referrer was withheld.
+    "Direct" includes every visitor whose referrer was withheld, except a
+    click from another site the browser marked so (Sec-Fetch-Site:
+    cross-site), which is "Hidden referral" (hidden_names.py).
   * A campaign is what the landing URL's utm_ tags (or an ad click id) say,
     nothing more.
 
@@ -27,6 +29,7 @@ from collections import Counter
 from datetime import tzinfo
 from urllib.parse import parse_qsl
 
+from .hidden_names import CROSS_SITE, HIDDEN
 from .payment_names import CHECKOUT_KEY, PAYMENT_HOSTS, PAYMENT_REFERRER, RETURNED
 from .urlhost import host_of
 
@@ -126,7 +129,8 @@ def agent_labels(agent: str) -> tuple[str, str, str]:
 # --------------------------------------------------------------- sources
 
 SOURCE_TYPES = ["AI assistant", "Search engine", "Social media", "Email",
-                "Other website", "This site", "Tagged link", RETURNED, "Direct or unknown"]
+                "Other website", "This site", "Tagged link", RETURNED, HIDDEN,
+                "Direct or unknown"]
 
 # Google's web search by its real domains (google.com, google.de,
 # google.co.uk, google.com.au), never by the word: com.google.android.<app>
@@ -224,8 +228,11 @@ def referrer_host(referrer: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
-def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> str:
-    """Where a reader came from, as one of SOURCE_TYPES."""
+def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str],
+                fetch_site: str | None = None) -> str:
+    """Where a reader came from, as one of SOURCE_TYPES. `fetch_site` is the
+    page view's Sec-Fetch-Site (Hit.navigation_site): with no referrer and no
+    tag, "cross-site" makes it a Hidden referral (hidden_names.py)."""
     if cited:
         return "AI assistant"
     host = referrer_host(referrer)
@@ -253,18 +260,22 @@ def source_type(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> st
     for key, kind, _ in _CLICK_IDS:
         if tags.get(key):
             return kind
+    if fetch_site == CROSS_SITE:
+        return HIDDEN
     return "Direct or unknown"
 
 
 # Sources that continue a visit: a page reached from the site itself, with
-# no referrer and no tag (a reload, a typed address, an app), or back from a
+# no referrer and no tag (a reload, a typed address, an app, or a click
+# whose referrer was hidden: owner's decision, 27 Nov 2026), or back from a
 # payment page (the buyer paid and came back: the same visit, its source
 # kept). Any other source - an assistant, a website, a search engine,
 # social, email, a tagged link - is an outside arrival.
-INSIDE_SOURCES = ("This site", "Direct or unknown", RETURNED)
+INSIDE_SOURCES = ("This site", "Direct or unknown", HIDDEN, RETURNED)
 
 
-def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> tuple | None:
+def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str],
+                fetch_site: str | None = None) -> tuple | None:
     """Where one page view came from: (source, referrer, campaign) labels,
     as a reader is labelled. Two page views come from the same place when
     these are equal. None when the site's own hosts are not known (no
@@ -272,7 +283,7 @@ def page_origin(referrer: str, url: str, cited: bool, own_hosts: set[str]) -> tu
     cannot then be told from one from outside, so it never splits a visit."""
     if not own_hosts:
         return None
-    return (source_type(referrer, url, cited, own_hosts),
+    return (source_type(referrer, url, cited, own_hosts, fetch_site),
             referrer_label(referrer, own_hosts, url), campaign(url))
 
 

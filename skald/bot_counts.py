@@ -19,6 +19,9 @@ day's "bots" extras blob (docs/DATA-CONTRACT-BOTS.md, bots.json):
   too_fast       the same three for browser-like requests moved to bots
                  because their visit read pages faster than a person can
                  (too_fast.py)
+  agent_lists    the agent-only crawler lists the day was counted with
+                 (bot_verify.AGENT_LISTS: Claude-User's own addresses, SKALD-52);
+                 absent on days counted before, or without crawler checks
 
 `check()` holds the sums: verified + unverified add up to each crawler
 group's requests; spoofed and link previews are inside bots; flagged
@@ -55,6 +58,9 @@ class BotCounts:
         self.flagged: dict[str, Counter] = {f: Counter() for f in FAKE_BROWSER_FLAGS}
         self.addresses: dict[str, set] = {f: set() for f in FAKE_BROWSER_FLAGS}
         self.blocked: Counter = Counter()
+        # The agent-only crawler lists (bot_verify.AGENT_LISTS) at hand, or None without
+        # crawler checks: stored as "agent_lists" from SKALD-52 on.
+        self.agent_lists: list[str] | None = None
 
     def add(self, hit, verdict) -> None:
         if hit.status == "403":
@@ -99,6 +105,7 @@ class BotCounts:
             "blocked": dict(sorted(self.blocked.items())),
             "not_rendered": self._moved(self.unrendered),
             "too_fast": self._moved(self.fast),
+            **({} if self.agent_lists is None else {"agent_lists": list(self.agent_lists)}),
         }
 
     def _moved(self, by_pair: dict) -> dict:

@@ -72,6 +72,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import alerts_ai, alerts_history, alerts_marketing, alerts_sales, alerts_security
+from .classify import GOOGLE_PROXY
 from .files import write_atomic
 
 STATE = "alerts-state.json"
@@ -263,8 +264,9 @@ def _named(snap: dict, signals: dict) -> dict[str, int]:
     for c in (signals.get("minutes") or {}).values():
         for k, n in c.items():
             name = k[5:]
+            # Google's fetch proxy names Gemini, but is a bot by choice (SKALD-51).
             if k.startswith("name:") and AI_LOOKING.search(name) and not name.startswith(
-                    ("claims to be", "link preview", "browser-like")):
+                    ("claims to be", "link preview", "browser-like", GOOGLE_PROXY)):
                 others[name] = others.get(name, 0) + n
     for name, n in others.items():
         out.setdefault(name, n)

@@ -11,8 +11,17 @@ lists, its sitemap dates or the logs saw.
 | field | type |
 |---|---|
 | `meta` | `{"source": "website" or null, "generated": date or null, "lastmod": {"day","dated","missing","invalid","future"} or null}`: where publish dates come from (`/etc/skald/pages.json`, written from the website at deploy); `lastmod` the sitemap's change-date counts of the last day read (DATA-CONTRACT-CRAWL-HEALTH.md, "Change dates") |
-| `pages[]` | `{"path","title" or null,"locale" or null,"published" (date or null),"date_source" ("website", "page" or "first seen": where `published` comes from),"published_at" (the page's own value or null),"published_from" ("jsonld", "meta", "time" or null),"updated" (date or null),"updated_source" ("website", "page", "sitemap" or null),"updated_at" (the page's own value when `updated_source` is "page", else null),"lastmod" (date or null),"lastmod_seen" ([[date, day first seen]]),"changes" ([{"day","at","sources"}]),"check" ({"at","outcome","status","error"} or null),"first_seen" (date: the first day any request for it was logged),"days_since_publish" (int or null),"milestones": {"googlebot","bingbot","human","from_search","from_ai","lead"} (ISO or null),"views_7d","views_30d","readers_30d"}` |
+| `pages[]` | `{"path","title" or null,"title_from" ("website", "html", "meta", "jsonld" or null),"locale" or null,"published" (date or null),"date_source" ("website", "page" or "first seen": where `published` comes from),"published_at" (the page's own value or null),"published_from" ("jsonld", "meta", "time" or null),"updated" (date or null),"updated_source" ("website", "page", "sitemap" or null),"updated_at" (the page's own value when `updated_source` is "page", else null),"lastmod" (date or null),"lastmod_seen" ([[date, day first seen]]),"changes" ([{"day","at","sources"}]),"check" ({"at","outcome","status","error"} or null),"first_seen" (date: the first day any request for it was logged),"days_since_publish" (int or null),"milestones": {"googlebot","bingbot","human","from_search","from_ai","lead"} (ISO or null),"views_7d","views_30d","readers_30d"}` |
 
+- `title` (SKALD-70): the website's page list's title (`title_from`
+  "website") when it gives one; else the title Skald read from the page with
+  Page dates on (`site.page_dates`): its `<title>` (`"html"`; an `<svg>`'s
+  `<title>` never counts), else its `og:title` (`"meta"`), else the `headline`
+  of its own JSON-LD node (`"jsonld"`). Entities are read, spaces folded, and
+  a title over 300 characters is cut at a word with "…". Every title the page
+  had is kept (history `page_dates`, kind `title`, no schema change); the
+  latest is shown. Pages read before titles were kept are read once more for
+  theirs. `audit_page_dates.py` holds each kept title and the one shown.
 - `published`: the website's page list's date (`"website"`) when it gives
   one; else the page's own published date, when Skald read one from the page
   (`"page"`, SKALD-64: the site's setting `site.page_dates` on; `published` its

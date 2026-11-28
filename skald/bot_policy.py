@@ -111,6 +111,9 @@ CATALOG = (
     # nobody waits on it, so it sits with the index crawlers: "block
     # training" leaves it alone.
     Crawler("OAI-AdsBot", "OpenAI", "index"),
+    # Added 2026-11-26 (SKALD-50): River's training crawler. It reads
+    # robots.txt, so blocking it there works too.
+    Crawler("RiverBot", "River", "training"),
 )
 BY_NAME = {c.name: c for c in CATALOG}
 OWNERS = tuple(dict.fromkeys(c.owner for c in CATALOG))

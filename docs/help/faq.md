@@ -65,7 +65,7 @@ To get any alert in Slack or another tool, add an outgoing webhook with the even
 
 ## Can Skald see Google's AI Mode?
 
-Only when Google says so. A click from Google whose address carries `udm=50` (Google's AI Mode) is still a search engine visit, but its referring site reads **google.com (AI Mode)** on [Traffic > Sources](#traffic/sources), so you can see it apart. Most clicks from AI Mode and AI Overviews arrive as a plain `google.com`, the same as any search click; Skald never guesses which those were.
+Not today. Google never passes `udm=50` to your site: a click from AI Mode arrives either as a plain `google.com` visit, the same as any search click, or with no referrer at all, so it shows as Search engine or as Direct. Neither Skald nor Google Analytics can tell a click from AI Mode, or from an AI Overview, apart; Skald never guesses which those were. Where your log records the browser's `Sec-Fetch-Site` header, a click with no referrer from another website is split out of Direct as **Hidden referral** ([Where visitors come from](where-visitors-come-from.md)): it says the visitor came from somewhere that hid itself, never which site, and never AI Mode. If Google ever marks AI Mode clicks with `udm=50`, such a visit stays a search engine visit and its referring site reads **google.com (AI Mode)** on [Traffic > Sources](#traffic/sources), on its own.
 
 ## Can Skald write an llms.txt for my site?
 

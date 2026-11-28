@@ -29,7 +29,7 @@ waiting on the response.
 `Amazonbot`, `Applebot-Extended`, `cohere-ai`, `Diffbot`, `omgili`, `AI2Bot`,
 `Timpibot`, `ImagesiftBot`, `YouBot`, `PanguBot`, `Kangaroo Bot`,
 `DuckAssistBot`, `Amzn-SearchBot`, `Google-CloudVertexBot`,
-`cohere-training-data-crawler`, `OAI-AdsBot`.
+`cohere-training-data-crawler`, `OAI-AdsBot`, `RiverBot`.
 
 Added 2026-10-18 (below, "Checking the name lists"): `Amzn-SearchBot` builds
 Amazon's search index for Alexa (Amazon says it does not train);
@@ -45,6 +45,19 @@ checked the same way, against `openai.com/adsbot.json` (`bot_verify.LISTS`
 the name, up to that day, came from outside OpenAI's list and asked for
 `.env` files and keys: a scanner wearing the name. Rule 2b keeps those in bots
 even on a day with no fresh lists.
+
+Added 2026-11-26 (SKALD-50): `RiverBot` is River's crawler for training and
+evaluating its AI models (river.ai/bot). Its agent is always
+`RiverBot/1.0 (+https://river.ai/bot)`, it reads robots.txt (token `RiverBot`) and it
+never sends a browser's agent. River publishes its addresses in
+`river.ai/riverbot.json` (the same `prefixes` format as OpenAI's), so it is checked
+against that list (`bot_verify.LISTS` `river`, vendor `river`): a `RiverBot` from
+any other address is "claims to be RiverBot". Every address on the list is
+RiverBot's alone, so it is in `CRAWLER_ADDRESSES` too (rule 5b). Its reverse DNS
+names end in `.bot.river.ai`; the list is enough, so DNS is not looked up. It was
+noticed on 2026-11-23 (robots.txt, `/`, `/install/` on one site, from an address on
+its list). Until this change it was counted under "Other bots and scanners": on the
+live server, about 17,500 requests on 19 sites from 2026-10-30 to 2026-11-24.
 
 `OAI-SearchBot` and `PerplexityBot` build the assistants' own search indexes
 ahead of any question, exactly as `Googlebot` does, so nobody is waiting on

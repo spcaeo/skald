@@ -9,6 +9,7 @@
 // export, markers). Active filters and the page group make a second row, only when there
 // are some.
 
+import { setSearchHosts } from "./search-words.js";
 import * as S from "./state.js";
 import { h, ICON, reduced, toast, untip, short } from "./ui.js";
 import { load, refresh as postRefresh, rangeOf, markersByDay, has, need, newerStamp, nextWords } from "./data.js";
@@ -514,6 +515,7 @@ async function render(s, { keepScroll = false, changed = false } = {}) {
   REGISTRY.length = 0;
   setContext(model, s);
   setSiteBase(model.site);
+  setSearchHosts(model.site, model.hosts);     // a table search reads this site's addresses as paths
   const name = s.missing ? MISSING : S.nameOf(s.tab), sec = s.missing ? null : S.sectionOf(s.tab);
   // The area's tint (css/ui.css): the section's key, settings, help or about.
   app.dataset.area = s.missing ? "missing" : sec ? sec.key : S.inSettings(s.tab) ? "settings" : String(s.tab || "").split("/")[0];
@@ -642,10 +644,13 @@ async function boot() {
     } catch { /* keep the frame; the next tick tries again */ }
   };
   // A drawer or a dialog opening or closing (its key only) is not a redraw: overlays.js opens or closes it.
-  S.on((next) => {
+  S.on((next, force) => {
     // A drill-down opened on today reads the newest count at once, not at the next tick (#53).
     if (next.dd && next.dd !== current?.dd && next.range === "today") freshen();
-    if (current && !next.missing && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next);
+    // S.emit(true) asks for the tab drawn again where it is (a "Not a problem" mark, a funnel
+    // step): the same address is not "only an overlay changed".
+    if (force && current && !next.missing && S.onlyOverlay(current, next)) { current = next; render(next, { keepScroll: true }); }
+    else if (current && !next.missing && S.onlyOverlay(current, next)) { current = next; syncOverlays(model, next); crumbUpdate(model, next); } else render(next);
   });
   // 2.42: Export asks what you need (export-dialog.js); the report builder's old links open its PDF path, Change open.
   addRestorer("dlg:export", () => { const s = S.read(); return openExport(model, s, (next) => load(next, { previous: model }), { kind: s.kind, change: s.xch === "1" }); });

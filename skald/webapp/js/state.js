@@ -258,7 +258,7 @@ export function emit(force = false) {
   }
   if (!force && location.hash === last) return;
   last = location.hash;
-  listeners.forEach((fn) => fn(s));
+  listeners.forEach((fn) => fn(s, force));
 }
 addEventListener("hashchange", () => emit());
 addEventListener("popstate", () => emit());

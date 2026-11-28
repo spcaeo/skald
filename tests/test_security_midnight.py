@@ -27,7 +27,7 @@ from skald import live, security_notify as sn, stack, summary_mail  # noqa: E402
 
 SITE = "example.com"
 NY = ZoneInfo("America/New_York")
-RULES = {"exposure_rule": 2}
+RULES = {"exposure_rule": 3}
 ENV = {"host": "example.com", "path": "/.env.production", "status": "200", "size": 1873,
        "verdict": "possible", "category": "secrets"}
 SQL = {"host": "example.com", "path": "/backup.sql", "status": "200", "size": 52000,

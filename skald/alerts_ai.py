@@ -91,7 +91,8 @@ FROM_LIKELY = ("From figures already checked twice: visits likely sent by an AI 
 # list for). Anything else is its own owner.
 VENDORS = {"openai": "OpenAI", "anthropic": "Anthropic", "perplexity": "Perplexity",
            "google": "Google", "bing": "Microsoft", "apple": "Apple", "meta": "Meta",
-           "duckduckgo": "DuckDuckGo", "yandex": "Yandex"}
+           "duckduckgo": "DuckDuckGo", "yandex": "Yandex", "river": "River",
+           "google-proxy": "Google"}
 MORE = {"gemini-user": "Google", "mistralai-user": "Mistral", "bytespider": "ByteDance",
         "amazonbot": "Amazon", "ccbot": "Common Crawl", "cohere-ai": "Cohere",
         "claude-web": "Anthropic", "google-agent": "Google", "googleagent-mariner": "Google",

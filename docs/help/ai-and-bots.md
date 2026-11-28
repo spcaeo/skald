@@ -46,6 +46,8 @@ What a read means for each assistant (also behind **?** in its detail):
 | Meta-ExternalFetcher | someone shares the page's link with Meta AI, or asks about it |
 | Amzn-User | Alexa answers someone's question |
 
+Gemini opening a page live is not in this table. It fetches with the bare user agent `Google`, through the same Google proxy that Google Sheets (`IMPORTXML`), Apps Script and feed readers use, so a request cannot say which of them sent it. Skald files it under bots as **Google fetch proxy (Gemini, Sheets, Apps Script)**, never as an AI read. Its address is checked by reverse DNS once a day: one that proves not to be Google's is **claims to be Google fetch proxy (...)**. One not checked yet keeps the name.
+
 ## Where to find it
 
 The table **What each crawler costs** is on two tabs, under **Open the details**:
@@ -78,6 +80,8 @@ A person who clicks a link in an AI answer is counted as a person, with the assi
 
 **OAI-AdsBot** is OpenAI's crawler that checks the landing pages of ads placed on ChatGPT. It is listed with the AI crawlers when its address is OpenAI's. A request that uses its name to look for secret files (`.env`, keys) is not believed: it stays under bots, as a scanner, unless the address is checked as OpenAI's.
 
+**RiverBot** is River's crawler for training and evaluating its AI models. It is listed with the AI crawlers that collect for training. River publishes the addresses it crawls from, so a request that uses the name from any other address is filed under bots, as "claims to be RiverBot". It follows robots.txt, and you can block it in the AI crawler controls under **River**.
+
 ## When a figure says "not recorded" or "partial"
 
 Skald only shows what your server log holds. It never fills a gap with zero.
@@ -101,7 +105,7 @@ For a period of more than one day:
 Select a name in the table, or any crawler name elsewhere on AI & bots. The detail opens on the right. Under **What it costs and what it fetched** you see:
 
 - **Requests, bytes sent, mean server time and errors** for the period.
-- **From an address checked as theirs**: the share of its requests from an address that really belongs to its owner. Requests that use a crawler's name from an address that is not theirs are counted apart, as "claims to be ...". The check needs the owners' published address lists, which the daily run fetches. A Docker install does this by default from this release on; before, no Docker install checked, so earlier days show every request as not checked, and a fake crawler counted as the crawler it named. `doctor` says "crawler checks off" when they are off.
+- **From an address checked as theirs**: the share of its requests from an address that really belongs to its owner. Requests that use a crawler's name from an address that is not theirs are counted apart, as "claims to be ...". The check needs the owners' published address lists, which the daily run fetches. A Docker install does this by default from this release on; before, no Docker install checked, so earlier days show every request as not checked, and a fake crawler counted as the crawler it named. `doctor` says "crawler checks off" when they are off. Claude's fetches for a person (Claude-User) are checked against Anthropic's outbound addresses too, after 2.58.0; up to 2.58.0, those real fetches were counted as "claims to be Claude-User".
 - **Requests per day**, as a chart.
 - **What it read** (an assistant's user fetcher only): its reads, requests and the files its pages loaded, and the pages it read, each "with N files". **?** says what the assistant is and what a read means.
 - **Paths it requested**: the addresses it asked for most, by request, its pages' files included.

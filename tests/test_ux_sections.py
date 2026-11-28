@@ -113,7 +113,9 @@ class Security(unittest.TestCase):
         src = code(TABS / "sec-exposed.js")
         self.assertEqual(src.count("primary("), 1)
         self.assertIn('openFixit("exposed"', src)
-        self.assertIn("e.possible ? fixButton(m) : null", src)
+        # SKALD-59: only for a possible exposure nobody marked "Not a problem".
+        self.assertIn("const open = Math.max(0, e.possible - e.marked);", src)
+        self.assertIn("open ? fixButton(m) : null", src)
         self.assertIn('urlFold("sxx"', src)
 
     def test_block_list_has_block_them(self):

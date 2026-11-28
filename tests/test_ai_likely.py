@@ -394,7 +394,9 @@ class TestIndependence(unittest.TestCase):
         tree = ast.parse(Path(audit_ai_likely.__file__).read_text())
         got = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.level}
         # And the kept path length both roads share (path_names.py, #71): a number, never code.
-        self.assertEqual(got, {"classify", "ai_read_names", "audit_ai_reads", "path_names"})
+        # And the Hidden referral names (hidden_names.py, SKALD-69): names, never code.
+        self.assertEqual(got, {"classify", "ai_read_names", "audit_ai_reads", "path_names",
+                               "hidden_names"})
 
 
 if __name__ == "__main__":

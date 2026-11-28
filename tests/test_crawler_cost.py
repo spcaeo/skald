@@ -361,7 +361,7 @@ class TestIndependence(unittest.TestCase):
         self.assertEqual(got, {("classify", "CRAWLER_SESSION"), ("classify", "LINK_PREVIEW"),
                                ("classify", "NOT_RENDERED"), ("classify", "SCANNER"),
                                ("classify", "TOO_FAST"), ("classify", "SWEEP"),
-                               ("classify", "LINK_CHECKER")})
+                               ("classify", "LINK_CHECKER"), ("classify", "GOOGLE_PROXY")})
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 // the filters and the search left, all of them, not only the ones on screen, with
 // the columns shown, in their order.
 
+import { SEP, searchTest } from "./search-words.js";
 import { h, n, toast, reduced, ICON } from "./ui.js";
 import { link, drillRow } from "./drill.js";
 import { shownText } from "./labels.js";
@@ -173,8 +174,10 @@ export function table(columns, opts) {
   const val = (c, r) => (c.sort ? c.sort(r) : r[c.key]);
   const kinds = new Map(columns.map((c) => [c.key, filterKind(c, new Set(rows.slice(0, 400).map((r) => textOf(c, r))).size)]));
   const filtered = () => {
-    const q = query.trim().toLowerCase();
-    let out = q ? rows.filter((r) => columns.some((c) => cellOf(c, r).all.toLowerCase().includes(q))) : rows.slice();
+    // An address on this site is also looked for as its path (search-words.js, SKALD-70).
+    const test = searchTest(query);
+    // A column's `find` adds words the cell does not show (a page's title, SKALD-70).
+    let out = test ? rows.filter((r) => columns.some((c) => test(cellOf(c, r).all.toLowerCase() + (c.find ? SEP + String(c.find(r) || "").toLowerCase() : "")))) : rows.slice();
     for (const f of filters) {
       const c = columns.find((x) => x.key === f.key);
       // The number a range compares: the row's own, else the one the cell shows ("12%", "3 min"), else what it sorts by.

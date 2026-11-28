@@ -23,7 +23,7 @@ import { eventLabel } from "./events.js";
 import { withUrl } from "../urlactions.js";
 import { readyBlock } from "./aiready.js";
 import { changeTracker } from "./pagechange.js";
-import { whenWords, fromWords, checkWords } from "../page-dates.js";
+import { whenWords, fromWords, checkWords, searchHint } from "../page-dates.js";
 
 const hasApi = (m) => Array.isArray(m.files) && m.files.includes("page_index");
 const STORIES = new Map();
@@ -243,6 +243,6 @@ function pubTable(rows, rel, { caption, file, empty, dated }) {
     { key: "readers_30d", label: "Visitors, 30 days", num: true },
     { key: "g", label: "First Google crawl", type: "date", sort: (p) => p.milestones?.googlebot || "~", fmt: (_, p) => rel(p.milestones?.googlebot, p), csv: (p) => p.milestones?.googlebot || "" },
     { key: "hu", label: "First visitor", type: "date", sort: (p) => p.milestones?.human || "~", fmt: (_, p) => rel(p.milestones?.human, p), csv: (p) => p.milestones?.human || "" },
-  ], { caption, rows, file, sortKey: "published", dir: -1, limit: 15,
+  ], { caption, rows, file, sortKey: "published", dir: -1, limit: 15, placeholder: searchHint(),
     rowClass: () => "go", onRow: (p) => S.set({ page: p.path }), empty });
 }

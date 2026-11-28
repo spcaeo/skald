@@ -1,4 +1,5 @@
-"""A page's own published and modified dates, read from its HTML (SKALD-64).
+"""A page's own published and modified dates, read from its HTML (SKALD-64),
+and its title (SKALD-70).
 
 page_dates.py fetches the page; this module only reads what came back. Three
 places are read, in this order, each date on its own (the first place that
@@ -22,6 +23,13 @@ gives a valid value wins for that date):
           / "updated". A bare <time> is never taken: on a page it is as often
           a comment's, a related post's or an event's date.
 
+The title (SKALD-70), the first place that gives one: the page's <title>
+("html"; a <title> inside an <svg> is an icon's, never read), else its
+og:title meta tag ("meta"), else the `headline` of the JSON-LD node chosen as
+above ("jsonld"). Entities are read as the characters they stand for, white
+space is folded to single spaces, and a title longer than TITLE_MAX characters
+is cut at a word and ends with "…". An empty title is none.
+
 A value is valid when it is a W3C date or date-time (normalise): a date
 alone, or a date and time with or without a zone, no year before EARLIEST and
 nothing later than now (a zone-less value may be up to 14 hours ahead, the
@@ -32,6 +40,7 @@ is not a date: never guessed.
 """
 from __future__ import annotations
 
+import html as htmllib
 import json
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -57,6 +66,32 @@ ITEMPROP = {"datepublished": "published", "datemodified": "modified"}
 HATOM = {"published": "published", "updated": "modified"}
 MAX_LD = 40                        # JSON-LD blocks read at most
 MAX_LD_BYTES = 500_000             # characters of one block
+TITLE_MAX = 300                    # characters of a title kept (SKALD-70)
+TITLE_SOURCES = ("html", "meta", "jsonld")
+
+
+_TAG = re.compile(r"<[a-zA-Z/][^<>]*>")
+_ZERO = re.compile("[\u200b-\u200d\u2060\ufeff]")
+
+
+def clean_title(raw, markup: bool = True) -> str | None:
+    """A title as kept (module doc), or None when there is none. `markup`: raw is HTML
+    as written (a <title>'s text, a JSON-LD headline): tags inside it (the parser keeps
+    <title>A <b>B</b></title> as text) are left out first, then entities are decoded, so
+    "&lt;video&gt;" stays "<video>". Without it (an attribute, already decoded) nothing
+    is taken out. Zero-width characters are left out."""
+    if not isinstance(raw, str):
+        return None
+    text = htmllib.unescape(_TAG.sub(" ", raw)) if markup else raw
+    text = " ".join(_ZERO.sub("", text).split())
+    if not text:
+        return None
+    if len(text) > TITLE_MAX:
+        cut = text[:TITLE_MAX - 1]
+        space = cut.rfind(" ")
+        cut = cut[:space] if space > TITLE_MAX // 2 else cut
+        text = (cut.rstrip(" ,.;:-") or cut) + "…"
+    return text
 
 
 def normalise(raw, now: datetime) -> str | None:
@@ -185,7 +220,7 @@ def from_jsonld(blocks: list[str], page_path: str, now: datetime) -> dict:
         if tier is not None and (own or id(node) in tops):
             ranked.append((0 if own else 1, tier, i, node))
     ranked.sort(key=lambda r: r[:3])
-    out = {"published": None, "modified": None}
+    out = {"published": None, "modified": None, "title": None}
     for kind, field in LD_FIELD.items():
         for *_, node in ranked:
             value = node.get(field)
@@ -195,19 +230,36 @@ def from_jsonld(blocks: list[str], page_path: str, now: datetime) -> dict:
             if got:
                 out[kind] = got
                 break
+    for *_, node in ranked:
+        got = clean_title(node["headline"]) \
+            if isinstance(node.get("headline"), str) else None
+        if got:
+            out["title"] = got
+            break
     return out
 
 
 class _Reader(HTMLParser):
     def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
+        # Entities come one by one (handle_entityref): a title keeps them as written,
+        # so clean_title can tell "&lt;b&gt;" (text) from "<b>" (a tag).
+        super().__init__(convert_charrefs=False)
         self.blocks: list[str] = []
         self.meta: dict[str, str] = {}
         self.times: dict[str, list[str]] = {"published": [], "modified": []}
         self._ld: list[str] | None = None
+        self.title: str | None = None          # the first <title> outside an <svg>
+        self._title: list[str] | None = None
+        self._svg = 0
 
     def handle_starttag(self, tag, attrs):
         a = {k.lower(): (v or "") for k, v in attrs if k}
+        if tag == "head":
+            self._svg = 0                      # no <svg> can hold the head: one left open is closed
+        if tag == "svg":
+            self._svg += 1
+        elif tag == "title" and not self._svg and self.title is None:
+            self._title = []
         if tag == "script":
             if "ld+json" in a.get("type", "").lower() and len(self.blocks) < MAX_LD:
                 self._ld = []
@@ -231,15 +283,30 @@ class _Reader(HTMLParser):
     def handle_data(self, data):
         if self._ld is not None:
             self._ld.append(data)
+        if self._title is not None:
+            self._title.append(data)
+
+    def handle_entityref(self, name):
+        if self._title is not None:
+            self._title.append(f"&{name};")
+
+    def handle_charref(self, name):
+        if self._title is not None:
+            self._title.append(f"&#{name};")
 
     def handle_endtag(self, tag):
+        if tag == "svg" and self._svg:
+            self._svg -= 1
+        if tag == "title" and self._title is not None:
+            self.title = "".join(self._title)
+            self._title = None
         if tag == "script" and self._ld is not None:
             self.blocks.append("".join(self._ld))
             self._ld = None
 
 
 def parse(html: str, page_path: str, now: datetime) -> dict:
-    """{"published": (value, source) | None, "modified": (value, source) | None}."""
+    """{"published", "modified", "title"}: each (value, source) or None."""
     reader = _Reader()
     try:
         reader.feed(html)
@@ -265,4 +332,11 @@ def parse(html: str, page_path: str, now: datetime) -> dict:
                     got = (value, "time")
                     break
         out[kind] = got
+    out["title"] = None
+    for value, source in ((clean_title(reader.title), "html"),
+                          (clean_title(reader.meta.get("og:title"), markup=False), "meta"),
+                          (ld["title"], "jsonld")):
+        if value:
+            out["title"] = (value, source)
+            break
     return out

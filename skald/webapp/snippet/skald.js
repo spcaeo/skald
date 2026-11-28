@@ -57,11 +57,16 @@ if((ends(h,"neetocal.com")||LD.some(m=>ends(h,m)))&&!p.get("skv")){p.set("skv",v
 function em(){if(!id())return;
 d.querySelectorAll('iframe[src*="calendly.com"],[data-url*="calendly.com"],iframe[src*="neetocal.com"]').forEach(f=>{
 var k=f.tagName=="IFRAME"?"src":"data-url",x;try{x=tag(new URL(ga(f,k),L.href))}catch{}if(x)f.setAttribute(k,x)})}
-function form(t){var f=t&&t.form;while(!f&&t&&t.tagName!="FORM")t=t.parentNode;f=f||t;
-return f&&ga(f,"data-skald")!="off"&&ga(f,"role")!="search"?f:null}
-var fe=(f,s,k)=>go(((k=ga(f,"data-skald"))=="signup"||s=="submit"&&/^(contact|waitlist)$/.test(k)?k:"form")+"_"+s,ga(f,"id")||ga(f,"name")||"form");
-on(d,"focusin",ev=>{var f=form(ev.target);if(f&&!seen.includes(f)){seen.push(f);fe(f,"start")}},!0);
-on(d,"submit",ev=>{var f=form(ev.target);if(f)fe(f,"submit")},!0);
+// SKALD-67: a typed field or a data-skald mark makes a form (docs/BEACON.md)
+var TY="input:not([type]),input[type=''],textarea,"+"text email tel number url password date time month week datetime-local".replace(/\S+/g,"input[type=$&]").replace(/ /g,","),
+dg=el=>lc(el&&el.getAttribute&&ga(el,"formmethod"))=="dialog";
+function form(t,f,k){f=t&&t.tagName!="FORM"&&t.form;while(!f&&t&&t.tagName!="FORM")t=t.parentNode;f=f||t;k=f&&ga(f,"data-skald");
+return f&&k!="off"&&ga(f,"role")!="search"&&(k||lc(ga(f,"method"))!="dialog"&&f.querySelector(TY))?f:null}
+var pa=u=>{try{return u&&(u=new URL(u,L.href),u.origin==L.origin&&u.pathname.split("/").filter(x=>x&&!/[\d@%]|.{25}/.test(x)).join("/"))}catch{}},
+fe=(f,s,k)=>go(((k=ga(f,"data-skald"))=="signup"||s=="submit"&&/^(contact|waitlist)$/.test(k)?k:"form")+"_"+s,
+[ga(f,"id"),ga(f,"name"),ga(f,"aria-label"),k,pa(ga(f,"action")||ga(f,"data-endpoint")),lc(ga(f,"class")).trim().split(/\s/)[0]].map(tok).find(x=>x)||"form");
+on(d,"focusin",ev=>{var f=!dg(ev.target)&&form(ev.target);if(f&&!seen.includes(f)){seen.push(f);fe(f,"start")}},!0);
+on(d,"submit",ev=>{var f=!dg(ev.submitter)&&form(ev.target);if(f)fe(f,"submit")},!0);
 on(d,"click",ev=>{var el,a,c,u,x;
 for(el=ev.target;el&&el.getAttribute;el=el.parentNode){c=c||ga(el,"data-skald-cta");if(!a&&el.tagName=="A"&&el.href)a=el}
 if(c)go("cta_click",c);if(!a)return;try{u=new URL(a.href,L.href)}catch{return}

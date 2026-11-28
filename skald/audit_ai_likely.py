@@ -10,7 +10,8 @@ with its own code, written apart from ai_likely.py:
                     classify.AI_FETCHER_OWNERS; its minute is the line's
                     epoch seconds // 60
   a direct visit    a visit that read a page whose source (the audit's own
-                    label) is "Direct or unknown" and whose first page's
+                    label) is "Direct or unknown" or "Hidden referral"
+                    (SKALD-69) and whose first page's
                     query string (urllib.parse.parse_qsl here) has no utm_
                     tag with something in it and no ad click id
                     (classify.CLICK_ID_PARAMS)
@@ -59,6 +60,7 @@ from collections import Counter
 from urllib.parse import parse_qsl, urlsplit
 
 from .ai_read_names import WINDOW_SECONDS
+from .hidden_names import HIDDEN
 from .audit_ai_reads import prefixes_of, roles
 from .classify import (AI_FETCHER_OWNERS, AI_LIKELY_MANY, AI_REFERRER_HOSTS,
                        AI_REFERRER_PATHS, AI_UTM, ASSISTANT_ALIASES, CLICK_ID_PARAMS)
@@ -146,7 +148,9 @@ class Recount:
             if who in _HAS_FETCHER:
                 self.cited.append((start, who, _page(labels["landing"])))
             return
-        if labels["source"] != "Direct or unknown" or _tagged(first.url):
+        # No referrer and no tag: Direct, or a click whose referrer was
+        # hidden (SKALD-69).
+        if labels["source"] not in ("Direct or unknown", HIDDEN) or _tagged(first.url):
             return
         self.direct.append((start, _page(labels["landing"]), labels["landing"]))
 

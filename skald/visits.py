@@ -135,7 +135,7 @@ def _via(hit, source: str, cited: bool, engine: str) -> str:
     campaign's source when a tagged link came without a referrer."""
     if cited:
         return assistant_label(engine)
-    if source in ("Direct or unknown", "This site"):
+    if source in ("Direct or unknown", "This site", dim.HIDDEN):
         return ""
     host = dim.referrer_host(hit.referrer)
     if host:
@@ -287,8 +287,8 @@ class Journeys:
         key = self._key(hit)
         visit = self.open.get(key)
         own = self.own_hosts or ({hit.host.lower()} if hit.host else set())
-        origin = (dim.page_origin(hit.referrer, hit.url, verdict.tier is Tier.CITED, own)
-                  if hit.is_page else None)
+        origin = (dim.page_origin(hit.referrer, hit.url, verdict.tier is Tier.CITED, own,
+                                  hit.navigation_site) if hit.is_page else None)
         if (visit is None or abs(hit.when - visit.prev) > self.gap
                 or dim.new_source(origin, visit.origin)):
             if visit is not None:
@@ -343,7 +343,7 @@ class Journeys:
         """The visit by its first page - the same labels as the readers."""
         browser, system, device = dim.agent_labels(hit.user_agent)
         cited = verdict.tier is Tier.CITED
-        source = dim.source_type(hit.referrer, hit.url, cited, own)
+        source = dim.source_type(hit.referrer, hit.url, cited, own, hit.navigation_site)
         campaign = dim.campaign(hit.url)
         from .campaigns import fields
         city = self.cities(hit.address, hit.country) if self.cities is not None else ""
@@ -488,6 +488,8 @@ def came_from(j: dict) -> str:
         words = f"back from a payment page ({via})" if via else "back from a payment page"
     elif source == "Tagged link":
         words = f"tagged link ({via})" if via else "tagged link"
+    elif source == dim.HIDDEN:
+        words = "a click from a site that hid its address (no referrer, no tag)"
     else:
         words = "direct (no referrer, no tag)"
     if j.get("campaign"):

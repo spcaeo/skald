@@ -19,6 +19,7 @@
 // "?"; Pages by publish date, the leaderboard and Pages read by people are under one fold
 // kept in the address (pgx_view=open).
 
+import { setTitles, searchHint } from "../page-dates.js";
 import { h, n, short, pct1 } from "../ui.js";
 import { figures, pathMatch } from "../data.js";
 import * as S from "../state.js";
@@ -54,8 +55,8 @@ export const pageCols = (sums) => (sums ? [
 ] : []);
 
 // The columns, one place per grid (compare mode adds B and ± here).
-export const landingColumns = (leads, c, sums) => [labelCol("Page"), ...countCols("Visitors"), ...compareCols(c), ...(leads ? leadCols() : []), ...pageCols(sums)];
-export const readColumns = (c) => [labelCol("Page"), ...countCols("Page views"), ...compareCols(c)];
+export const landingColumns = (leads, c, sums) => [labelCol("Page", { titles: true }), ...countCols("Visitors"), ...compareCols(c), ...(leads ? leadCols() : []), ...pageCols(sums)];
+export const readColumns = (c) => [labelCol("Page", { titles: true }), ...countCols("Page views"), ...compareCols(c)];
 
 /* Each landing row gets the page's own figures over the period (page-figs.js). */
 export function addPageFigures(rows, sums, dates, lb) {
@@ -113,6 +114,7 @@ function changedChip(m, s) {
 }
 
 export default function pages(m, s) {
+  setTitles(m.x.page_index);            // each page's title under its path, and in the search (SKALD-70)
   if (s.page) return pageStory(m, s);
   const { r, t } = figures(m, s);
   const out = [...head("Pages", r, "What people read and where they started. Select a page for its story since it was published."), periodLine(m, s), changedChip(m, s)];
@@ -139,7 +141,7 @@ export default function pages(m, s) {
     const rows = addPageFigures(compareRows(c, leadRows(t.by.landing, lb, { dim: "landing", keep, whole: t.readers }), c.bT?.by?.landing, { dim: "landing", keep, whole: t.readers }), sums, dates, lb);
     const g = grid({ ns: "lp", caption: "Landing pages and leads", file: fileName("landing-leads", r), columns: landingColumns(leads, c, sums),
       rows, sortKey: order.key, dir: order.dir,
-      placeholder: "Search landing pages", empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page recorded." });
+      placeholder: searchHint(), empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page recorded." });
     g.classList.add("tr-grid", "tr-paths", "lead-tbl");
     const about = [`The first page each visitor read${sub}, and the leads that started there. Sources and landing pages are stored apart, so this is every visitor's landing page, whatever the source filter. Search for a page; select it for its story since it was published.`,
       compareNote(c), sums ? pageNote(sums, m) : null, lb ? leadNote(lb, TOUCH) : null].map((x) => (x && typeof x !== "string" ? x.textContent : x)).filter(Boolean);
@@ -148,7 +150,7 @@ export default function pages(m, s) {
   } else out.push(h("section", { class: "s" }, h("h2", null, "Landing pages and their leads"), h("p", { class: "empty" }, "Not recorded for this range.")));
 
   const g = grid({ ns: "pr", caption: "Pages read by people", file: fileName("pages", r), columns: readColumns(c),
-    rows: compareRows(c, countRows(t.pages, { dim: "path", keep }), c.bT?.pages, { dim: "path", keep }), sortKey: "v", placeholder: "Search pages", empty: s.path || s.chgfrom ? "No page matches." : "No page read." });
+    rows: compareRows(c, countRows(t.pages, { dim: "path", keep }), c.bT?.pages, { dim: "path", keep }), sortKey: "v", placeholder: searchHint(), empty: s.path || s.chgfrom ? "No page matches." : "No page read." });
   g.classList.add("tr-grid", "tr-paths", "lead-tbl");
   details.push(h("section", { class: "s" }, h("h2", null, "Pages read by people"),
     h("p", { class: "sub" }, `Page views by people${sub}. Share is of the pages listed.`), g, compareNote(c),
@@ -172,7 +174,7 @@ function narrowed(m, s, r, c, keep, sub) {
     if (!nt.by.landing) return [notSplit("Landing pages", "the landing pages are not in the crossed figures this page has for this period."), howNote(m, s, N)];
     const rows = compareRows(cn, leadRows(nt.by.landing, null, { dim: "landing", keep, whole: nt.readers }), cn.bT?.by?.landing, { dim: "landing", keep, whole: nt.readers });
     const g = grid({ ns: "lp", caption: "Landing pages", file: fileName("landing-pages", r), columns: landingColumns(false, cn, null),
-      rows, sortKey: "v", placeholder: "Search landing pages", empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page for these visits." });
+      rows, sortKey: "v", placeholder: searchHint(), empty: s.path || s.chgfrom ? "No landing page matches." : "No landing page for these visits." });
     g.classList.add("tr-grid", "tr-paths", "lead-tbl");
     return [
       h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Landing pages"),

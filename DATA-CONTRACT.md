@@ -148,6 +148,7 @@ Meta for the app, and one row of headline figures per day.
 | `credit` | `{"text","url"}` or null | country data attribution, show beside countries: `report.country_credit`, else DB-IP's credit when `logs.country_db` is a DB-IP file |
 | `journey_days` | int | how long journeys are kept |
 | `files` | `[string]` | the data files written beside this one |
+| `hosts` | `[string]` | the site's own hosts (`site.hosts`, lower case; SKALD-70): a table search reads `https://<one of them>/path` as the path |
 | `days[]` | | see below |
 
 `days[]` entry (when `ok`/`partial`):
@@ -253,7 +254,7 @@ null), `likely_ai` (only on a visit likely sent by an AI assistant, an estimate)
 [docs/DATA-CONTRACT-TRACKING.md](docs/DATA-CONTRACT-TRACKING.md#day-kind-direct_likely-campaignsjson)),
 `ai_read` (only on an AI visit whose assistant fetched pages just before it, at most 10:
 [docs/DATA-CONTRACT-AI-LIKELY.md](docs/DATA-CONTRACT-AI-LIKELY.md)). Source types: `AI assistant`, `Search engine`, `Social media`,
-`Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`). `Returned from payment` (#34): the visit's first page came back from a payment page (`skald/payment_names.py`; its referrer label is `(payment page)`), after the visit gap; inside the gap such a page continues the open visit (CLASSIFICATION.md, "The source type of a visit").
+`Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Hidden referral`, `Direct or unknown` (stored names; people read **Direct** and, for `Unknown`, **Not recorded**: `labels.py`). `Returned from payment` (#34): the visit's first page came back from a payment page (`skald/payment_names.py`; its referrer label is `(payment page)`), after the visit gap; inside the gap such a page continues the open visit (CLASSIFICATION.md, "The source type of a visit"). `Hidden referral` (SKALD-69): the first page view had no referrer and no tag, and its request carried `Sec-Fetch-Site: cross-site` (a click from a site that hid its address); only on lines that record the header (docs/INGEST.md, "Hidden referrals"), so days and sites without it have none, never a 0 row. Like Direct, it never opens a new visit inside the gap.
 
 `pages` stays the page views (what both roads add up); `seen` = `pages` + `in_app`.
 Every view of a visit states both: "3 pages (2 seen in the browser)" is `seen` with
@@ -371,7 +372,7 @@ A row:
 | `page_view` | bool | counted as a page view in its group |
 | `not_page` | string, only when `kind` is `not_page` | the entry of the not-a-page list that matched: `markdown`, `wp_rest`, `wp_files`, `feeds`, `oembed`, `trackback`, `author_number`, `reply_to_comment`, `sitemap_page` (2.36), or `"own: <entry>"` (the site's own, `site.not_pages_extra`) |
 | `assistant` | string | the AI assistant: the crawler's name, or the assistant a reader came from; `""` |
-| `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
+| `source` | string | people rows: the source type of the visit the request belongs to (same words as journeys: `AI assistant`, `Search engine`, `Social media`, `Email`, `Other website`, `This site`, `Tagged link`, `Returned from payment`, `Hidden referral`, `Direct or unknown`) - the source of the visit's first page view, or of its first request until a page is read; a page from a new outside source starts a new visit (SOP.md, "What a visit is"), as in the journeys; `""` for every other group |
 | `utm` | object | `{"source","medium","campaign","term","content"}`, only those present |
 | `verified` | string or null | `verified`, `unverified`, `spoofed` or `cdn` (from a CDN edge's address: cannot be checked; SKALD-17) for a named assistant or search crawler; null for everyone else |
 | `flags` | `[string]` | any of `hosting_network`, `fan_out`, `bare_mozilla` (fake-browser signs), `probe`, `legacy_path` (an old-site URL kept out of the probes), `old_format` (a line in the old log format, no host or country), `duplicate` (byte-identical to an earlier line in the same second) |

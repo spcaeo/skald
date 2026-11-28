@@ -6,7 +6,7 @@
 // A value is a date ("2024-11-05"), a UTC time ("2026-11-26T05:42:14Z", shown in the
 // chosen zone) or a time the page gave without a zone (shown as written).
 
-import { short, long } from "./ui.js";
+import { h, short, long } from "./ui.js";
 import { stamp } from "./tz.js";
 import { pageKey } from "./page-figs.js";
 
@@ -83,3 +83,32 @@ export function markerSvg(marks, slots, x, top, bottom, color = "var(--ink-3)") 
       + `<circle cx="${cx}" cy="${bottom}" r="4.5" fill="var(--surface)" stroke="${color}" stroke-width="1.6"/></g>`;
   }).join("");
 }
+
+// ---- titles (SKALD-70) ---------------------------------------------------------------
+// Each page's title from page_index.json (the website's page list's, else the one Skald read
+// from the page with Page dates on). The Pages tables draw it under the path, so their search
+// finds a page by its title too.
+let TITLES = new Map();
+
+/* The titles of a page index (Traffic › Pages sets them as it draws). */
+export function setTitles(index) {
+  TITLES = new Map((index?.pages || []).filter((p) => p.title).map((p) => [pageKey(p.path), p.title]));
+}
+export const titleOf = (path) => TITLES.get(pageKey(path || "")) || null;
+export const hasTitles = () => TITLES.size > 0;
+
+/* A page cell with its title under the path, when one is known; else the cell as given. The
+   title is drawn from data-title (css: .pg-titled::after), so a cell's words stay its path: the
+   column filters, their saved values and the CSV read the path alone. The search finds the
+   title through the column's `find` (titleFind). */
+export function titled(path, cell = path) {
+  const t = titleOf(path);
+  if (!t) return cell;
+  return h("span", { class: "pg-titled", "data-title": t, title: t }, cell instanceof Node ? cell : h("span", null, String(cell)));
+}
+
+/* For a page column's `find`: the extra words the table search reads (the title). */
+export const titleFind = (path) => titleOf(path) || "";
+
+/* The search box's hint on the Pages tables. */
+export const searchHint = () => (hasTitles() ? "Search by path, address or title" : "Search by path or address");

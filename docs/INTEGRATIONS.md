@@ -99,8 +99,14 @@ server for `X-Forwarded-For`. Details: docs/BEACON.md, "Several sites".
 
 - `page_view` on load, on each client-side navigation (`history.pushState`, `replaceState`, back and
   forward; once per path) and on a page restored from the back-forward cache: the tag's own events, never added to the log's counts.
-- `form_start` the first time a field of a form gets focus (once per form per
-  page) and `form_submit` on submit, with the form's `id` or `name` only.
+- `form_start` the first time an element of a form gets focus (once per form per
+  page) and `form_submit` on submit, with the form's name only: its `id`, `name`,
+  `aria-label`, its `data-skald` value, the path on its own site it posts to
+  (`action` or `data-endpoint`, parts with digits, `@` or `%` left out) or its first class.
+  A form counts when it has a `data-skald` mark or a field a person types into
+  (text, email, tel, number, url, password, date and time types, a textarea); an
+  unmarked pop-up close form (`method="dialog"`), a `formmethod="dialog"` button and
+  button-only pickers and quizzes are left out (SKALD-67, docs/BEACON.md).
   `data-skald="signup"` on a form sends `signup_start` / `signup_submit`
   instead; `data-skald="contact"` / `"waitlist"` send `contact_submit` /
   `waitlist_submit` on submit (`form_start` on start); `data-skald="off"`

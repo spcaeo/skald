@@ -245,6 +245,10 @@ tr.vs-mover td { background: color-mix(in srgb, var(--va) 4%, transparent); }
 .ps-range input { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); }
 .ps-quick { display: inline-flex; gap: 12px; font-size: 13px; }
 .ps-t { display: block; font-family: var(--sans); font-size: 12px; color: var(--ink-3); }
+/* A page's title under its path in the Pages tables (SKALD-70): one line, cut with an ellipsis. */
+.pg-titled { display: block; min-width: 0; }
+.pg-titled::after { content: attr(data-title); display: block; font-family: var(--sans); font-size: 12px; color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; }
 
 /* --------------------------------------------------------- AI crawler settings */
 .bp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 14px; }

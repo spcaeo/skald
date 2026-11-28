@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Iterator
 
 from .form_names import REFUSED, why_not_a_form
+from .hidden_names import FIELD as FETCH_SITE_FIELD, HEADER as FETCH_SITE_HEADER
 from .not_pages import STANDARD
 
 
@@ -70,6 +71,11 @@ class Hit:
     # and body), when the line records it (the trailing request_length= field,
     # Security's large POST bodies); None when it does not.
     request_length: int | None = None
+    # The browser's Sec-Fetch-Site request header, lower case, when the line
+    # records it (the trailing sec_fetch_site= field, an edge record's
+    # fetch_site, Caddy's logged headers): "" when the request did not send
+    # it. None: the line has no such field (SKALD-69; navigation_site).
+    fetch_site: str | None = None
     # Set by one_click (in_time_order): this page view repeats a page view of
     # the other kind (an HTML page and a Next.js navigation) of the same path
     # in the same visit, CLICK_SECONDS or less before it. Not a page view.
@@ -90,6 +96,14 @@ class Hit:
     def path(self) -> str:
         """The URL without its query string."""
         return self.url.split("?", 1)[0]
+
+    @property
+    def navigation_site(self) -> str | None:
+        """Sec-Fetch-Site of a page view ("cross-site", "none", ...), or None:
+        not a page view, or a line that does not record the header. Only a
+        page view's says where a person came from: a file or a call a page
+        makes is sent by the page itself (dimensions.source_type)."""
+        return self.fetch_site if self.fetch_site is not None and self.is_page else None
 
     @property
     def ok(self) -> bool:
@@ -224,6 +238,13 @@ NAVIGATION_VALUES = ("-", "")
 #   request_length=$request_length
 # anywhere after the user agent, as its own field. A number of bytes, or "-".
 REQUEST_LENGTH = re.compile(r"(?:^|\s)request_length=(\S*)")
+# The browser's Sec-Fetch-Site header (SKALD-69; docs/INGEST.md, "Hidden
+# referrals"):
+#   nginx   sec_fetch_site=$http_sec_fetch_site
+#   Apache  sec_fetch_site=%{Sec-Fetch-Site}i
+# anywhere after the user agent, as its own field, like rsc_prefetch=.
+# "-" or "": the request did not send it.
+FETCH_SITE = re.compile(r"(?:^|\s)" + re.escape(FETCH_SITE_FIELD) + r"(\S*)")
 # Two page views of one path, one an HTML page and one a Next.js navigation,
 # in one visit this many seconds apart or less, are one click (one_click).
 CLICK_SECONDS = 2
@@ -337,16 +358,33 @@ def _length_field(rest: str) -> tuple[int | None, str]:
     return (int(value) if value.isdigit() else None), rest[:found.start()] + rest[found.end():]
 
 
+def _site_field(rest: str) -> tuple[str | None, str]:
+    """(the sec_fetch_site= value, lower case, "" for "-", or None when the
+    line has no such field; `rest` without that field)."""
+    found = FETCH_SITE.search(rest) if FETCH_SITE_FIELD in rest else None
+    if not found:
+        return None, rest
+    value = found.group(1).strip().lower()
+    return ("" if value == "-" else value), rest[:found.start()] + rest[found.end():]
+
+
+def _trailing(rest: str) -> tuple[str | None, int | None, str | None, str]:
+    """(rsc_prefetch=, request_length=, sec_fetch_site=, what is left)."""
+    prefetch, rest = _prefetch_field(rest)
+    length, rest = _length_field(rest)
+    site, rest = _site_field(rest)
+    return prefetch, length, site, rest
+
+
 def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
     got = m.groupdict()
     # Everything after the user agent's closing quote holds the trailing fields.
-    prefetch, rest = _prefetch_field(m.string[m.end("user_agent") + 1:].rstrip("\n"))
-    length, rest = _length_field(rest)
+    prefetch, length, site, rest = _trailing(m.string[m.end("user_agent") + 1:].rstrip("\n"))
     rid = RID.search(rest) if fmt == "nginx_extended" and "rid=" in rest else None
     request = REQUEST.match(got["request"])
     host = got.get("host", "") or ""
     if not host and got.get("tail"):
-        found = TAIL_HOST.search(_length_field(_prefetch_field(got["tail"])[1])[1])
+        found = TAIL_HOST.search(_trailing(got["tail"])[3])
         host = found.group("host").lower() if found else ""
     return Hit(
         when=when,
@@ -364,6 +402,7 @@ def _from_match(m: re.Match, when: datetime, fmt: str = "") -> Hit:
         rid=rid.group(1) if rid else "",
         rsc_prefetch=prefetch,
         request_length=length,
+        fetch_site=site,
     )
 
 
@@ -402,6 +441,9 @@ def _caddy(line: str) -> Hit | None:
             # Caddy logs every request header: a record that holds them
             # records whether Next-Router-Prefetch was sent ("-" when not).
             rsc_prefetch=(header("next-router-prefetch").strip() or "-")
+            if isinstance(req.get("headers"), dict) else None,
+            # And Sec-Fetch-Site ("" when not sent), the same way (SKALD-69).
+            fetch_site=str(header(FETCH_SITE_HEADER)).strip().lower()
             if isinstance(req.get("headers"), dict) else None,
         )
     except (ValueError, KeyError, TypeError):

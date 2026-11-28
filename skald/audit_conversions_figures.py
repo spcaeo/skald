@@ -29,6 +29,7 @@ from .audit_leads import _attribution, _bare, _fetches
 from .classify import AI_LIKELY_MANY
 from .config import site_name
 from .conversions import FINISHED, LEAD_ACTIONS, UNKNOWN
+from .hidden_names import HIDDEN
 from .payment_names import RETURNED
 
 COLUMNS = ("source_type", "first_source", "campaign", "landing", "country", "device", "tool")
@@ -111,7 +112,7 @@ def _likely_rows(db, head: str, args: list, site: str):
 def _likely(src, stamp, page, fetched, window: int, tz) -> str:
     if src is None:
         return UNKNOWN
-    if src != "Direct or unknown":
+    if src not in ("Direct or unknown", HIDDEN):
         return "(none)"
     if fetched is None or stamp is None or not page:
         return UNKNOWN

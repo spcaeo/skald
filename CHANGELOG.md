@@ -4,6 +4,343 @@ All notable changes to Skald. Dates are UTC. Versions follow [Semantic Versionin
 
 ## Unreleased
 
+## 2.60.0 (2026-11-28)
+
+Search finds a page by its full address and by its title (SKALD-70); a click from a site that
+hid its address is split out of Direct as Hidden referral, where the log records
+Sec-Fetch-Site (SKALD-69); the tag counts real forms only, and Events says what Form sent
+counts (SKALD-67); harmless answers are no "possible exposure", and a checked one can be
+marked Not a problem (SKALD-59); Claude's fetches from Anthropic's outbound addresses are
+verified again (SKALD-52); Gemini's live fetch is a named bot (SKALD-51); RiverBot is an AI
+training crawler (SKALD-50); and Google AI Mode is described as it is (SKALD-68).
+
+### Upgrade
+
+- **Back up first** (`docker exec skald skald backup`). No schema change: the "Not a problem"
+  marks get their own table in the accounts database the first time one is saved.
+- **Recount yesterday for the exposure rule** (SKALD-59): right after the upgrade,
+  `skald backfill --days 1 --force` and `skald audit --day yesterday`, so yesterday's possible
+  exposures are judged by the new rule and the 01:00 summary does not repeat old ones; then
+  `skald backfill --days 14 --force` for the days the logs still hold.
+- **No other recount:** days counted before keep RiverBot under bots, a bare "Google" agent
+  unnamed, Claude-User from Anthropic's outbound addresses as "claims to be", and no Hidden
+  referral. The audit recounts an old day without Claude-User's lists and without Hidden
+  referral, as it was counted; a manual `audit --day` of a day stored before the upgrade can
+  still differ on RiverBot, the Google fetch proxy and exposures until that day is recounted.
+- **Hidden referral needs one log field** (SKALD-69): after this release is running, add
+  ` sec_fetch_site=$http_sec_fetch_site` to nginx's `log_format` (DEPLOY.md); edge Workers send
+  it once redeployed; Caddy logs the header already. An older release does not know the field.
+- **Outbound HTTPS** for two more lists: River's crawler list and Anthropic's outbound
+  addresses page (DEPLOY.md). A failed fetch keeps the last good copy.
+- **The tag changes** (SKALD-67): sites load the new `skald.js` from Skald itself; nothing to do.
+
+### Added
+
+- **RiverBot is named as an AI crawler (SKALD-50).** `RiverBot`, River's crawler for training
+  and evaluating its AI models (river.ai/bot), is now counted with the AI crawlers that collect
+  for training. Its addresses are checked against River's published list
+  (`river.ai/riverbot.json`, fetched once a day with the other lists). A request that uses the
+  name from any other address is filed under bots, as "claims to be RiverBot". It is also in
+  the AI crawler controls, under River, and in `/bots.json`. **Why:** on 2026-11-23 RiverBot
+  fetched robots.txt, `/` and `/install/` on one site, from an address on River's list. No name
+  list held it, so Overview's "AI and crawlers now" and AI & bots counted it under "Other bots
+  and scanners". It was not one visit: the live server's stored days hold about 17,500 RiverBot
+  requests on 19 of its 23 sites from 30 Oct to 24 Nov, all filed that way. **Who:** every site
+  RiverBot visits. **Do:** nothing. Days counted before the upgrade keep RiverBot under bots
+  until they are recounted; this release recounts nothing. **Checked:** tests on both counting roads, with River's list and
+  without (a real RiverBot, a fake one, a stale list, a browser agent from River's addresses).
+  River's live list was read in the same format, and it holds the address seen on 2026-11-23,
+  whose reverse DNS is River's.
+
+- **Hidden referral: Direct split by the browser's Sec-Fetch-Site header (SKALD-69,
+  GitHub #118).** A visit with no referrer and no campaign tag was always "Direct", mixed in
+  with people who typed the address. Some of them clicked a link on another website that hid
+  its address (`rel="noreferrer"`, a no-referrer policy, some Google AI Mode clicks). Modern
+  browsers say so in the `Sec-Fetch-Site` request header: `cross-site` for a click from
+  another site, `none` for a typed address, a bookmark or a link an app opened. Where the log
+  records it, a first page view with no referrer, no tag and `cross-site` is now the source
+  **Hidden referral**; the rest stays Direct. It never says which site, and it is never
+  called AI Mode.
+  - **Rules:** only a page view's header counts (a file or a call a page makes is sent by the
+    page). Like Direct, a Hidden referral never starts a new visit inside the visit gap, so
+    visit counts do not change. "Likely from AI assistants" now looks at Direct and Hidden
+    referral visits (and so do leads' and conversions' likely-AI labels); "Direct, likely"
+    explains the Direct row only.
+  - **Where it comes from:** a new optional log field ` sec_fetch_site=$http_sec_fetch_site`
+    (Apache ` sec_fetch_site=%{Sec-Fetch-Site}i`; docs/INGEST.md, "Hidden referrals"); the
+    Skald Cloudflare Worker sends `fetch_site` (and the Netlify example); Caddy's JSON log
+    already holds it. The Vercel and Netlify drains carry no request headers, so those sites
+    stay Direct. Lines without the field read as before.
+  - **Who it affects:** only sites whose log records the header, from the first day this
+    release counts. Days already stored keep their figures, and the audit recounts them as
+    they were counted (each new day's quality blob is marked `hidden_referral`). A Caddy log
+    (one live site) already held the header: only a recount of its past days, the owner's
+    call, would split them.
+  - **What to do:** upgrade first, then add the field to the `log_format` and reload nginx,
+    or deploy the Worker's newest copy. An older release does not know the field, and one
+    written after `rid=` or a trailing `"$host"` hides them from it. On a client
+    server only with the owner's go.
+  - **Checked:** a second count on the audit's road (`audit_labels.py`, `audit_lines.py`,
+    `audit_drains.py`, `audit_ai_likely.py`, `audit_conversions_figures.py`, written apart,
+    sharing only `hidden_names.py`); new tests in `tests/test_hidden_referral.py` (every log
+    shape on both roads, the label matrix, page views only, no visit split, likely-AI, a
+    collected day and a live snapshot whose audits match; they fail when either road's rule
+    is switched off); the full suite.
+
+- **Find a page by its full address or its title, not only its path (SKALD-70).**
+  On Traffic › Pages, the search box found a page by its path only.
+  A page's title or its full address as copied from the browser
+  (`https://www.example.com/blog/post/`) found nothing, because the table search matches the
+  text a cell shows, and the cell showed only the path.
+  - **Full address:** every table search (the Pages grids, the leaderboard, Pages by
+    publish date, Search › Pages, Agent files, Not found and the rest) now also looks for an
+    address on the site as its path. Its scheme and host are taken off when the host is one
+    of the site's own (app.json's new `hosts`, and the site's name, each with and without
+    `www.`), and a `#part` is left out. The path must start a cell, so
+    `https://www.example.com/blog/` finds `/blog/` and the pages under it (as typing the path
+    does), never `/en-us/blog/`, and the home address finds the home row only. `/pricing/` also finds `/pricing`. A `?query` is kept
+    where a row shows the path with a query. Another site's address stays plain text. Words
+    typed without the site's address match anywhere, as before.
+  - **Title:** with Page dates on, the page read that finds the dates now keeps the page's
+    title too: its `<title>` (never an `<svg>` icon's), else `og:title`, else its own JSON-LD
+    `headline`. Entities are read, spaces folded, and a title over 300 characters is cut at a
+    word. It is kept beside the dates in history (kind `title`, no schema change, every
+    title kept) and fills page_index.json's `title` and the page story. The website's own
+    page list still wins.
+    - Pages read before this are read once more for their title, after any retries, within
+      the 500-a-day limit (a large site takes some days).
+    - The Pages tables show the title under the path, where known, and their search finds
+      it. The cell's words stay the path, so column filters, saved filters and the CSV are
+      unchanged.
+    - A title the page had before and says again is shown again.
+    - The page drawer shows it in its subtitle.
+  - **The hint** in the Pages search boxes says "Search by path, address or title" where
+    titles are known, else "Search by path or address".
+  - **Second count:** audit_page_dates.py now holds each kept title (one line, folded
+    spaces, 1 to 300 characters, read from the page's own HTML) and the one shown, the
+    website's list first.
+  - **Who it affects:**
+    - Every site: the full-address search.
+    - Sites with Page dates on: the titles.
+    - Nothing to do. The titles fill in as the pages are read again (500 a day).
+  - **Checked:**
+    - Tests: title reading (the tag with entities and spaces, an `<svg>` title, og:title,
+      the JSON-LD headline, a nested related post's headline never taken, a long title), every
+      title kept and the latest shown, the website's list winning, the once-more read of
+      untitled pages, the audit catching a wrong title and a bad row, app.json's hosts.
+    - A node test runs address queries (with and without `www.` or the scheme, a fragment, a
+      query, the home page, a closing "/", a title with "?", another site), a title query, and
+      a site with no titles, through a real table.
+    - An independent review was done, and its findings were fixed with tests: the home
+      address showing every row, a title glued to the path in filters, a title going back,
+      `<title>` edge cases, the order of the once-more read, and an audit gap.
+
+### Changed
+
+- **Gemini's live page fetch has a name: "Google fetch proxy (Gemini, Sheets, Apps Script)"
+  (SKALD-51).** Asked on 23 Nov 2026 to open a page live, Gemini fetched it once with the bare
+  user agent `Google` from `rate-limited-proxy-<ip>.google.com`. That address is on none of
+  Google's published crawler lists, so the request was an unnamed bot under "Other bots and
+  scanners" (in AI & bots › Crawlers it was a row called just "Google"). The same proxy fetches
+  for Google Sheets (`IMPORTXML`, `IMPORTDATA`), Apps Script and feed readers, so the request
+  cannot say it was Gemini. It stays a bot, never an AI read and never credited to Gemini,
+  but under that name. It is checked by reverse DNS like Googlebot: a name in `google.com`
+  that resolves back (`verify-bots` now looks these addresses up). A request with that user
+  agent from an address that is not Google's is "claims to be Google fetch proxy (...)". A scanner probe
+  stays a scanner. Both counts (classify.py rule 6d and the audit's judge) give the same name,
+  and the "new crawler or assistant" alert skips it, because its name says Gemini.
+  Group totals do not change: only the name of a bots row. Who is affected: any site Gemini,
+  Sheets or Apps Script fetches; on skaldanalytics.com only the one probe request so far. What anyone must
+  do: nothing. Days already stored keep the old row name (an `audit --day` of such a day reports
+  that row as different until `collect --day` recounts it).
+  Checked: unit tests for the rule, the DNS check on both roads, `verify-bots`, a full collect
+  with the audit agreeing, the alert and Recent requests (tests/test_google_fetch_proxy.py).
+
+- **Security: images, stylesheets, WordPress's own cron and a home page under another name are
+  no longer "possible exposures"; a checked one can be marked "Not a problem" (SKALD-59).**
+  The 25 Nov 2026 daily summary listed about 240 possible exposures on six WordPress sites, so
+  the site developers thought their security fixes had failed. Almost all were harmless: public
+  images under `/wp-content/uploads/`, theme and cache CSS/JS (on one site 21,806 answers in a
+  day, since its Worker began sending files, filling the 200 rows a day lists, so a real
+  exposure could have been pushed off the list), WordPress calling its own `/wp-cron.php`, and
+  `/index.php` answered with the home page. Exposure rule 3 adds three harmless verdicts on both
+  counts, each kept narrow so that it cannot hide a leak: `static` (an image, stylesheet,
+  script or font in `wp-content/` or `wp-includes/`, never behind a script name such as
+  `/x.php/a.css`, `/x.php%2fa.css` or `/shell.php.png`, and never a secret file), `own` (a
+  POST to `/wp-cron.php` at the root or one folder down but never inside `wp-content`,
+  `wp-includes`, `wp-admin` or `uploads`, with WordPress's own agent naming one of the site's
+  hosts) and `home` (a script name such as `/index.php` within 1%, at least 16 bytes, of one
+  of the 20 sizes the host answered a bare `/` with most often that day; never a search page
+  `/?s=...`, whose size follows the query). A static file or own
+  call no longer sets a host's fallback size. An owner or admin can now press **Not a
+  problem** on a possible exposure (Security › Is anything exposed?, a row or the alert's
+  link): an answer with the same status and a size within the day's tolerance opens no item,
+  no daily-summary line and no site alert, and the verdict leaves it out. A path with two
+  answers (compressed and not) takes a mark for each; another answer is judged again; **Check
+  it again** takes the marks back. The alert's link now shows today's answer first, so an
+  item opened again by a changed file is never shown as marked. Marks live in accounts.sqlite
+  (`security_marks`, cleared and purged with the site's data), each one an audit-log row
+  (`security.item.not_a_problem` / `security.item.check_again`); new route `POST
+  settings/security-mark`, and `GET settings/security-prefs` carries the marks. Not done: a
+  signed-in request cannot be told from the log (no cookie is recorded), and a site's saved
+  `asset_prefixes` are not used (`/wp-content/` would also cover `/wp-content/debug.log`):
+  those answers are marked instead. **Who it affects:** every site with security alerts, and
+  each person who gets the daily summary. **What to do:** at deploy, recount yesterday on
+  every site (`backfill --days 1 --force`, then `audit` it). A day stored before the upgrade
+  was counted with rule 2, which no alert or mail reads (as in 2.21.1), so without it the old
+  items stay open (SKALD-60 holds them) and the next 01:00 summary lists them all once more.
+  Recount the other days the raw log still holds (`backfill --days 14 --force`) so their
+  audit passes and the dashboard shows rule 3 for them. **How it was checked:** new
+  `tests/test_security_harmless.py` (each new verdict and the paths it must not cover: a
+  script behind a static name, a secret, a server build file, the cron path elsewhere or
+  without its POST, a dump or log the size of a search page; the audit catching a changed
+  verdict; one path with two marked answers; the live run and the site alert reading marks
+  from the accounts file; a rule-2 day; the route by role and bad input; clear and purge),
+  `tests/js/security.mjs` (sums, verdict, marks, the button by role, the alert's link); the
+  fixtures moved to rule 3. An independent review, run twice, found rules too wide (a script through
+  PATH_INFO, an encoded slash or a double extension counted static; `/?s=` search pages
+  counted as the home page; the cron path inside `wp-content`) and smaller faults (one mark
+  per path, marks left by Clear data, the alert's link showing an old answer, no cap on
+  marks: a site keeps at most 5,000); all fixed and tested. Real data: 25 Nov 2026's raw logs of the six sites collected
+  and audited on a local copy with master's code and with this change. Both counts agree on
+  every site; possible exposures fell from 25,880 answers on 308 listed paths to 121 answers
+  on 32 paths (one site: 21,806 to 56). A local install showed the mark end to end: the item
+  closed, stayed closed through a live run, left the summary, was refused without the CSRF
+  value or the same origin, and came back after Check it again. A release check in Chrome (28 Nov) found
+  that the button saved the mark but the screen kept the row open until a reload: the
+  dashboard took a redraw at the same address for "only a drawer changed". A forced redraw
+  (`S.emit(true)`, which Funnels and the report's Close use too) now draws the tab again in
+  place; a test covers it.
+
+### Fixed
+
+- **Claude's fetches for a person are counted as Claude again, not as a fake (SKALD-52).**
+  When someone asks Claude to read a page, Claude fetches it as `Claude-User` from Anthropic's
+  outbound addresses (the "Outbound IP addresses" on Anthropic's IP address page).
+  Skald checked every Anthropic agent only against Anthropic's crawler list
+  (claude.com/crawling/bots.json), which does not hold them, so each real fetch was judged
+  "claims to be Claude-User": moved to bots, out of the AI figures. Seen on 23 Nov on
+  skaldanalytics.com: a fetch asked of claude.ai showed as "Other bots and scanners", and AI
+  assistants as none; the kept logs of the drain sites held 1,790 such fetches in about 14
+  days, and every site's Claude-User figures were too low since at least 20 Oct. Now the
+  daily list fetch also reads the "Outbound IP addresses" section of that page (new stored
+  list `anthropic-outbound`, with its date; the last good copy is kept when the page cannot
+  be read, and its "Phased out" addresses never count). It proves Claude-User only:
+  ClaudeBot, Claude-SearchBot and anthropic-ai from those addresses stay "claims to be ...".
+  Without a fresh copy of both lists a Claude-User claim is not called fake (not checked).
+  The audit's own road reads the list itself and judges the same way, and recounts a day
+  stored before this release as it was counted (the day's bots blob now says which lists it
+  was counted with; `audit_rules.py`), so no stored day is withheld for it. Who it affects:
+  every site that Claude reads for people. What to do: nothing; days from the upgrade on are
+  counted right. Earlier days keep the old split unless recounted (`collect --day`), the
+  owner's call. Not changed: Claude-SearchBot from Google Cloud addresses that neither list
+  holds is still counted as a fake (an open question on the ticket). Checked: unit tests for
+  reading the page (HTML and Markdown forms, phased-out, contents and script text left out,
+  a changed page refused), both roads giving the same verdict for every Anthropic agent and
+  state of the lists, a collected day and a live snapshot audited, and a day stored before
+  the rule audited as it was counted; the real page read on 26 Nov gives exactly its two
+  outbound ranges, and the addresses of the fetch seen on 23 Nov are verified on both roads.
+
+- **Form started and Form sent counted things that are not forms (SKALD-67, GitHub #116).**
+  On one measured site, Traffic › Events showed 30 Form sent in 7 days for 1 contact form a
+  person really sent (the server log's form post, and Leads & sales' 1 lead). The counting
+  was sound (every day checked, the audit matched); what `skald.js` called a form was not:
+  - a pop-up's close button is often `<form method="dialog"><button>Close</button></form>`,
+    and pressing it fires a real submit, so every close was a Form started and a Form sent;
+  - focus on any button or radio inside a `<form>` was a Form started, and a picker made of
+    buttons or a radio quiz was "sent";
+  - the form's name was its `id`, else its `name`, else `form`, so 84 of 86 form events on
+    that site were just `form` and the contact form, the close button and the picker looked
+    the same.
+  - **Changed:** a form counts when it carries any `data-skald` value but `off`, or else when
+    it has a field a person types into (`textarea`, or `input` with no or an empty type, or of
+    type text, email, tel, number, url, password, date, time, month, week or datetime-local).
+    An unmarked `method="dialog"` form and a button with `formmethod="dialog"` never count; a
+    marked dialog form does (a pop-up form the site's own script sends). A form with no `id`
+    or `name` is named by its `aria-label`, its `data-skald` value, the path on the page's own
+    site it posts to (`action` or `data-endpoint`; parts with a digit, `@` or `%`, or of 25
+    characters or more, are dropped, so an order number, an email or a webhook secret never
+    travels), or its first class, before `form`. Still never a field's value. The tag grew to
+    7.9 KB (budget 8 KB, from 7.5 KB).
+  - **Traffic › Events:** under Form started → Form sent, one line says Form sent counts
+    presses of the send button, not forms received. **Forms received: N** is shown beside it
+    when the site's server or a form tool reports forms (a lead hook, a JSON or Typeform or
+    HubSpot hook, or the lead database): the finished form leads of the same verified days
+    from Leads & sales' checked breakdown by tool, never the tag's own rows (with visitor IDs
+    on, the tag's Form sent are also "contact completed" rows) and no demo bookings. Whole site
+    only: with a page, source or page-group filter it says so instead. A day Leads & sales
+    withheld or never recorded is named, and no figure is shown when no day is checked. A note
+    says that before 2.60.0 Form started and Form sent also counted close buttons, pickers and
+    quizzes. The Form sent and Read ¾ tiles say what they count (Read ¾: a page that fits on
+    the screen never counts).
+  - **Not recounted:** each past event carried only the form's name, and that was `form` for
+    almost every form, so past days cannot be split. From the update on, the figures drop on
+    sites with such pop-ups or pickers.
+  - **Who:** every site using `skald.js`. Funnel steps and goals built on `form_start` /
+    `form_submit` read lower from the update on, and right. On sites with visitor IDs on, the
+    tag's form presses are also "contact" rows in Leads & sales (by the tool "The page"), so
+    those drop too. **Do:** nothing; a site can mark a picker, quiz or dialog form it wants
+    counted with `data-skald="<name>"`.
+  - **Docs:** docs/BEACON.md (which forms count, the name), docs/INTEGRATIONS.md, the help
+    guide "The tracking script" (also what Read ¾ means).
+  - **Checked:** fake-DOM tests (tests/js/skald-snippet.mjs: a dialog close form, a
+    `formmethod="dialog"` button, a button picker, a radio quiz and a search box send
+    nothing; each typed field counts; a marked picker and a marked dialog form count; a
+    control named "form"; names, and an address on another site, a digit, `@` or long part
+    never in a name), the Events tab in node (tests/js/form-events-67.mjs), the tag in real
+    Chrome on a test page and, with every send blocked, on one site's real pages (its two
+    pop-up closes, a picker and a quiz sent nothing; its contact form still sent both events,
+    now named by its path), the Events tab on a local copy of production in Chrome (light,
+    dark, phone), its Forms received figure recounted from the files in Python, and an
+    independent code review (its findings fixed: tag rows and demos out of the figure, the
+    path name's privacy, a control named "form", marked dialog forms, empty and time types).
+
+### Fixed (website and docs)
+
+- **Google AI Mode is not told apart today, and the website, docs and help now say so
+  (27 Nov 2026).** The site claimed that Skald names AI Mode "when the click carries
+  `udm=50`". Google never passes it to your site. Across 22 measured sites, about 101,000
+  visits from Google in about 14 days of kept logs had `udm=50` on the referrer in none and on
+  the landing URL in none, and the live server has never stored a "(AI Mode)" label. Real
+  tests in desktop Chrome on 27 Nov: clicks on links inside Google AI Mode answers arrived in
+  two ways. Some carried the referrer `https://www.google.com/` and nothing more, exactly like
+  an ordinary result click (counted as Search engine); others carried no referrer at all
+  (counted as Direct). Google's results page sets its referrer policy to origin, so the
+  search address that holds `udm=50` is never sent. AI Overview clicks look like ordinary
+  Google clicks. GA4 has the same limit: its AI Assistant channel excludes AI Overviews and
+  AI Mode. A text fragment (`#:~:text=`) never reaches the server and also appears on
+  ordinary results, so it proves nothing.
+  - **Mistake, written down (SKALD-68, GitHub #117):** the first upload (2026-11-27 02:48
+    UTC) said AI Mode clicks always arrive with no referrer, and that GA4 counts them as
+    Direct too. A later test found that some arrive as plain `google.com`. GA4 sees the same
+    referrer, so it files them under Organic Search, or under Direct when there is none. The
+    second pass corrects every page that said it; the compare page's Skald cell and the AI Mode
+    page now name Organic Search for GA4.
+  - **Changed:** `/ai-traffic-analytics/google-ai-mode/` (same address) now answers "Can you
+    see Google AI Mode traffic?" with the real cases first (plain google.com, or no
+    referrer) and the
+    `udm=50` case marked "if Google ever sends it"; the Compare page for Google Analytics
+    (Skald's cell and a broken sentence), the features page and its comparison row (now
+    "No"), the home page, the AI traffic, AI visibility, server log, Search Console, SEO
+    team, Otterly, Profound, Promptwatch and GA4 pages and their FAQ answers, the What's new
+    entry of 2.10.0 (a dated correction), `llms.txt` and `llms-full.txt`; in the repo
+    `README.md`, `CLASSIFICATION.md`, `docs/COMPARISON.md`, `docs/EDGE-CASES.md`, the help FAQ
+    (and the generated `help-data.js` and `about-data.js`), `public/docs/FEATURES.md`, the
+    dashboard's "Google AI Mode" What's new line in `keys.js` and HANDOVER D56 (a dated note).
+  - **Not changed:** the code. `dimensions.google_ai_mode` and its tests stay: if Google ever
+    sends `udm=50` on the referrer or the landing URL, a visit reads `google.com (AI Mode)` on
+    its own. No figure was recounted.
+  - **Who:** anyone who read the old claim on the website, the docs or the dashboard's
+    What's new. **Do:** nothing. The first wording went up on 27 Nov 02:48 UTC; the corrected
+    wording (SKALD-68) goes up with the next website upload, and the dashboard text
+    (`keys.js`, help) reaches the live dashboard with the next release.
+  - **Checked:** `python3 -m unittest discover tests` OK; the site rebuilt with `build.py`
+    (164 pages, problems: none; rubric on the AI Mode page met); `tools/build-about.py`; a
+    search of the built site for `udm` and "told apart"; live pages read by curl after the
+    first upload. SKALD-68: the site rebuilt (problems: none), a sweep of the source and the
+    built pages for any AI Mode sentence that says every click has no referrer (none left),
+    an independent review, and the full suite OK.
+
 ## 2.59.0 (2026-11-26)
 
 Traffic's tabs say more and hide less: one Country / Source / Device filter for Visitors,

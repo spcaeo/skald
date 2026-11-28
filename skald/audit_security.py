@@ -27,6 +27,13 @@ thresholds of security_names.py and classify.py's scanner patterns:
                    tolerance of it; the size with the most paths (the
                    smallest of a tie) is the shell when they are at least
                    `shell_paths`
+  harmless         (exposure rule 3) a 2xx probe answer for a static file (STATIC_FILE,
+                   in STATIC_PLACE, not STATIC_NEVER, no SCRIPT_NAME, not SECRET_PROBE):
+                   "static";
+                   a POST to SELF_PATH whose agent is WordPress's naming a site host: "own";
+                   neither sets a host's shell. After the shell, a HOME_PATH probe whose
+                   size is within HOME_PERCENT of one of the HOME_SIZES sizes a bare "/"
+                   got 2xx most often that day (every line of the site's hosts): "home"
   hosting          the hosting list read by the audit's own crawler checks
                    (audit_release2.Checks); None when it has none
 
@@ -48,7 +55,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .classify import PROBE, PROBE_QUERY
+from .classify import PROBE, PROBE_QUERY, SECRET_PROBE
 from . import security_names as N
 
 REMOVED = "(removed)"
@@ -164,6 +171,42 @@ class Recount:
             return True
         return group == "bots" and not any(line.path.startswith(p) for p in self.old)
 
+    def _sort(self, line, what: str):
+        """A probe answer harmless whatever its size: "static", "own" or None (rule 3)."""
+        path = line.path
+        public = what not in N.STATIC_NEVER and bool(N.STATIC_PLACE.search(path))
+        if public and N.STATIC_FILE.search(path) and not (N.SCRIPT_NAME.search(path)
+                                                          or SECRET_PROBE.search(path)):
+            return "static"
+        if line.method != N.SELF_METHOD or not N.SELF_PATH.search(path):
+            return None
+        got = N.SELF_AGENT.match(line.agent or "")
+        if not got:
+            return None
+        try:
+            named = (urlsplit(got.group(1)).hostname or "").lower()
+        except ValueError:
+            return None
+        return "own" if _theirs(named, self.own or ({line.host.lower()} if line.host else set())) \
+            else None
+
+    def _homes(self) -> dict:
+        """host -> the HOME_SIZES sizes a bare "/" (no query) got 2xx most often, from every
+        line of the site; a tie keeps the smaller size."""
+        seen = defaultdict(Counter)
+        for line in self.site_lines:
+            if line.url == "/" and _cls(line.status) == "2xx" and line.size:
+                seen[(line.host or "").lower()[:100]][int(line.size)] += 1
+        out = {}
+        for host, sizes in seen.items():
+            ranked = sorted(sizes, key=lambda s: (-sizes[s], s))
+            out[host] = ranked[:N.HOME_SIZES]
+        return out
+
+    @staticmethod
+    def _home_like(size: int, homes, tol: int) -> bool:
+        return any(abs(size - h) <= max(tol, h * N.HOME_PERCENT / 100) for h in homes)
+
     def _asset(self, line) -> bool:
         from .audit import _asset
         url = line.url.lower()
@@ -232,9 +275,10 @@ class Recount:
                         query_only += 1             # an ordinary page, its query an attack
                     elif c == "2xx":
                         host = (line.host or "").lower()[:100]
+                        sort = self._sort(line, what)
                         answered.append((host, line.path[:200], line.when, line.status,
-                                         line.size, what, key))
-                        if line.size is not None and int(line.size) > 0:
+                                         line.size, what, key, sort))
+                        if sort is None and line.size is not None and int(line.size) > 0:
                             sizes[host].append((int(line.size), line.path[:200]))
                 if group == "bots":
                     fake = None
@@ -450,22 +494,28 @@ class Recount:
             shell[host] = kept[0] if kept else None
             every[host] = sorted(s for s, _ in kept)
         hosts, rows, tally = {}, [], Counter()
-        for host, path, when, status, size, what, key in answered:
+        homes = self._homes()
+        for host, path, when, status, size, what, key, sort in answered:
             sh = shell.get(host)
-            if size is None:
+            if sort:
+                v = sort
+            elif size is None:
                 v = "unknown"
             elif int(size) == 0:
                 v = "empty"
             elif around(host, int(size)) >= need:
                 v = "shell"
+            elif (N.HOME_PATH.search(path) and not SECRET_PROBE.search(path)
+                  and self._home_like(int(size), homes.get(host, ()), tol)):
+                v = "home"
             else:
                 v = "possible"
             tally[v] += 1
             if host not in hosts:
                 hosts[host] = {"bare_ip": _ip_host(host), "shell_size": sh[0] if sh else None,
                                "shell_paths": sh[1] if sh else 0,
-                               "shell_sizes": every.get(host, []), "answered": 0, "shell": 0,
-                               "empty": 0, "possible": 0, "unknown": 0}
+                               "shell_sizes": every.get(host, []), "answered": 0,
+                               **{x: 0 for x in N.VERDICTS}}
             hosts[host]["answered"] += 1
             hosts[host][v] += 1
             if v in ("possible", "unknown"):
@@ -479,8 +529,7 @@ class Recount:
                                  str(r["status"]), -1 if r["size"] is None else r["size"],
                                  r["category"] or "", -1 if r["who"] is None else r["who"]))
         return {"answered": len(answered), "query_only": query_only,
-                "shell": tally["shell"], "empty": tally["empty"],
-                "possible": tally["possible"], "unknown": tally["unknown"],
+                **{x: tally[x] for x in N.VERDICTS},
                 "hosts": {h: hosts[h] for h in sorted(hosts)},
                 "rows": rows[:N.EXPOSURE_ROWS], "folded": max(0, len(rows) - N.EXPOSURE_ROWS)}
 

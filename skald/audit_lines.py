@@ -6,7 +6,8 @@ audit.line_hit, audit.Line and the rest are where they were.
 
 Nothing here calls the package's parser (parse.py). The trailing
 rsc_prefetch= field (Next.js's prefetch header, docs/INGEST.md) is read by
-its own code (_prefetch), sharing only the documented token.
+its own code (_prefetch), sharing only the documented token; so is the
+sec_fetch_site= field (the browser's Sec-Fetch-Site header, SKALD-69).
 """
 from __future__ import annotations
 
@@ -38,6 +39,9 @@ _RID = re.compile(r"\srid=([0-9A-Za-z-]{8,64})\s*$")
 _PREFETCH_KEY = "rsc_prefetch="
 # The request's size in bytes (Security; docs/INGEST.md), the same way.
 _LENGTH_KEY = "request_length="
+# The browser's Sec-Fetch-Site header (SKALD-69; docs/INGEST.md, "Hidden
+# referrals"), the same way.
+_SITE_KEY = "sec_fetch_site="
 
 
 @dataclass
@@ -68,6 +72,9 @@ class Line:
     # that matched this line ("" none; None not worked out yet).
     marker: object = None
     not_page: str | None = None
+    # The sec_fetch_site= field's value, lower case ("" for "-": not sent),
+    # or None when the line has no such field (SKALD-69).
+    fetch_site: str | None = None
 
     @property
     def path(self) -> str:
@@ -93,6 +100,7 @@ def line_hit(raw: str) -> Line | None:
             got.prefetch, rest = _prefetch(raw[m.end(8) + 1:].rstrip("\n"))
             raw_length, rest = _prefetch(rest, _LENGTH_KEY)
             got.length = int(raw_length) if raw_length and raw_length.isdigit() else None
+            got.fetch_site, rest = _site(rest)
             rid = _RID.search(rest)
             got.rid = rid.group(1) if rid else ""
             got.size, got.seconds = _byte_count(m.group(6)), _secs(m.group(9))
@@ -105,13 +113,25 @@ def line_hit(raw: str) -> Line | None:
             return None
         prefetch, tail = _prefetch(m.group(8))
         raw_length, tail = _prefetch(tail, _LENGTH_KEY)
+        site, tail = _site(tail)
         got = _line(when, m.group(1), _named_host(tail), m.group(3), m.group(4),
                     m.group(6), m.group(7), None)
         got.size, got.seconds = _byte_count(m.group(5)), _tail_seconds(tail)
         got.prefetch = prefetch
         got.length = int(raw_length) if raw_length and raw_length.isdigit() else None
+        got.fetch_site = site
         return got
     return None
+
+
+def _site(rest: str) -> tuple[str | None, str]:
+    """(the sec_fetch_site= field's value, lower case, "" when it is "-",
+    or None when the line has none; the trailing part without it)."""
+    raw, rest = _prefetch(rest, _SITE_KEY)
+    if raw is None:
+        return None, rest
+    value = raw.strip().lower()
+    return ("" if value == "-" else value), rest
 
 
 def _prefetch(rest: str, key: str = _PREFETCH_KEY) -> tuple[str | None, str]:

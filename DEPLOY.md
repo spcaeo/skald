@@ -184,11 +184,11 @@ is set, and the live run checks the alerts and markers itself. Set it: without
 `bots.ranges_dir` no crawler claim is checked (a fake Googlebot counts as
 Googlebot, a browser from a cloud is not flagged), and `doctor` says "crawler
 checks off". The Docker image sets it by default (`SKALD_VERIFY_BOTS`). A first
-fetch is about 37 requests (8 MB down, 1.3 MB kept, under a minute); lists
+fetch is about 41 requests (8 MB down, 1.3 MB kept, under a minute); lists
 fetched in the last 12 hours are not fetched again, so several sites share one
 fetch a morning. The server
-needs outbound HTTPS for the lists (Google, Bing, Apple, OpenAI, Perplexity,
-Anthropic, DuckDuckGo, stat.ripe.net) and DNS; a failure keeps the last
+needs outbound HTTPS for the lists (Google and gstatic.com, Bing, Apple, OpenAI,
+Perplexity, Anthropic, DuckDuckGo, River, Cloudflare, stat.ripe.net) and DNS; a failure keeps the last
 good copy and never stops a run. List `site-version-check` in
 `ours.user_agents` (label "version check") when `markers.version_url` is set:
 that is the agent the footer check sends.
@@ -344,8 +344,13 @@ dropped and counted as `duplicates_removed` in quality.json.
 - **Security's large POST bodies:** ` request_length=$request_length` lets Security >
   Attack attempts list POST bodies of 1,000,000 bytes or more; without it that line says
   "not recorded".
+- **Hidden referrals (SKALD-69):** ` sec_fetch_site=$http_sec_fetch_site` (Apache:
+  ` sec_fetch_site=%{Sec-Fetch-Site}i`) splits a click from a site that hid its address
+  ("Hidden referral") out of Direct. Deploy the release that reads it first, then change the
+  `log_format`: an older release does not know the field, and one written after `rid=` or a
+  trailing `"$host"` hides them from it.
 
-Both go at the end of the line, beside `rid=`, and both counts read them. The exact lines and
+All go at the end of the line, beside `rid=`, and both counts read them. The exact lines and
 why they are safe: [docs/INGEST.md](docs/INGEST.md), "Log formats".
 
 ### AI crawler settings (optional)

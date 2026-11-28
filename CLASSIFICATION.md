@@ -70,7 +70,8 @@ crawler name not proven its owner's does not keep a probe out of bots).
 5b. BROWSER matches (no OTHER_BOT, no bare "(compatible; ...)"), and the
       address is on a crawler-only published list (bot_verify.
       CRAWLER_ADDRESSES: Google's common crawlers, Bing, Apple, OpenAI's
-      GPTBot, OAI-SearchBot and OAI-AdsBot, PerplexityBot, DuckDuckBot)
+      GPTBot, OAI-SearchBot and OAI-AdsBot, PerplexityBot, DuckDuckBot,
+      RiverBot)
                                              -> that crawler, verified
                                                 (ANSWER_ENGINE or SEARCH_ENGINE)
 6.  probing                                  -> BOTS, probe=True
@@ -84,6 +85,10 @@ crawler name not proven its owner's does not keep a probe out of bots).
       ending in "/", is none - nothing under site.legacy_paths)
                                              -> BOTS ("scanner (asked for many
                                                    missing probe paths)")
+6d. the agent is exactly "Google" (GOOGLE_PROXY_AGENT)
+                                             -> BOTS ("Google fetch proxy (Gemini,
+                                                   Sheets, Apps Script)"; reverse DNS
+                                                   not Google's: "claims to be ...")
 7.  OTHER_BOT matches, "(compatible; ...)"
       naming no browser engine, no agent at
       all, or an /.well-known/acme-challenge/
@@ -126,6 +131,18 @@ unless it is proven its owner's: a verified Googlebot that follows a link to
 `/wp-login.php` is still Googlebot, with the probe flag. A proven fake still
 goes to "claims to be <name>", so the crawler checks keep counting it.
 
+Rule 6d (SKALD-51, Palak's choice on 2026-11-26) names Google's fetch proxy. Asked to
+open a page live, Gemini fetched it once with the bare user agent `Google` from
+`rate-limited-proxy-<ip>.google.com`, an address on none of Google's published crawler lists
+(probe, 23 Nov 2026). Sheets (`IMPORTXML`, `IMPORTDATA`), Apps Script and feed readers fetch
+through the same proxy, so the request cannot say which tool sent it. It stays a bot, never an
+AI read and never credited to Gemini, but under its own name instead of an unnamed row. It is
+checked like Googlebot's DNS (`bot_verify` owner `google-proxy`: a reverse name in `google.com`
+that resolves back); a proven fake is "claims to be Google fetch proxy (...)", still a bot, and
+not a crawler claim in `bots.json`'s checks or Security's fake crawlers. Not checked yet, or from
+a CDN edge's address, it keeps the name. A probe or a scanner's address (rules 6 to 6c) comes
+first. `verify-bots` looks its addresses up after the real crawler claims.
+
 A CDN edge's address is never proof either way (SKALD-17). A site behind a CDN whose server
 logs the edge (not CF-Connecting-IP) has the CDN's address on its lines; a real OAI-SearchBot
 or Googlebot through it is not on its owner's list, and the edge's reverse DNS is the CDN's.
@@ -134,6 +151,22 @@ crawler lists) that its owner's list does not hold is checked `cdn`: rules 3 to 
 the crawler it names, neither verified nor proven fake, and rule 2b treats it as not proven
 (a scanning one is still a bot). `bots.json` counts it apart (`cdn`); the audit's own road
 reads the stored list itself (`audit_release2.Checks.from_cdn`).
+
+Claude-User has a second list (SKALD-52). When a person asks Claude to read a page, Claude
+fetches it as `Claude-User` from Anthropic's outbound addresses, which Anthropic documents on
+its IP address page (platform.claude.com/docs/en/api/ip-addresses, "Outbound IP addresses":
+two ranges on 26 Nov 2026), not in its crawler list
+(claude.com/crawling/bots.json). Up to 2.58.0 Skald read only the crawler list, so every real
+Claude-User fetch from those addresses was "claims to be Claude-User", in bots. Now the
+outbound section is fetched with the other lists (`anthropic-outbound`, read from the page
+by `bot_verify.parse_page`: the section's own IPv4 and IPv6 addresses, never its "Phased
+out" ones) and proves Claude-User only (`bot_verify.AGENT_LISTS`): ClaudeBot,
+Claude-SearchBot and anthropic-ai from those addresses are still proven fake, as before. A
+Claude-User claim is called fake only when both lists are fresh; without the outbound list it
+is not checked (`unverified`). Days stored before are not re-judged unless recounted; the
+bots blob of a day counted with the rule holds `agent_lists`, and the audit recounts a day
+without it as it was counted (`audit_rules.py`). Claude-SearchBot from Google Cloud
+addresses in neither list stays "claims to be Claude-SearchBot" (open question on SKALD-52).
 
 Rule 8 needs to know the whole visit before it files any of its hits, so
 every analysis reads its window twice: once to find the crawler visits
@@ -718,9 +751,10 @@ window is `ai_read_names.WINDOW_SECONDS` (30): see `COUNTING-TRAPS.md` trap 21.
 `dimensions.source_type` (and, on the audit's own road,
 `audit_labels.source_of`) gives each visit one of: AI assistant, Search
 engine, Social media, Email, Other website, This site, Tagged link,
-Returned from payment, Direct or unknown (the stored name; shown to a person
-as Direct, see `skald/labels.py`). A referrer decides first. With
-none, the tags do:
+Returned from payment, Hidden referral, Direct or unknown (the stored name;
+shown to a person as Direct, see `skald/labels.py`). A referrer decides
+first. With none, the tags do; with neither, the browser's Sec-Fetch-Site
+header does, when the log records it (Hidden referral, below):
 
 - **Returned from payment** (owner's decision 6, 11 Nov 2026; issue #34). A
   referrer whose host is a payment page is a buyer coming back from paying,
@@ -762,9 +796,49 @@ none, the tags do:
   and the referrer label becomes `google.com (AI Mode)` (`google.de (AI
   Mode)`, ...), so it can be seen apart. Only when the parameter is there,
   never inferred: a bare `google.com` referrer stays `google.com`.
+  **Google does not send it today (checked 27 Nov 2026):** its results page sets
+  the referrer policy to origin, so the search address with `udm=50` never leaves
+  Google. A click on a link inside an AI Mode answer arrives either as an ordinary
+  `google.com` visit (Search engine) or with no referrer at all ("Direct or
+  unknown", or a Hidden referral where the log records Sec-Fetch-Site, below; never
+  named AI Mode). The label is ready for the day Google marks AI Mode clicks; until
+  then no visit gets it.
   `dimensions.referrer_label` and, on the audit's road,
   `audit_labels.referrer_of`; a visit's first page carries the label, and a
   later page from the other label is a new outside source, on both roads.
+- **Hidden referral** (SKALD-69, GitHub #118; names in
+  `skald/hidden_names.py`). A page view with no referrer, no utm_ tag
+  and no ad click id, whose request carried `Sec-Fetch-Site: cross-site`, is
+  a click on a link on another website that hid its address
+  (`rel="noreferrer"`, a no-referrer policy, some Google AI Mode clicks, an
+  assistant whose tag was dropped). Browsers send `none` for a typed address,
+  a bookmark or a link an app opened (mail, Slack, WhatsApp, the ChatGPT app):
+  that stays "Direct or unknown", shown as Direct. So does any other value
+  (`same-origin`, `same-site`: the site's own pages), and a line with no
+  value: an older browser (Safari before 16.4 sends none), most bots, a site
+  served over plain HTTP (browsers send it only to HTTPS), a log source with
+  no request headers (the Vercel and Netlify drains), and every day before the
+  log carried the field. Never 0 for those: unknown stays Direct or unknown.
+  - Only a **page view's** header counts (`parse.Hit.navigation_site`): a file
+    or a call a page makes is sent by the page, not by where the person came
+    from. Audit's road: `audit_labels.source_of`, called with page views only.
+  - It never opens a new visit inside the visit gap (owner's decision, 27 Nov
+    2026), exactly as Direct: visit counts do not change, only the first
+    page's source does (`dimensions.INSIDE_SOURCES`; `audit._elsewhere`).
+  - "Likely sent by an AI assistant" looks at Direct and Hidden referral
+    visits alike (`ai_likely.NO_REFERRER`); "Direct, likely <reason>" explains
+    the Direct row only (owner's decision, 27 Nov 2026).
+  - It says only that the visitor came from somewhere that hid itself, never
+    where. It is never called AI Mode.
+  - Where the field comes from: nginx/Apache's ` sec_fetch_site=` field
+    (docs/INGEST.md, "Hidden referrals"), the Skald Worker's `fetch_site`
+    (deploy/cloudflare-worker/skald-edge.js), Caddy's logged headers.
+  - Past days are not recounted. A Caddy log (one live site) held the
+    header before Skald read it: a recount of such a day (`backfill --force`)
+    would apply the rule, and is the owner's call. A day stored before the
+    rule keeps its figures, and the audit recounts it without the rule, as
+    it was counted: its quality blob has no `hidden_referral` marker
+    (`audit_rules`, via `audit_labels.hidden_counted`), so it is never withheld for it.
 - **utm_ tags.** `utm_source` decides first, `utm_medium` only when the
   source names no type: the source names the place, the medium only says
   how. `utm_source=linkedin&utm_medium=cpc` is Social media, not Search
@@ -882,10 +956,13 @@ and no marker. The crawl side is not separable either: Google trains on what
 Googlebot fetches, and `Google-Extended` is a robots.txt switch, not a user
 agent. So a report must not claim any number for Overview clicks, nor for
 "Google's AI crawl". The HTML card says "not measurable" in that row on
-purpose. Google's AI Mode is the one exception, and only when the click
-carries `udm=50` (on the referrer or the landing URL): it is then labelled
-`google.com (AI Mode)` ("The source type of a visit"). Most AI Mode clicks
-arrive with the bare origin and stay plain `google.com`, so it is a floor.
+purpose. Google's AI Mode would be the one exception, and only if a click
+carries `udm=50` (on the referrer or the landing URL): it would then be labelled
+`google.com (AI Mode)` ("The source type of a visit"). Google does not send it
+today: a click on a link inside an AI Mode answer arrives either as an ordinary
+`google.com` visit or with no referrer at all (tested 27 Nov 2026), so it counts
+as Search engine or "Direct or unknown", and a report must not claim an AI Mode
+figure.
 
 **Referrers are frequently stripped**, by privacy settings, by
 `Referrer-Policy`, by apps that open links in their own webview, and by HTTPS

@@ -16,7 +16,8 @@ otherwise), and what each action takes:
                        its outgoing webhooks (a setting)            purge only
   ai_answers.sqlite    runs, answers, figures                             both
                        lists, profiles, profile_versions (settings)  purge only
-  accounts.sqlite      security_items, security_sends, summary_items      both
+  accounts.sqlite      security_items, security_sends, summary_items,
+                       security_marks                                     both
                        security_prefs, share_links (set-up links),
                        todo_marks, client_reports, client_report_sends,
                        settings (scope site:<name>), site_setup and the
@@ -69,7 +70,7 @@ ARCHIVE = re.compile(r"^site-(?P<site>[a-z0-9.-]+)-(?:purge|clear)-"
 KEEP_ON_CLEAR = ("funnels.json", "ours.json", "markers.log", "bot-policy.json",
                  "bot-policy-applied.json")
 ANSWERS_DATA = ("runs", "answers", "figures")
-ACCOUNTS_DATA = ("security_items", "security_sends", "summary_items")
+ACCOUNTS_DATA = ("security_items", "security_sends", "summary_items", "security_marks")
 ACCOUNTS_PURGE = ("security_prefs", "share_links", "todo_marks", "client_reports",
                   "client_report_sends")
 

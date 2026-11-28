@@ -331,8 +331,9 @@ class Feed:
         visit = self.visits.get(key)
         own = self.own or ({hit.host.lower()} if hit.host else set())
         cited = verdict.tier is Tier.CITED
-        source = dim.source_type(hit.referrer, hit.url, cited, own)
-        page = dim.page_origin(hit.referrer, hit.url, cited, own) if hit.is_page else None
+        source = dim.source_type(hit.referrer, hit.url, cited, own, hit.navigation_site)
+        page = (dim.page_origin(hit.referrer, hit.url, cited, own, hit.navigation_site)
+                if hit.is_page else None)
         # The visits' own rule (aggregate._Sessions): the gap, or a page from
         # a new outside source.
         if (visit is None or when - visit["last"] > self.gap

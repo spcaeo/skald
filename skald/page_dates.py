@@ -12,11 +12,14 @@ pages and BUDGET seconds a run, at most DAY_CAP pages a local day):
 
   changed   its sitemap date is not the one it had at its last read
   new       never read: its published date is read once
+  untitled  read before titles were kept (SKALD-70; page-dates.json's
+            titles_from, else the oldest title kept) and no title kept for it:
+            read once more for it, after the retries
   retry     the last read failed (or was blocked): at most once a day
   monthly   read RECHECK_DAYS ago or more: for a site whose sitemap has no
             dates, or wrong ones
 
-in that order. The pages are the sitemap's list of the day (sitemap.entry_for)
+in that order (with "untitled" between retry and monthly). The pages are the sitemap's list of the day (sitemap.entry_for)
 and the LOG_PAGES pages people read most in the last LOG_DAYS days that the
 sitemap does not list (the day kind `pages`), never one the site's
 not-a-page list names (a feed, an API: not_pages.py). Each request is Skald's own (AGENT; classify.OWN_AGENTS,
@@ -39,7 +42,11 @@ Storage, in history (schema 16; store.ADDED_TABLES):
                value ever seen. kind "published" or "modified"; source
                jsonld, meta or time (the page's own) or sitemap; value as
                page_dates_html.normalise keeps it; first_seen_at the UTC time
-               Skald first read it. Never updated, never pruned.
+               Skald first read it. Never updated, never pruned. Kind "title"
+               (SKALD-70): the page's title as page_dates_html.clean_title
+               keeps it, source html (<title>), meta (og:title) or jsonld
+               (headline); every title the page had, the latest shown (a title it had
+               before is first seen again when the page says it again).
   page_checks  (site, path): the last read of each page: checked_at (UTC),
                outcome (OUTCOMES), the HTTP status, an error in plain words,
                and `sitemap`, the page's sitemap date at that read.
@@ -55,6 +62,8 @@ it out again by its own SQL):
   published   the latest published value the page gave (first_seen_at, then
               the value), with its source
   modified    the latest modified value the page itself gave
+  title       the latest title the page gave (first_seen_at, then the text):
+              {"text", "from"}
   changes     every modified value, the page's and the sitemap's, one entry
               per local day: {"day", "at" (the day's latest value), "sources"}
   check       the last read: {"at", "outcome", "status", "error"}
@@ -79,9 +88,9 @@ TABLE_DATES = """
 CREATE TABLE IF NOT EXISTS page_dates (
     site          TEXT NOT NULL,
     path          TEXT NOT NULL,        -- as the sitemap or the log spells it
-    kind          TEXT NOT NULL,        -- published / modified
-    value         TEXT NOT NULL,        -- page_dates_html.normalise
-    source        TEXT NOT NULL,        -- jsonld / meta / time / sitemap
+    kind          TEXT NOT NULL,        -- published / modified / title (SKALD-70)
+    value         TEXT NOT NULL,        -- page_dates_html.normalise, or the title
+    source        TEXT NOT NULL,        -- jsonld / meta / time / html / sitemap
     first_seen_at TEXT NOT NULL,        -- UTC, ISO 8601: when Skald first read it
     PRIMARY KEY (site, path, kind, value, source)
 )"""
@@ -96,8 +105,9 @@ CREATE TABLE IF NOT EXISTS page_checks (
     sitemap    TEXT,                    -- the page's sitemap date at this read
     PRIMARY KEY (site, path)
 )"""
-KINDS = ("published", "modified")
-SOURCES = ("jsonld", "meta", "time", "sitemap")
+KINDS = ("published", "modified", "title")
+DATED = ("published", "modified")              # the kinds that are dates
+SOURCES = ("jsonld", "meta", "time", "html", "sitemap")
 OUTCOMES = ("dated", "not_given", "not_html", "redirected", "failed", "blocked")
 FAILED = ("failed", "blocked")
 DAY_CAP = 500
@@ -185,22 +195,25 @@ def _page(path: str) -> str:
 
 
 def view(db, site: str, tz) -> dict:
-    """{page (spellings joined): {"published", "modified", "changes", "check"}}
-    (module doc). {} when the site has no rows."""
+    """{page (spellings joined): {"published", "modified", "title", "changes",
+    "check"}} (module doc). {} when the site has no rows."""
     dates, checks = rows(db, site)
     out: dict[str, dict] = {}
 
     def entry(path):
         return out.setdefault(_page(path), {"published": None, "modified": None,
-                                            "changes": [], "check": None, "_c": {}})
+                                            "title": None, "changes": [], "check": None,
+                                            "_c": {}})
+
+    def rank(kind, value, seen):
+        return (seen, value) if kind == "title" else (seen, order_key(value))
 
     for path, kind, value, source, seen in dates:
         e = entry(path)
         item = {"at": value, "from": source, "seen": seen}
-        rank = (seen, order_key(value))
         if source != "sitemap" and kind in KINDS:
             old = e[kind]
-            if old is None or rank > (old["seen"], order_key(old["at"])):
+            if old is None or rank(kind, value, seen) > rank(kind, old["at"], old["seen"]):
                 e[kind] = item
         if kind == "modified":
             day = local_day(value, tz)
@@ -216,10 +229,12 @@ def view(db, site: str, tz) -> dict:
     for e in out.values():
         e["changes"] = [{**c, "sources": sorted(c["sources"])}
                         for _, c in sorted(e.pop("_c").items())]
-        for kind in KINDS:
+        for kind in DATED:
             if e[kind]:
                 e[kind] = {"at": e[kind]["at"], "from": e[kind]["from"],
                            "day": local_day(e[kind]["at"], tz)}
+        if e["title"]:
+            e["title"] = {"text": e["title"]["at"], "from": e["title"]["from"]}
     return out
 
 
@@ -291,7 +306,7 @@ def read_page(url: str, hosts: list[str], now: datetime, fetch=None,
         except LookupError:
             text = body.decode("utf-8", errors="replace")
         dates = parse(text, urlsplit(url).path or "/", now)
-        dated = any(dates.values())
+        dated = bool(dates.get("published") or dates.get("modified"))
         return {"outcome": "dated" if dated else "not_given", "status": status,
                 "error": None, "dates": dates}
     return {"outcome": "failed", "status": None, "error": "too many redirects", "dates": None}
@@ -340,9 +355,12 @@ def sitemap_now(dates: list) -> dict[str, str]:
     return {p: r[2] for p, r in best.items()}
 
 
-def due(paths: list[str], checks: dict, latest: dict, now: datetime) -> list[tuple[str, str]]:
-    """[(path, why)] in the order they are read (module doc)."""
-    groups: dict[str, list] = {"changed": [], "new": [], "retry": [], "monthly": []}
+def due(paths: list[str], checks: dict, latest: dict, now: datetime,
+        untitled=frozenset()) -> list[tuple[str, str]]:
+    """[(path, why)] in the order they are read (module doc). `untitled`: pages
+    last read before titles were kept, with no title kept (SKALD-70)."""
+    groups: dict[str, list] = {"changed": [], "new": [], "untitled": [], "retry": [],
+                               "monthly": []}
     for p in paths:
         c = checks.get(p)
         if c is None:
@@ -356,9 +374,12 @@ def due(paths: list[str], checks: dict, latest: dict, now: datetime) -> list[tup
             continue
         if latest.get(p) and latest[p] != c["sitemap"]:
             groups["changed"].append(p)
+        elif p in untitled and c["outcome"] in ("dated", "not_given"):
+            groups["untitled"].append(p)
         elif age >= timedelta(days=RECHECK_DAYS):
             groups["monthly"].append(p)
-    return [(p, why) for why in ("changed", "new", "retry", "monthly") for p in groups[why]]
+    return [(p, why) for why in ("changed", "new", "retry", "untitled", "monthly")
+            for p in groups[why]]
 
 
 # ------------------------------------------------------------- writing rows
@@ -372,9 +393,14 @@ def record(db, site: str, path: str, got: dict, sitemap_value, now: datetime) ->
                     sitemap_value))
         for kind, found in (got.get("dates") or {}).items():
             if found:
-                db.execute("INSERT OR IGNORE INTO page_dates (site, path, kind, value, source, "
-                           "first_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
-                           (site, path, kind, found[0], found[1], stamp))
+                cur = db.execute("INSERT OR IGNORE INTO page_dates (site, path, kind, value, "
+                                 "source, first_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (site, path, kind, found[0], found[1], stamp))
+                # A title is the page's latest read: one it had before is first seen again now.
+                if kind == "title" and not cur.rowcount:
+                    db.execute("UPDATE page_dates SET first_seen_at = ? WHERE site = ? AND "
+                               "path = ? AND kind = 'title' AND value = ? AND source = ?",
+                               (stamp, site, path, found[0], found[1]))
 
 
 def import_history(db, site: str, live_dir, tz) -> int:
@@ -479,7 +505,16 @@ def refresh(config: dict, live_dir, history, site: str, now: datetime | None = N
             latest = sitemap_now(dates)
             by_path = {c[0]: {"checked_at": c[1], "outcome": c[2], "sitemap": c[5]}
                        for c in checks}
-            todo = due(candidates(config, live_dir, history, site, today), by_path, latest, now)
+            titled = {d[0] for d in dates if d[1] == "title"}
+            # When titles began to be kept: the state's, else the oldest title kept (a lost
+            # state file must not make every page without a title "untitled" again), else now.
+            since = st.get("titles_from") or min((d[4] for d in dates if d[1] == "title"),
+                                                 default=_stamp(now))
+            st["titles_from"] = since
+            untitled = {p for p, c in by_path.items()
+                        if c["checked_at"] < since and p not in titled}
+            todo = due(candidates(config, live_dir, history, site, today), by_path, latest, now,
+                       untitled)
         hosts = sitemap.hosts_of(config) or [site_name(config).lower()]
         home = sitemap._home(hosts)
         stop = clock() + BUDGET

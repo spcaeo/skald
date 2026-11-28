@@ -8,6 +8,11 @@ the `settings/` prefix nginx already passes on:
                                    when this server does not send it), the default
   POST settings/security-test      a test security alert to you (owners and admins), at most
                                    TEST_LIMIT in TEST_MINUTES; written to the audit log
+  POST settings/security-mark      {item, status, size}: this answer of a possible exposure
+                                   is "Not a problem" (security_marks.py); {item, undo: true}:
+                                   check it again (every mark of the item). Owners and admins;
+                                   each one written to the audit log. GET security-prefs
+                                   carries the marks.
 
 Any member of the site's organisation sets their own choice (a viewer may opt in); nobody
 sets anyone else's. Every POST needs the same-origin check and the session's CSRF value. In
@@ -23,7 +28,7 @@ from .accounts import sessions, users
 from .auth_api import answer, csrf_ok
 
 PATH = re.compile(r"^/traffic/(?P<site>[a-z0-9.-]+)/(?:(?P<view>[a-z0-9-]+)/)?"
-                  r"(?P<act>settings/security-(?:prefs|test))$")
+                  r"(?P<act>settings/security-(?:prefs|test|mark))$")
 TEST_LIMIT, TEST_MINUTES = 3, 10
 
 
@@ -48,7 +53,7 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return answer(h, 404, {"ok": False, "error": "not found"})
     m = match(h.path)
     act = m.group("act")
-    if act == "settings/security-test" and not write:
+    if act in ("settings/security-test", "settings/security-mark") and not write:
         return answer(h, 405, {"ok": False, "error": "wrong method"})
     if write and not same_origin(h.headers, allowed):
         return answer(h, 403, {"ok": False, "error": "same-origin requests only"})
@@ -80,7 +85,10 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
                 pref = security_notify.prefs_of(db, uid, role, site)
             from .summary_mail import at
             return answer(h, 200, {"ok": True, **pref, "role": role, "email": session["email"],
-                                   "summary_at": at(), **security_notify.public(db, site)})
+                                   "summary_at": at(), **security_notify.public(db, site),
+                                   "marks": _marks(db, site)})
+        if act == "settings/security-mark":
+            return _mark(h, db, site, role, org, session)
         if role not in ("owner", "admin"):
             return answer(h, 403, {"ok": False, "error": "Only an owner or an admin can send a "
                                                          "test security alert."})
@@ -101,6 +109,40 @@ def handle(h, write: bool, config, live_dir, allowed, same_origin, config_path=N
         return answer(h, 200, {"ok": True, "sent_to": session["email"]})
     finally:
         db.close()
+
+
+def _marks(db, site: str) -> dict:
+    """{item: [{status, size, marked_at, by}]}: what the page needs, never a user id."""
+    from .security_marks import of_site
+    return {k: [{x: m[x] for x in ("status", "size", "marked_at", "by")} for m in v]
+            for k, v in of_site(db, site).items()}
+
+
+def _mark(h, db, site: str, role, org, session) -> None:
+    from . import security_marks as sm
+    if role not in ("owner", "admin"):
+        return answer(h, 403, {"ok": False, "error": "Only an owner or an admin can mark a "
+                                                     "possible exposure."})
+    form = _form(h)
+    if form is None:
+        return None
+    item = form.get("item")
+    if form.get("undo") is True:
+        if not isinstance(item, str) or not sm.ITEM.fullmatch(item):
+            return answer(h, 400, {"ok": False, "error": "That is not a possible exposure's id."})
+        sm.unmark(db, site, item, org["id"], session["email"])
+        return answer(h, 200, {"ok": True, "marks": _marks(db, site)})
+    status, size = form.get("status"), form.get("size")
+    error = sm.check(item, status, size)
+    if error:
+        return answer(h, 400, {"ok": False, "error": error})
+    # Any row the page lists can be marked, also one older than the tracked items: the id
+    # is the site's own hash of host and path, and a mark of an id never seen covers nothing.
+    try:
+        sm.mark(db, site, item, status, size, session["user_id"], org["id"], session["email"])
+    except ValueError as why:
+        return answer(h, 409, {"ok": False, "error": str(why)})
+    return answer(h, 200, {"ok": True, "marks": _marks(db, site)})
 
 
 def _form(h) -> dict | None:

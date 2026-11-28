@@ -650,6 +650,50 @@ of its own after the user agent, like `rsc_prefetch=`; it works beside it, a tra
 time, `"$host"` and `rid=`. Lines without it are read as before, and Security says the size is
 not recorded (never 0). A POST of `security.large_post_bytes` (1,000,000) or more is large.
 
+### Hidden referrals (Sec-Fetch-Site)
+
+A visit with no referrer and no campaign tag is Direct: a typed address, a
+bookmark, a link opened from an app, but also a click on another website that
+hid its address (`rel="noreferrer"`, a no-referrer policy, some Google AI Mode
+clicks). Browsers say which in the `Sec-Fetch-Site` request header: a click
+from another site sends `cross-site`, a typed address, a bookmark or a link an
+app opened sends `none`. With the header in the log, Skald counts the first as
+**Hidden referral** and keeps the rest in Direct (CLASSIFICATION.md, "The
+source type of a visit"). In nginx, add at the end of the `log_format`:
+
+```nginx
+                        ' sec_fetch_site=$http_sec_fetch_site';
+```
+
+Apache's `LogFormat`: ` sec_fetch_site=%{Sec-Fetch-Site}i`. Then `sudo nginx -t` and
+`sudo systemctl reload nginx` (Apache: `apachectl configtest`, then reload). Both
+write `-` when the header was not sent.
+
+- **Upgrade Skald first**, then change the log format: an older release does
+  not know the field, and a field written after `rid=` or a trailing `"$host"`
+  hides them from it. Days counted by an older release stay as they were
+  counted, and their audit recounts them that way.
+- The token is `sec_fetch_site=`, a field of its own after the user agent, like
+  `rsc_prefetch=`; it works beside it, `request_length=`, a trailing request
+  time, `"$host"` and `rid=`.
+- Only a page view's header counts: an image or a script a page loads is sent
+  by the page. A Hidden referral never starts a new visit inside the visit gap.
+- Lines without it are read exactly as before and stay Direct. Past days are
+  not counted again: a day stored before the rule keeps Direct, and its audit
+  recounts it without the rule. A Caddy log held the header already, so a
+  recount of such a day (`backfill --force`) would split it. So do requests from browsers that send no header (Safari
+  before 16.4, most bots) and plain-HTTP sites (browsers send it only over HTTPS).
+- Caddy's JSON log already holds the request headers: nothing to add. The Skald
+  Cloudflare Worker (`deploy/cloudflare-worker/skald-edge.js`) and the Netlify
+  edge function example send it as `fetch_site` from this release; an older copy of the Worker must be deployed
+  again. The Vercel and Netlify log drains carry no request headers: on those
+  sites every such visit stays Direct.
+- Links opened from native apps (mail, Slack, WhatsApp, the ChatGPT app) send
+  `none`, like a typed address: Direct still holds them. A page a browser
+  extension opens sends `cross-site` (seen in Chrome, 27 Nov 2026), so it counts
+  as a Hidden referral. It never says which site
+  hid itself, and it is never called AI Mode.
+
 **Countries.** A shipped line with no country of its own (Caddy, a plain
 combined log) gets its address's country from the install's `logs.country_db`
 (Docker: `SKALD_COUNTRY_DB`), a GeoIP `.mmdb` file on Skald's server; DB-IP's

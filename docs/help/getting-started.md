@@ -422,6 +422,8 @@ When more than half of the sitemap's dates fall on one day, the card says **Date
 
 The landing pages grid adds **Pages per visit**, **Left after one page**, **AI reads** (pages read by ChatGPT-User, Perplexity-User, Claude-User and other assistants answering someone; a repeat within 30 seconds and the files the page loaded are not reads, see [Reads, not requests](ai-and-bots.md#reads-not-requests)) and **Changed**. The sort chips: **Most visits** (the default), **Rising** and **Falling** (the biggest gain or drop against the period before; they need Compare, and without it the grid stays on Most visits and says so), **Recently changed**, and **Needs work** (pages with 10 visits or more, the most left at once first). The chip is kept in the address (`psort`); a column header click sorts by that column instead.
 
+**Search a page by its path, its full address or its title.** The search box over each Pages table finds a page by any part of its path, by its full address as you copy it from the browser (`https://www.example.com/blog/post/`: the site's own address is read as the path, with or without `www.`; a `#part` is left out), and, where Skald knows it, by its title, shown under the path. Titles come from the website's own page list, or from the page itself when **Settings › Site › Page dates** is on. The hint in the box says which: "Search by path or address", or "Search by path, address or title". Every other table with a page column (Search › Pages, Agent files, Not found) finds a full address the same way.
+
 **Changed in the last 30 days** (above the grids, and in **Filters** as a preset) keeps only the pages changed since then. It is the **Changed since** date in the address (`chgfrom`).
 
 ### Did my change work?

@@ -78,6 +78,13 @@ test("the response comes back while Skald's post is still pending", async () => 
   assert.equal(w.ctx.passed, 1, "fails open");
 });
 
+test("the record carries the browser's Sec-Fetch-Site (SKALD-69)", async () => {
+  const w = world({ skald: "ok" });
+  await worker.fetch(request("/", { "sec-fetch-site": "cross-site" }), ENV, w.ctx);
+  await Promise.all(w.waits);
+  assert.equal(JSON.parse(w.posts[0].init.body).fetch_site, "cross-site");
+});
+
 test("the record", async () => {
   const w = world({ skald: "ok" });
   await worker.fetch(request(), ENV, w.ctx);
@@ -88,7 +95,8 @@ test("the record", async () => {
   assert.equal(init.headers.authorization, "Bearer test-token-not-real");
   const rec = JSON.parse(init.body);
   assert.deepEqual(Object.keys(rec).sort(),
-    ["bytes", "cache", "host", "id", "ip", "method", "path", "referer", "status", "ts", "ua"]);
+    ["bytes", "cache", "fetch_site", "host", "id", "ip", "method", "path", "referer", "status", "ts", "ua"]);
+  assert.equal(rec.fetch_site, "", "no Sec-Fetch-Site sent: empty, never guessed (SKALD-69)");
   assert.equal(rec.ip, "203.0.113.10");
   assert.equal(rec.host, "example.com");
   assert.equal(rec.path, "/guides/alpha?x=1");

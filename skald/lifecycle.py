@@ -11,6 +11,9 @@ site with `site.page_dates` on: `date_source` "page", `published_at` the
 value as the page gave it and `published_from` where: jsonld, meta, time);
 else "published" is the first day the logs saw it, and `date_source` says so.
 
+`title` is the website list's title, else the title Skald read from the page
+(SKALD-70; `title_from` says where: "website", "html", "meta", "jsonld"), else null.
+
 `updated` is the website list's date, else the latest modified date the page
 itself gave ("page", `updated_at` its full value), else the sitemap's latest
 lastmod ("sitemap"). `changes` lists every modified date Skald kept for the
@@ -199,6 +202,16 @@ def _published(path: str, meta: dict, seen: dict,
     return seen.get(path), None, "first seen"
 
 
+def _title(path: str, meta: dict, own: dict | None = None) -> tuple[str | None, str | None]:
+    """(title, title_from): the website's list's title ("website"), else the
+    page's own (SKALD-70: "html", "meta" or "jsonld", where it was read), else none."""
+    got = (meta.get(path) or {}).get("title")
+    if got:
+        return got, "website"
+    mine = ((own or {}).get(path) or {}).get("title")
+    return (mine["text"], mine["from"]) if mine else (None, None)
+
+
 def own_dates(history, site: str, tz) -> dict:
     """page_dates.view for the site: {} when it has none (or no such table)."""
     from . import page_dates
@@ -304,6 +317,7 @@ def page_dates(config: dict, folder, history=None, site: str | None = None) -> d
             published, _, source = _published(path, meta, {}, own)
             out[path].update(published=published if source != "first seen" else None,
                              date_source=source if source != "first seen" else None)
+            out[path]["title"], out[path]["title_from"] = _title(path, meta, own)
     return out
 
 
@@ -347,10 +361,11 @@ def _build(p, site: str) -> dict:
     rows = []
     for path in sorted(set(meta) | set(seen) | set(changes) | set(own)):
         published, _, source = _published(path, meta, seen, own)
+        title, title_from = _title(path, meta, own)
         m = marks.get(path) or {}
         first_ai = [x["at"] for x in m.get("from_ai") or []]
         rows.append({
-            "path": path, "title": (meta.get(path) or {}).get("title"),
+            "path": path, "title": title, "title_from": title_from,
             "locale": (meta.get(path) or {}).get("locale"),
             "published": published, "date_source": source,
             **_dated(path, meta, changes, own), "first_seen": seen.get(path),
@@ -425,7 +440,9 @@ def story(history, site: str, path: str, config: dict, tz, today: date) -> dict:
             days.append(row)
     whole = page_time.figure(timed) if timed_days else None
     entry = meta.get(path) or {}
-    return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
+    title, title_from = _title(path, meta, own)
+    return {"ok": True, "path": path, "title": title, "title_from": title_from,
+            "locale": entry.get("locale"),
             "published": published, "date_source": source,
             **_dated(path, meta, changes, own), "first_seen": seen.get(path),
             "days_since_publish": (today - date.fromisoformat(published)).days

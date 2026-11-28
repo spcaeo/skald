@@ -29,7 +29,7 @@ STACK = {"matches": [{"advisory": "php-2026-10-21", "product": "php", "host": "m
 
 
 def exposure(site: str) -> dict:
-    return {"rules": {"exposure_rule": 2}, "exposure": {"rows": [
+    return {"rules": {"exposure_rule": 3}, "exposure": {"rows": [
         {"host": site, "path": "/.env.production", "status": "200", "size": 1873,
          "verdict": "possible", "category": "secrets"}]}}
 
@@ -255,7 +255,7 @@ class Layout(Base):
     def open_many(self, site: str, n: int, stack=None):
         rows = [{"host": site, "path": f"/wp-json/wp/v2/pages/{1000 + i}", "status": "200",
                  "size": 38000 + i, "verdict": "possible", "category": "cms"} for i in range(n)]
-        blob = {"rules": {"exposure_rule": 2}, "exposure": {"rows": rows}}
+        blob = {"rules": {"exposure_rule": 3}, "exposure": {"rows": rows}}
         sn.track(self.db, site, sn.items({}, site, [blob], stack), NOW)
 
     def test_look_alikes_fold_into_one_line_and_every_item_is_recorded(self):

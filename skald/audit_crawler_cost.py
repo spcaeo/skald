@@ -9,6 +9,8 @@ name's figures with its own code, written apart from crawler_cost.py:
                 for a spoof, the link-preview prefix and app for a preview,
                 classify's names for a visit that never rendered and for a
                 browser-like crawler session, "(scanner probes)" for a probe,
+                Google's fetch proxy by its name ("claims to be" it when its
+                reverse DNS is not Google's: SKALD-51),
                 else the short name read from the user agent here (below)
   bytes         the sum of audit.Line.size over the lines that have one, and
                 how many do; None when none does
@@ -34,8 +36,8 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timezone
 
-from .classify import (CRAWLER_SESSION, LINK_CHECKER, LINK_PREVIEW, NOT_RENDERED, SCANNER, SWEEP,
-                       TOO_FAST)
+from .classify import (CRAWLER_SESSION, GOOGLE_PROXY, LINK_CHECKER, LINK_PREVIEW, NOT_RENDERED,
+                       SCANNER, SWEEP, TOO_FAST)
 
 GROUPS = ("answer_engines", "search_engines", "bots")
 OTHER = "(all others)"
@@ -96,6 +98,9 @@ def _name(line, group: str, info: dict) -> str:
         return SCANNER
     if info.get("sweep"):
         return SWEEP
+    if "google_proxy" in info:
+        return (f"claims to be {GOOGLE_PROXY}" if info["google_proxy"] == "spoofed"
+                else GOOGLE_PROXY)
     return short_name(line.agent)
 
 

@@ -19,8 +19,10 @@ EVENTS_TAB = ROOT / "skald" / "webapp" / "js" / "tabs" / "events.js"
 # other domains; 6.5 KB since it asks the beacon once a day whether Skald
 # shares the ID across subdomains (beacon.share_subdomains); 7 KB since a page
 # view carries the visit's utm_medium, utm_campaign and ad click (2.45); 7.5 KB
-# since it reads NeetoCal's embed and puts the visitor ID on NeetoCal links (SKALD-54).
-BUDGET = 7680
+# since it reads NeetoCal's embed and puts the visitor ID on NeetoCal links (SKALD-54);
+# 8 KB since it tells a real form from a dialog's close button, a picker or a quiz, and
+# names a form with no id or name by its aria-label, the path it posts to or its class (SKALD-67).
+BUDGET = 8192
 # Events the tag builds from two parts: "<data-skald or form>_<start|submit>",
 # "calendly_" + the CAL map's value.
 COMPOSED = {"form_start", "form_submit", "signup_start", "signup_submit", "contact_submit",

@@ -20,6 +20,10 @@ for today so far:
                     server logged the edge, not the visitor (SKALD-17); None when no CDN
                     list is kept
   first/last line   when the window's own lines start and stop
+  hidden_referral   True: counted with the Hidden referral rule (SKALD-69,
+                    hidden_names.py). Not a figure: a day stored before has no
+                    such key, and the audit recounts it without the rule, as it
+                    was counted (a Caddy log held the header before the rule)
 
 and, at render time, whether each day verified and passed the independent
 audit, the newest line against the server clock, the log files on disk, and
@@ -133,7 +137,8 @@ class Quality:
                 "not_pages": {rule: {"requests": n, "people": p}
                               for rule, (n, p) in sorted(self.not_pages.items())},
                 # Lines whose address is a CDN edge's, not a visitor's (SKALD-17).
-                "cdn_lines": self.cdn_lines if self.cdn is not None else None}
+                "cdn_lines": self.cdn_lines if self.cdn is not None else None,
+                "hidden_referral": True}
 
 
 def check(blob: dict | None, parsed: int) -> list:

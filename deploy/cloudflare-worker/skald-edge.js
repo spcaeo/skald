@@ -30,7 +30,7 @@
 // Never sent: Skald's own paths (/traffic*). What a record holds is what a
 // web server's access log line holds, plus the cache status and Cloudflare's
 // request id (CF-Ray): time, address, method, host, path and query, status,
-// bytes, referrer, user agent.
+// bytes, referrer, user agent, and the browser's Sec-Fetch-Site header.
 // Docs: docs/CDN-LOGS.md and docs/HOSTING.md ("Cloudflare on any plan").
 
 export default {
@@ -87,6 +87,9 @@ function edgeRecord(request, response, env, started) {
     bytes: length !== null && /^\d+$/.test(length) ? Number(length) : null,
     referer: request.headers.get("referer") || "",
     ua: request.headers.get("user-agent") || "",
+    // Sec-Fetch-Site: "cross-site" on a click from another site that hid
+    // its address (Skald's "Hidden referral"), "none" when typed (SKALD-69).
+    fetch_site: request.headers.get("sec-fetch-site") || "",
     cache,
     id: request.headers.get("cf-ray") || crypto.randomUUID(),
   };

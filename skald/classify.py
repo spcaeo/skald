@@ -90,7 +90,11 @@ AI_TRAINING = re.compile(
     # Added 2026-10-25: OpenAI's ads crawler, which checks the landing pages
     # of ads submitted on ChatGPT (developers.openai.com/api/docs/bots; not
     # training, but nobody waits on it). Checked against openai.com/adsbot.json.
-    r"|OAI-AdsBot",
+    r"|OAI-AdsBot"
+    # Added 2026-11-26 (SKALD-50): River's crawler for training and evaluating
+    # its AI models (river.ai/bot), first seen 2026-11-23 and until then
+    # counted as an unnamed bot. Checked against river.ai/riverbot.json.
+    r"|RiverBot",
     re.I,
 )
 
@@ -307,6 +311,15 @@ LINK_PREVIEWS = (
     (re.compile(r"GoogleMessages/", re.I), "Google Messages"),
 )
 LINK_PREVIEW = "link preview: "
+
+# Google's fetch proxy (SKALD-51). Asked to open a page live, Gemini fetched it once with
+# the bare user agent "Google" from rate-limited-proxy-<ip>.google.com, on none of Google's
+# published crawler lists (probe, 23 Nov 2026). Sheets (IMPORTXML, IMPORTDATA), Apps Script
+# and feed readers fetch through the same proxy, so the request cannot say which tool it
+# was: a bot with a name, never an AI read (Palak's choice, 2026-11-26). Checked by
+# reverse DNS (bot_verify "google-proxy"); one that is not Google's "claims to be" it.
+GOOGLE_PROXY_AGENT = "Google"
+GOOGLE_PROXY = "Google fetch proxy (Gemini, Sheets, Apps Script)"
 
 
 def link_preview(agent: str) -> str:
@@ -797,6 +810,12 @@ class Classifier:
         if self.sweepers and (hit.address, agent) in self.sweepers:
             # Five or more probe paths the site does not have (rule 6c).
             return Verdict(Group.BOTS, engine=SWEEP, legacy=legacy)
+
+        if agent == GOOGLE_PROXY_AGENT:
+            # Rule 6d (SKALD-51): Google's fetch proxy, by name.
+            checked = self._checked(agent, hit)
+            name = f"claims to be {GOOGLE_PROXY}" if checked == "spoofed" else GOOGLE_PROXY
+            return Verdict(Group.BOTS, engine=name, verified=checked, legacy=legacy)
 
         if other_bot or not agent or MACHINE_PATH.search(hit.path):
             return Verdict(Group.BOTS, legacy=legacy)

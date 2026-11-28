@@ -33,6 +33,9 @@ export default async (request, context) => {
         bytes: length !== null && /^\d+$/.test(length) ? Number(length) : null,
         referer: request.headers.get("referer") || "",
         ua: request.headers.get("user-agent") || "",
+        // Sec-Fetch-Site: "cross-site" on a click from another site that hid
+        // its address (Skald's "Hidden referral"), "none" when typed (SKALD-69).
+        fetch_site: request.headers.get("sec-fetch-site") || "",
         id: context.requestId || crypto.randomUUID(),
       };
       const to = new URL(target);
