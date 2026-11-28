@@ -155,7 +155,7 @@ class TestVerification(unittest.TestCase):
         self.assertEqual((spoof.group, spoof.engine), (Group.BOTS, "claims to be Googlebot"))
 
     def test_claude_code_runs_on_the_askers_machine_so_it_cannot_be_checked(self):
-        ranges(self.dir, anthropic=["192.0.2.0/28"])
+        ranges(self.dir, anthropic=["192.0.2.0/28"], anthropic_outbound=["192.0.2.16/28"])
         c = self.classifier()
         self.assertEqual(c(hit(agent=CLAUDE_CODE, address="203.0.113.4")).verified, "unverified")
         self.assertEqual(c(hit(agent=CLAUDE_USER, address="203.0.113.4")).group, Group.BOTS)

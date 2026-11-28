@@ -64,6 +64,31 @@ export function dayLeads(f, e) {
   return { leads: l, demos: d };
 }
 
+/* SKALD-67: forms received over a list of days (ISO), for Traffic › Events beside Form sent:
+   the finished form leads (lead actions but demos) that the site's server or a form tool
+   reported, from each checked day's `by.tool` (audit_conversions_figures.py checks it). The
+   tag's own rows (tool "beacon", the Form sent presses again when visitor IDs are on) are
+   left out. null without a file, or when no hook or lead database reports forms: then there
+   is nothing to compare, and a count would only be the tag's or a 0 that means unknown. */
+export const FORM_HOOKS = ["lead", "json", "typeform", "hubspot"];
+export function formsOn(m, days) {
+  const f = convFile(m);
+  const su = f?.set_up;
+  if (!f || !(su?.leads_db || (su?.hooks || []).some((x) => FORM_HOOKS.includes(x)))) return null;
+  const { leads, demos } = meta(f);
+  const out = { forms: 0, ok: 0, of: days.length, held: [], before: [] };
+  for (const day of days) {
+    const e = convDay(f, day), by = e?.state === "ok" ? e.by?.tool : null;
+    if (by) {
+      for (const [a, per] of Object.entries(by)) if (leads.has(a) && !demos.has(a)) for (const [t, v] of Object.entries(per)) if (t !== "beacon") out.forms += v;
+      out.ok += 1;
+    } else if (e?.state === "withheld") out.held.push(day);
+    else out.before.push(day);
+  }
+  out.whole = out.ok === out.of && out.of > 0;
+  return out;
+}
+
 /* Leads and demos booked over a list of days (ISO): summed from the checked
    days, with what was left out. null without a conversions file. */
 export function leadsOn(m, days) {

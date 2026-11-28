@@ -4,7 +4,7 @@ A user agent is a claim anyone can make. The crawlers that matter publish
 how to check them:
 
   ranges    the owner publishes the addresses it crawls from (Google, Bing,
-            Apple, OpenAI, Perplexity, Anthropic, DuckDuckGo)
+            Apple, OpenAI, Perplexity, Anthropic, DuckDuckGo, River)
   dns       the address's reverse DNS name ends in the owner's domain, and
             that name resolves back to the same address (Google, Bing,
             Apple, Yandex)
@@ -66,14 +66,27 @@ LISTS = {
     "perplexity-user": "https://www.perplexity.ai/perplexity-user.json",
     "anthropic": "https://claude.com/crawling/bots.json",
     "duckduckgo": "https://duckduckgo.com/duckduckbot.json",
+    "river": "https://river.ai/riverbot.json",    # RiverBot (SKALD-50)
     "meta": RIPE.format(asn=32934),
     # Not a crawler: Chrome's private prefetch proxy, which fetches a Google
     # Search result's HTML from Google's network for Android Chrome. The
     # browser then fetches the page's files from its own address, and
     # rendering.py joins the two (SKALD-41). An RFC 8805 geofeed, not JSON.
     "chrome-prefetch-proxy": "https://www.gstatic.com/chrome/prefetchproxy/prefetch_proxy_geofeed",
+    # Anthropic's documented outbound addresses (SKALD-52): the fetches Claude makes when a
+    # person asks it to read a page (Claude-User) come from them, not from bots.json's. Not
+    # JSON: a docs page (HTML, or Markdown), read under PAGE_LISTS' heading.
+    "anthropic-outbound": "https://platform.claude.com/docs/en/api/ip-addresses",
 }
 PREFETCH_PROXY = "chrome-prefetch-proxy"
+# Lists published as a section of a docs page, not as a file: list -> the section's heading.
+PAGE_LISTS = {"anthropic-outbound": "Outbound IP addresses"}
+
+# Lists that prove some of a vendor's agents only (SKALD-52), by the name the classifier
+# matched (lower case). Anthropic's outbound addresses carry fetches a person asked Claude
+# for: Claude-User, never its crawlers (ClaudeBot, Claude-SearchBot). Such an agent is
+# verified by its vendor's lists or these, and judged spoofed only when all are fresh.
+AGENT_LISTS = {"claude-user": ("anthropic-outbound",)}
 
 # Lists whose every address is that one crawler, never a fetch a person
 # asked for: a browser user agent from one of them is that crawler in a
@@ -86,7 +99,7 @@ CRAWLER_ADDRESSES = {
     "google-common": "Googlebot", "bing": "bingbot", "apple": "Applebot",
     "openai-gptbot": "GPTBot", "openai-searchbot": "OAI-SearchBot",
     "openai-adsbot": "OAI-AdsBot", "perplexity-bot": "PerplexityBot",
-    "duckduckgo": "DuckDuckBot",
+    "duckduckgo": "DuckDuckBot", "river": "RiverBot",
 }
 
 # A CDN's own published addresses (SKALD-17): a site behind the CDN whose server logs the
@@ -125,7 +138,11 @@ VENDORS = {
     "perplexity": (("perplexity-bot", "perplexity-user"), ()),
     "anthropic": (("anthropic",), ()),
     "duckduckgo": (("duckduckgo",), ()),
+    "river": (("river",), ()),
     "meta": (("meta",), ()),
+    # Google's fetch proxy (SKALD-51): the bare agent "Google", from
+    # rate-limited-proxy-<ip>.google.com, on no published list.
+    "google-proxy": ((), ("google.com",)),
 }
 # Google-NotebookLM is one of Google's user-triggered fetchers: its addresses
 # are in the user-triggered-fetchers lists above, which Google publishes.
@@ -139,7 +156,9 @@ CLAIMS = (
     (re.compile(r"^(?:perplexitybot|perplexity-user)$"), "perplexity"),
     (re.compile(r"^(?:claudebot|claude-user|claude-searchbot|anthropic-ai)$"), "anthropic"),
     (re.compile(r"^(?:duckduckbot|duckassistbot)$"), "duckduckgo"),
+    (re.compile(r"^riverbot$"), "river"),
     (re.compile(r"^(?:meta-externalagent|meta-externalfetcher|facebookbot)$"), "meta"),
+    (re.compile(r"^google$"), "google-proxy"),
 )
 # Agents that run on the asker's own machine, so no owner list can hold
 # them: Claude Code fetching a page for a developer says Claude-User.
@@ -277,10 +296,12 @@ class Verifier:
             return None
         if agent and LOCAL_TOOL.search(agent):
             return "unverified"
-        key = (vendor, address)
+        extra = AGENT_LISTS.get(name.lower(), ())     # Claude-User's own lists (SKALD-52)
+        key = (vendor, extra, address)
         if key in self._memo:
             return self._memo[key]
         lists, suffixes = VENDORS[vendor]
+        lists = lists + extra
         loaded = [n for n in lists if n in self.sets]
         result = "unverified"
         if any(address in self.sets[n] for n in loaded):
@@ -295,6 +316,11 @@ class Verifier:
             result = "spoofed"
         self._memo[key] = result
         return result
+
+    def agent_lists(self) -> list[str]:
+        """The agent-only lists (AGENT_LISTS) this day is counted with: stored in the bots
+        blob, so the audit recounts an older day without them, as it was (SKALD-52)."""
+        return sorted({n for got in AGENT_LISTS.values() for n in got if n in self.sets})
 
     def crawler_at(self, address: str) -> str:
         """The crawler whose published list holds this address
@@ -409,6 +435,74 @@ def parse_geofeed(raw: bytes) -> list[str]:
     return out
 
 
+_HEADING = re.compile(r"(?ism)<h([1-6])\b[^>]*>(.*?)</h\1\s*>|^(#{1,6})[ \t]+([^\n]+?)[ \t#]*$")
+_TAG = re.compile(r"<[^>]+>")
+_CIDR = re.compile(r"(?<![\w.:/])((?:\d{1,3}\.){3}\d{1,3}/\d{1,2}"
+                   r"|[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{0,4}){1,7}/\d{1,3})(?![\w.:/])")
+_FAMILY = re.compile(r"ipv[46](?: addresses)?", re.I)   # the only sub-sections read
+PAGE_MAX = 64                                     # more than this: the page is misread
+PAGE_WIDEST = {4: 12, 6: 24}                      # a wider prefix: the page is misread
+
+
+def _plain(text: str) -> str:
+    import html
+    return " ".join(html.unescape(_TAG.sub(" ", text)).split())
+
+
+def _title(text: str) -> str:
+    """A heading's words, without an anchor mark ("#", "¶") around them."""
+    return " ".join(text.lower().strip("#¶ \u200b").split())
+
+
+def parse_page(raw: bytes, heading: str) -> list[str]:
+    """CIDRs listed under one heading of an owner's docs page, HTML or Markdown: the
+    section's own text and its IPv4 and IPv6 sub-sections, never another sub-section
+    ("Phased out IP addresses" sits inside Anthropic's outbound section). A JSON list of
+    prefixes is read as one (parse_list). Raises ValueError."""
+    if raw.lstrip()[:1] == b"{":
+        return parse_list(raw)
+    text = re.sub(r"(?is)<(script|style|noscript)\b.*?</\1\s*>", " ",
+                  raw.decode("utf-8", errors="replace"))
+    text = re.sub(r"(?s)```.*?```", lambda m: m.group(0).replace("#", " "), text)   # fenced code
+    html_page = re.search(r"(?i)<h[1-6]\b", text) is not None   # then "#" lines are no headings
+    marks = [(m.start(), m.end(), int(m.group(1)) if m.group(1) else len(m.group(3)),
+              _plain(m.group(2) or m.group(4))) for m in _HEADING.finditer(text)
+             if m.group(1) or not html_page]
+    want = _title(heading)
+    for i, (_, end, level, title) in enumerate(marks):
+        if _title(title) != want:
+            continue
+        # The section ends at the next heading of its level or higher. Its own text is read,
+        # and each IPv4 or IPv6 sub-section; any other sub-section ("Phased out") is skipped
+        # whole, headings under it included: an "IPv4" inside it is still phased out.
+        keep, cursor, reading, stop, skipped = [], end, True, len(text), None
+        for start, sub_end, sub_level, sub_title in marks[i + 1:]:
+            if sub_level <= level:
+                stop = start
+                break
+            if reading:
+                keep.append(text[cursor:start])
+            if skipped is not None and sub_level > skipped:
+                reading = False                 # still inside the skipped sub-section
+            else:
+                reading = bool(_FAMILY.fullmatch(_title(sub_title)))
+                skipped = None if reading else sub_level
+            cursor = sub_end
+        if reading:
+            keep.append(text[cursor:stop])
+        out = list(dict.fromkeys(_CIDR.findall(_plain(" ".join(keep)))))
+        if not out:
+            continue
+        if len(out) > PAGE_MAX:
+            raise ValueError(f'{len(out)} addresses under "{heading}": not the page expected')
+        for cidr in out:
+            net = ipaddress.ip_network(cidr, strict=False)
+            if net.prefixlen < PAGE_WIDEST[net.version]:
+                raise ValueError(f'{cidr} under "{heading}" is too wide to be one owner\'s')
+        return out
+    raise ValueError(f'no addresses under "{heading}"')
+
+
 def _store(folder: Path, name: str, url: str, networks: list[str] | None,
            error: str | None, now: datetime) -> None:
     """Write a list; on failure keep the last good networks and note why."""
@@ -429,7 +523,8 @@ def refresh_lists(folder: Path, now: datetime | None = None, fetch=_get,
     done: dict[str, str] = {}
     for name, url in LISTS.items():
         try:
-            nets = parse_list(fetch(url))
+            nets = (parse_page(fetch(url), PAGE_LISTS[name]) if name in PAGE_LISTS
+                    else parse_list(fetch(url)))
             _store(folder, name, url, nets, None, now)
             done[name] = "ok"
         except Exception as why:          # noqa: BLE001 - any failure keeps the old copy
@@ -504,7 +599,9 @@ def resolve(folder: Path, wanted: set[tuple[str, str]], now: datetime | None = N
     got = _read_json(path)
     answers = got.get("answers", {}) if isinstance(got, dict) else {}
     todo = []
-    for vendor, address in sorted(wanted):
+    # Real crawler claims first: the fetch proxy's addresses (SKALD-51; Sheets and Apps
+    # Script can bring many) never take the 200 lookups a run has from Googlebot or Yandex.
+    for vendor, address in sorted(wanted, key=lambda p: (p[0] == "google-proxy", p)):
         old = answers.get(f"{vendor}|{address}")
         try:
             stale = now - datetime.fromisoformat(old["checked"]) > DNS_TTL if old else True
@@ -539,7 +636,7 @@ def resolve(folder: Path, wanted: set[tuple[str, str]], now: datetime | None = N
 
 def claimed(config: dict, start: datetime, end: datetime) -> set[tuple[str, str]]:
     """(vendor, address) for every DNS-checkable crawler claim in a window."""
-    from .classify import AI_ASKED, AI_TRAINING, SEARCH_ENGINE
+    from .classify import AI_ASKED, AI_TRAINING, GOOGLE_PROXY_AGENT, SEARCH_ENGINE
     from .parse import read
     from .window import within, window_paths
     fmt = (config.get("logs") or {}).get("format") or "auto"
@@ -548,6 +645,8 @@ def claimed(config: dict, start: datetime, end: datetime) -> set[tuple[str, str]
         m = AI_ASKED.search(hit.user_agent) or AI_TRAINING.search(hit.user_agent) \
             or SEARCH_ENGINE.search(hit.user_agent)
         vendor = vendor_of(m.group(0)) if m else None
+        if hit.user_agent == GOOGLE_PROXY_AGENT:
+            vendor = vendor_of(GOOGLE_PROXY_AGENT)
         if vendor and VENDORS[vendor][1]:
             out.add((vendor, hit.address))
     return out

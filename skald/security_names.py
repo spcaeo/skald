@@ -101,7 +101,42 @@ LIMITS = {"shell_paths": (2, 50), "tolerance": (0, 4096), "login_posts": (3, 10_
 # host may have several fallback sizes, and a probe whose path is an ordinary page (only its
 # query string is an attack) is no exposure candidate. A day counted with an older rule is
 # never alerted on (alerts_security, security_notify) until it is recounted.
-EXPOSURE_RULE = 2
+EXPOSURE_RULE = 3
+
+# Answers that are harmless whatever their size (exposure rule 3, SKALD-59). The 25 Nov 2026
+# daily mail listed about 240 "possible exposures" on six WordPress sites; almost all were
+# these three kinds. Each rule is narrow on purpose: a rule that is too wide hides a leak.
+#   static  a file a browser loads with a page (STATIC_FILE: an image, a stylesheet, a script,
+#           a font) in WordPress's public folders (STATIC_PLACE: wp-content/, wp-includes/;
+#           a cloud word in a name is no reason, /wp-content/uploads/Terraform.svg is an
+#           image). Never when a script name comes first (SCRIPT_NAME: /x.php/a.css and
+#           /x.php%2fa.css run PHP through PATH_INFO; /shell.php.png runs as PHP on Apache's
+#           AddHandler), when the path is a secret file (classify.SECRET_PROBE) or when the
+#           probe looked for secrets or dumps, or is an injection (STATIC_NEVER)
+#   own     the site calling itself: a POST to /wp-cron.php at the root, or one folder down
+#           for WordPress in a subfolder (never inside wp-content, wp-includes, wp-admin or
+#           uploads, where a shell could be saved), with WordPress's own agent naming one of
+#           the site's hosts ("WordPress/6.9; https://" + a site host)
+#   home    a script name (HOME_PATH: /index.php, /new-index.php), not a secret file, whose
+#           size is within HOME_PERCENT (and at least `tolerance` bytes) of one of the
+#           HOME_SIZES sizes the same host answered a bare "/" with most often that day (no
+#           query string: a search page echoes what was asked; ties to the smaller): a
+#           server that answers any .php name with its home page
+STATIC_FILE = re.compile(r"\.(?:css|js|mjs|png|jpe?g|gif|svg|webp|avif|ico|bmp"
+                         r"|woff2?|ttf|otf|eot)$", re.I)
+STATIC_PLACE = re.compile(r"(?:^|/)wp-(?:content|includes)/", re.I)
+STATIC_NEVER = ("injection", "secrets", "dumps")
+SCRIPT_NAME = re.compile(r"\.(?:php\d?|phtml|phar|asp|aspx|jsp|jspa|cgi|pl|cfm)"
+                         r"(?:/|\\|%2f|%5c|;|%3b|\.)", re.I)
+SELF_PATH = re.compile(r"^/(?:(?!(?:wp-content|wp-includes|wp-admin|uploads)/)[^/]+/)?"
+                       r"wp-cron\.php$", re.I)
+SELF_METHOD = "POST"
+SELF_AGENT = re.compile(r"^WordPress/[0-9.]+;\s*(https?://\S+)$", re.I)
+HOME_PATH = re.compile(r"\.(?:php\d?|phtml|aspx?|jsp)$", re.I)
+HOME_PERCENT = 1
+HOME_SIZES = 20      # the host's most frequent bare "/" sizes of the day
+HARMLESS = ("shell", "empty", "static", "own", "home")
+VERDICTS = HARMLESS + ("possible", "unknown")
 
 # How much a day keeps (the day kind `security`).
 WHO = 300            # suspect (address, agent) rows kept per day, worst first

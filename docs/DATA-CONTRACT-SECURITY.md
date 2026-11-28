@@ -37,12 +37,22 @@ Thresholds: the config's `security:` section (`shell_paths`, `tolerance`,
 
 ## Is anything exposed? (the verdict of a 2xx probe)
 
+Each answer gets the first verdict whose rule it meets, in this order:
+
 | verdict | rule |
 |---|---|
-| `shell` | at least `shell_paths` (3) distinct probe paths of that host were answered 2xx that day with a size within `tolerance` (16) bytes of this one: a fallback size. A host may have several (2.21.1): the same page sent compressed and not (404 and 626 bytes on a real server) |
-| `empty` | a body of 0 bytes |
-| `possible` | any other size: a possible exposure |
+| `static` | (exposure rule 3, SKALD-59) a file a browser loads with a page: the path ends in `security_names.STATIC_FILE` (an image, a stylesheet, a script, a font), the path is in WordPress's public folders (`STATIC_PLACE`: `wp-content/`, `wp-includes/`; a cloud word in a name is no reason, `/wp-content/uploads/Terraform.svg` is an image), the probe is not filed under `STATIC_NEVER` (injection, secrets, dumps), no script name comes first (`SCRIPT_NAME`: `/x.php/a.css` and `/x.php%2fa.css` run PHP through PATH_INFO, `/shell.php.png` runs as PHP under Apache's AddHandler) and the path is no secret file (`classify.SECRET_PROBE`). Whatever its size; it never sets a fallback size, so many images of one size cannot make a look-alike file "harmless" |
+| `own` | (rule 3) the site calling itself: a POST to `/wp-cron.php` at the root or one folder down for WordPress in a subfolder, never inside `wp-content`, `wp-includes`, `wp-admin` or `uploads` (`SELF_PATH`), with WordPress's own agent (`WordPress/6.9; https://wp.example.com`) naming one of the site's hosts or a subdomain of one. Never sets a fallback size |
 | `unknown` | the line has no size: cannot tell, never counted as safe |
+| `empty` | a body of 0 bytes |
+| `shell` | at least `shell_paths` (3) distinct probe paths of that host were answered 2xx that day with a size within `tolerance` (16) bytes of this one: a fallback size. A host may have several (2.21.1): the same page sent compressed and not (404 and 626 bytes on a real server) |
+| `home` | (rule 3) a script name (`HOME_PATH`: ends in `.php`, `.phtml`, `.asp(x)`, `.jsp`) that is no secret file, within `HOME_PERCENT` (1%, and at least `tolerance` bytes) of one of the `HOME_SIZES` (20) sizes the same host answered a bare `/` with most often that day (2xx, any group, no query string: a search page echoes the query, so its size can be chosen; a tie keeps the smaller size): a server that answers any `.php` name with its home page (`/index.php`, `/new-index.php`) |
+| `possible` | any other size: a possible exposure |
+
+`static`, `own`, `home`, `shell` and `empty` are the harmless answers (`security_names.HARMLESS`).
+A site keeps at most 5,000 marks (`security_marks.MAX_MARKS`; one more answers 409). Requests from a signed-in session cannot be told apart in the log (no cookie is recorded), and a
+site's saved `asset_prefixes` are not used: a prefix such as `/wp-content/` would also cover
+`/wp-content/debug.log`. A checked answer of either kind is marked "Not a problem" instead (below).
 
 Only a probe whose **path** is a probe is judged (2.21.1): a probe that is an ordinary page
 with an attack in its query string (`/?id=1 union select`) asked for no file, and its answer is
@@ -64,7 +74,7 @@ counts it for a day whose raw lines are still on the server.
 
 | field | type | meaning |
 |---|---|---|
-| `rules` | object | the thresholds the day was counted with, and `exposure_rule` (2 since 2.21.1; absent: a day counted by 2.21.0, which no alert and no mail reads until it is recounted) |
+| `rules` | object | the thresholds the day was counted with, and `exposure_rule` (3 since SKALD-59; 2 from 2.21.1; absent: 2.21.0. A day counted with an older rule is read by no alert and no mail until it is recounted) |
 | `probes` | int | scanner probes, the bare-IP lines of other hosts included |
 | `probes_other` | int | of which lines of a host the site does not list (bare IP only), counted in no group |
 | `scanners` | int | pairs with a probe |
@@ -78,7 +88,7 @@ counts it for a day whose raw lines are still on the server.
 | `forged` | int | suspects with a forged referrer |
 | `bare_ip` | int | probes sent to a bare IP |
 | `paths` | `{path: n}` | probes by path (no query string, 200 characters), top 20 and `(all others)`; adds up to `probes` |
-| `exposure` | object | `answered` (probes whose path is a probe, answered 2xx), `query_only` (query-only probes answered 2xx, never judged; `answered + query_only = status["2xx"]`), `shell`, `empty`, `possible`, `unknown` (add up to `answered`), `hosts` (`{host: {"bare_ip","shell_size" (the fallback size most paths share; null: none found),"shell_paths","shell_sizes" (every fallback size, once per tolerance),"answered","shell","empty","possible","unknown"}}`), `rows` (every `possible` and `unknown` answer, possible first, then by time, host and path, a tie settled by status, size, category and `who` (since 2.45.8), at most 200: `{"host","path","at" (UTC),"status","size" (null: not recorded),"verdict","category","shell_size","who"}`), `folded` (answers beyond the 200) |
+| `exposure` | object | `answered` (probes whose path is a probe, answered 2xx), `query_only` (query-only probes answered 2xx, never judged; `answered + query_only = status["2xx"]`), `static`, `own`, `shell`, `empty`, `home`, `possible`, `unknown` (add up to `answered`; `static`, `own` and `home` since rule 3), `hosts` (`{host: {"bare_ip","shell_size" (the fallback size most paths share; null: none found),"shell_paths","shell_sizes" (every fallback size, once per tolerance),"answered", and the seven verdicts}}`), `rows` (every `possible` and `unknown` answer, possible first, then by time, host and path, a tie settled by status, size, category and `who` (since 2.45.8), at most 200: `{"host","path","at" (UTC),"status","size" (null: not recorded),"verdict","category","shell_size","who"}`), `folded` (answers beyond the 200) |
 | `attacks.injection` | object | `requests` (= `categories.injection`), `kinds` (`{kind: n}`, adds up to `requests`), `rows` (per pair and kind: `{"who","kind","requests","first","last","status"}`, most first, at most 100) |
 | `attacks.login` | object | `posts` (every POST in an episode), `episodes`, `rows` (`{"start","end","posts","status","path" (the most posted),"paths","who": [seq]}`, most first, at most 100) |
 | `attacks.bursts` | object | the same with `requests` |
@@ -173,6 +183,7 @@ Kept in accounts.sqlite, tables made on first use:
 |---|---|
 | `security_prefs` | `user_id`, `site`, `alerts` (1/0), `mode` (`now` / `daily`), `updated_at`. No row: owners and admins on, `daily` (the daily summary, since 2.36); viewers off |
 | `security_items` | `site`, `item`, `kind` (`exposure` / `advisory`), `title`, `todo`, `first_at`, `last_seen_at`, `closed_at` (null while open) |
+| `security_marks` | `site`, `item` (an exposure's id), `status`, `size` (-1: not recorded), `user_id`, `marked_at`; one row per answer checked (key: site, item, status, size): "Not a problem" (security_marks.py, SKALD-59). Cleared and purged with the site's data |
 | `security_sends` | `site`, `item`, `user_id`, `how` (`first`, `reminder`, `daily` (before 2.36), `summary`, `test`), `sent_at` |
 | `summary_sends` | `user_id`, `day` (the schedule zone's date), `sent_at`, `items`, `sites`; one row per person and day (summary_mail.py, 2.36) |
 | `summary_items` | `user_id`, `day`, `site`, `part` (`security`, `todos`, `setup`), `item`: what each summary carried |
@@ -195,16 +206,33 @@ mail already reaches (alerts on, mail on, `security_exposure` on). Each send is 
 `security.alert.sent` (actor `skald`, target the address, detail `<item> <kind> <how>`); each
 summary one `summary.sent` per organisation it covered (detail `<day> <n> items on <k> sites`).
 
+**"Not a problem" (SKALD-59).** An owner or admin who checked a possible exposure marks the
+answer it got: its status and size. An answer with the same status and a size within the day's
+`tolerance` of a marked one opens no item, no daily-summary line and no site alert
+(`security_notify.items`, `alerts_security.exposures`), and the page leaves it out of the verdict
+and the "Possible exposures" figure, showing who marked it. Marking closes the open item at once.
+One path can get several answers (compressed and not), so an item holds one mark per answer
+checked. Another status or size is not covered (the file changed, so it is judged again and
+mailed); the mark stays for its own answer. "Check it again" (the undo) takes back every mark of
+the item. Any row the page lists can be marked, also one older than the tracked items. Each mark and undo is an audit row
+(`security.item.not_a_problem` / `security.item.check_again`, actor the person's address, target
+the item). The counts never change: a mark is a judgement of one answer, not a figure. Basic mode
+has no marks.
+
 Routes (security_api.py, sessions mode; 404 in basic mode), under `settings/` which nginx
-already passes: `GET settings/security-prefs` (`{alerts, mode, default, role, email, summary_at, open}`),
+already passes: `GET settings/security-prefs` (`{alerts, mode, default, role, email, summary_at, open, marks}`;
+`marks`: `{item: [{status, size, marked_at, by}]}`, every member),
 `POST settings/security-prefs` (`{alerts, mode}`, the caller's own choice, any member), `POST
-settings/security-test` (owners and admins; 3 in 10 minutes; the CSRF value and same-origin).
+settings/security-test` (owners and admins; 3 in 10 minutes; the CSRF value and same-origin),
+`POST settings/security-mark` (`{item, status, size}` with `status` a 3-digit string and `size`
+bytes or null, or `{item, undo: true}`; owners and admins; the CSRF value and same-origin).
 
 ## The second count
 
 `audit_security.py` (audit_more.RECOUNTS `security`) rebuilds the whole blob
 from the raw lines by its own code: its own pairing, category, referrer,
-asset, shell (bisect over sorted sizes), episode (two pointers and a
+asset, shell (bisect over sorted sizes), the harmless answers of rule 3 (its own static and
+own-call test, and home sizes read from every line of the site's hosts), episode (two pointers and a
 difference array) and ranking; the hosting list read by the audit's own
 crawler checks. Every leaf of the stored blob is compared. On a whole day kept
 with addresses, every kept row's address and agent must be the recount's own

@@ -47,19 +47,19 @@ RULES = {"tolerance": 16, "shell_paths": 3}
 
 
 def answered(order):
-    return [("example.com", "/.env", T, 200, size, "secrets", key) for key, size in order]
+    return [("example.com", "/.env", T, 200, size, "secrets", key, None) for key, size in order]
 
 
 def main_exposure(order, seq):
     c = security.Collector.__new__(security.Collector)
-    c.rules, c.sizes, c.query_only = RULES, {}, 0
+    c.rules, c.sizes, c.query_only, c.homes = RULES, {}, 0, {}
     c.answered = answered(order)
     return c._exposure(seq)["rows"]
 
 
 def audit_exposure(order, seq):
     r = Recount.__new__(Recount)
-    r.rules = RULES
+    r.rules, r.site_lines = RULES, []
     return r._exposure(answered(order), {}, seq)["rows"]
 
 

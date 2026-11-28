@@ -22,9 +22,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .bot_policy import match as policy_match
-from .bot_verify import (CDN_LISTS, CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL, MAX_LIST_AGE,
-                         PREFETCH_PROXY,
-                         VENDORS)
+from .bot_verify import (AGENT_LISTS, CDN_LISTS, CLAIMS, CRAWLER_ADDRESSES, LOCAL_TOOL,
+                         MAX_LIST_AGE, PREFETCH_PROXY, VENDORS)
 from .classify import LINK_PREVIEWS, OTHER_BOT
 from .path_names import PATH_CHARS
 
@@ -61,6 +60,9 @@ class Checks:
         self.hosting: list = []
         self.cdn: dict[str, list] = {}      # "cdn-<name>" -> its ranges (SKALD-17)
         self.memo: dict = {}
+        # Claude-User's own lists (AGENT_LISTS, SKALD-52). False for a day stored before
+        # them (no "agent_lists" in its bots blob): recounted as it was counted.
+        self.agent_rule = True
         if not self.on:
             return
         for path in sorted(self.folder.glob("*.json")):
@@ -104,9 +106,12 @@ class Checks:
             return None
         if LOCAL_TOOL.search(agent or ""):
             return "unverified"
-        if (vendor, address) in self.memo:
-            return self.memo[(vendor, address)]
+        own = AGENT_LISTS.get(name.lower(), ()) if self.agent_rule else ()
+        key = ("claim", vendor, own, address)
+        if key in self.memo:
+            return self.memo[key]
         lists, names = VENDORS[vendor]
+        lists = (*lists, *own)
         have = [n for n in lists if n in self.nets]
         if any(self._inside(address, self.nets[n]) for n in have):
             out = "verified"
@@ -119,7 +124,7 @@ class Checks:
             out = "spoofed"
         else:
             out = "unverified"
-        self.memo[(vendor, address)] = out
+        self.memo[key] = out
         return out
 
     def from_cdn(self, address: str) -> bool:

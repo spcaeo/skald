@@ -223,6 +223,14 @@ nginx and withheld the day. With the line nginx waits for the helper and logs it
 Add it beside the location's `access_log` (the whole location is in [DEPLOY.md](../DEPLOY.md)),
 then `nginx -t` and reload. Days withheld before stay withheld: their 499 lines name no site.
 
+**One log field to add, after the upgrade (SKALD-69, 2.60.0): ` sec_fetch_site=$http_sec_fetch_site`
+in nginx's `log_format`** (Apache: ` sec_fetch_site=%{Sec-Fetch-Site}i`), beside `rid=` (the whole
+line is in [DEPLOY.md](../DEPLOY.md)). With it, a click with no referrer that the browser marks as
+coming from another site is counted as **Hidden referral** instead of Direct. Upgrade first: an
+older release does not know the field. Days counted before keep their Direct. The same release
+judges security answers by exposure rule 3: run `backfill --days 1 --force` and `audit --day
+yesterday` right after the upgrade, then `backfill --days 14 --force`.
+
 ## Docker
 
 An image is never changed in place: `upgrade` in a container says to pull the

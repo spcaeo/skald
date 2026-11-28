@@ -85,7 +85,7 @@ export function gapWords(prev, p) {
 function steps(v) {
   const trail = v.trail || [];
   const icon = v.source === "AI assistant" && v.via ? mark("assistant", v.via) || mark("source", v.source) : v.via ? mark("referrer", v.via) : mark("source", v.source);
-  const sub = v.touch || (v.via ? shown(v.source) : !v.via && shown(v.source) === "Direct" ? "no referring site sent" : "");
+  const sub = v.touch || (v.via ? shown(v.source) : !v.via && shown(v.source) === "Direct" ? "no referring site sent" : !v.via && v.source === "Hidden referral" ? "another site, address hidden" : "");
   const src = withTip(h("span", { class: "jm-n from", tabindex: "0", "aria-label": `Came from ${[sourceWords(v), sub].filter(Boolean).join(", ")}` },
     h("span", { class: "jm-w" }, icon, h("b", null, sourceWords(v))), sub ? h("small", null, sub) : null),
   "Came from", [{ label: [sourceWords(v), v.via ? shown(v.source) : "", v.campaign ? `campaign ${v.campaign}` : ""].filter(Boolean).join(", ") }, ...(v.touch ? [{ label: v.touch }] : [])]);

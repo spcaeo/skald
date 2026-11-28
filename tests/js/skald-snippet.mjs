@@ -17,12 +17,36 @@ class Store {
   removeItem(k) { this.m.delete(k); }
 }
 
+// One simple selector: "input", "textarea", "input[type=email]", "input[type='']" or "input:not([type])".
+// The type matches whatever its case, as an HTML attribute selector does.
+function matches(node, sel) {
+  const m = /^([a-z]+)(?::not\(\[type\]\)|\[type=(?:([a-z-]+)|'')\])?$/.exec(sel.trim());
+  if (!m || node.tagName !== m[1].toUpperCase()) return false;
+  const type = node.getAttribute("type");
+  if (sel.includes(":not(")) return type == null;
+  if (sel.includes("''")) return type === "";
+  return m[2] ? (type || "").toLowerCase() === m[2] : true;
+}
+
 function el(tag, attrs = {}, parent = null) {
-  return {
-    tagName: tag.toUpperCase(), attrs, parentNode: parent, nodeType: 1,
+  const node = {
+    tagName: tag.toUpperCase(), attrs, parentNode: parent, nodeType: 1, kids: [],
     getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
     setAttribute(k, v) { this.attrs[k] = String(v); },
+    // The first descendant matching any selector of a comma list (the tag's typed fields).
+    querySelector(list) {
+      const sels = list.split(",");
+      const walk = (n) => { for (const k of n.kids) { if (sels.some((x) => matches(k, x))) return k; const got = walk(k); if (got) return got; } return null; };
+      return walk(this);
+    },
   };
+  if (parent) parent.kids.push(node);
+  return node;
+}
+// A form with one field a person types into (an email box), and that field.
+function typed(attrs = {}) {
+  const form = el("form", attrs);
+  return { form, field: Object.assign(el("input", { type: "email", name: "email" }, form), { form }) };
 }
 
 function page(opts = {}) {
@@ -96,7 +120,7 @@ function page(opts = {}) {
   vm.runInContext(opts.source || SOURCE, ctx);
   const fire = (where, type, ev) => (listeners[where][type] || []).forEach((fn) => fn(ev));
   return {
-    ctx, sent, fetched, cookies, cookieWrites, loc, replaced,
+    ctx, sent, fetched, cookies, cookieWrites, loc, replaced, listeners,
     names: () => sent.map((s) => s.body.e),
     last: () => sent[sent.length - 1].body,
     doc: (type, target) => fire("doc", type, { target }),
@@ -318,6 +342,120 @@ const tests = {
     assert.equal(new URL(widget.attrs["data-url"]).searchParams.get("utm_content"), v);
     assert.equal(own.attrs.src, "https://calendly.com/acme/demo?utm_content=spring");
   },
+  "SKALD-67: a dialog's close form, a close button, pickers and quizzes are not forms"() {
+    const p = page();
+    // <form method="dialog"><button>Close</button></form>: the pop-up's X (GitHub #116).
+    const x = el("form", { method: "DIALOG", class: "exit__close-form" });
+    const close = el("button", {}, x);
+    p.doc("focusin", close);
+    fireSubmit(p, x, close);
+    // A real form whose own close button says formmethod="dialog": nothing on that button.
+    const { form, field } = typed({ id: "contact" });
+    const shut = el("button", { formmethod: "dialog" }, form);
+    p.doc("focusin", shut);
+    fireSubmit(p, form, shut);
+    // A picker made of buttons only and a quiz of radio buttons: nothing.
+    const pick = el("form", { class: "rm rm-pick", "data-rm-pick": "" });
+    const btn = el("button", { type: "submit" }, pick);
+    p.doc("focusin", btn);
+    fireSubmit(p, pick, btn);
+    const quiz = el("form", { id: "the-copier-check-form" });
+    const radio = el("input", { type: "radio", name: "q1" }, el("label", {}, quiz));
+    p.doc("focusin", radio);
+    p.doc("submit", quiz);
+    // A search box that is not marked role="search" is not a typed field either.
+    const find = el("form", { action: "/search" });
+    p.doc("focusin", el("input", { type: "search", name: "q" }, find));
+    p.doc("submit", find);
+    assert.deepEqual(p.names(), ["page_view"], "none of them counts");
+    // The real form still counts, once started and once sent by its own send button.
+    p.doc("focusin", field);
+    fireSubmit(p, form, el("button", { type: "submit" }, form));
+    assert.deepEqual(p.names(), ["page_view", "form_start", "form_submit"]);
+    assert.deepEqual(p.sent.slice(1).map((s) => s.body.id), ["contact", "contact"]);
+  },
+  "SKALD-67: a picker or quiz counts when the site marks it with data-skald"() {
+    const p = page();
+    const pick = el("form", { id: "plan-picker", "data-skald": "picker" });
+    const btn = el("button", {}, pick);
+    p.doc("focusin", btn);
+    fireSubmit(p, pick, btn);
+    assert.deepEqual(p.names(), ["page_view", "form_start", "form_submit"]);
+    assert.equal(p.last().id, "plan-picker");
+    const bare = el("form", { "data-skald": "Plan Picker", action: "/pick" });
+    fireSubmit(p, bare, el("button", {}, bare));
+    assert.equal(p.last().id, "plan_picker", "no id or name: its mark names it, before the path");
+    // data-skald="off" still leaves a real form out.
+    const off = typed({ "data-skald": "off" });
+    p.doc("focusin", off.field);
+    p.doc("submit", off.form);
+    assert.equal(p.sent.length, 4);
+    // A dialog form the site marks (a pop-up form its own script sends) counts: the mark wins.
+    const marked = typed({ method: "dialog", "data-skald": "contact", id: "pop-contact" });
+    p.doc("focusin", marked.field);
+    p.doc("submit", marked.form);
+    assert.deepEqual(p.names().slice(-2), ["form_start", "contact_submit"]);
+  },
+  "SKALD-67: typed fields: no type, text, email, tel, number, url, password, date and time, textarea"() {
+    for (const [tag, type] of [["input", null], ["input", ""], ["input", "text"], ["input", "EMAIL"], ["input", "tel"], ["input", "number"],
+      ["input", "url"], ["input", "password"], ["input", "date"], ["input", "time"], ["input", "month"], ["input", "week"],
+      ["input", "datetime-local"], ["textarea", null]]) {
+      const p = page();
+      const form = el("form", { id: "f" });
+      const f = Object.assign(el(tag, type != null ? { type } : {}, el("div", {}, form)), { form });
+      p.doc("focusin", f);
+      assert.deepEqual(p.names(), ["page_view", "form_start"], `${tag} ${type}`);
+    }
+    for (const type of ["hidden", "checkbox", "radio", "submit", "button", "range", "file", "search"]) {
+      const p = page();
+      const form = el("form", { id: "f" });
+      p.doc("focusin", Object.assign(el("input", { type }, form), { form }));
+      p.doc("submit", form);
+      assert.deepEqual(p.names(), ["page_view"], type);
+    }
+  },
+  "SKALD-67: a control named \"form\" does not hide its form (form.form is that control)"() {
+    const p = page();
+    const { form, field } = typed({ id: "contact" });
+    const hidden = Object.assign(el("input", { type: "hidden", name: "form" }, form), { form });
+    form.form = hidden;                      // a browser's named access: <form>.form is the control
+    p.doc("focusin", field);
+    p.doc("submit", form);
+    assert.deepEqual(p.names(), ["page_view", "form_start", "form_submit"]);
+    assert.deepEqual(p.sent.slice(1).map((s) => s.body.id), ["contact", "contact"]);
+  },
+  "SKALD-67: a form with no id or name is named by aria-label, its post path, then its class"() {
+    const p = page({ url: "https://www.example.com/contact-us/" });
+    const named = (attrs) => { const t = typed(attrs); p.doc("submit", t.form); return p.last().id; };
+    assert.equal(named({ "aria-label": "Talk to sales" }), "talk_to_sales");
+    assert.equal(named({ "data-endpoint": "/forms/contact?ref=Top#x" }), "forms_contact", "the path only, never the query");
+    assert.equal(named({ action: "https://forms.example.org/v2/Submit/" }), "form", "another site's address never names a form");
+    assert.equal(named({ action: "https://formsubmit.example.org/owner@example.com" }), "form", "nor an address in it");
+    assert.equal(named({ action: "/Contact-Us/send/" }), "contact-us_send", "this site's path, no slash at the end");
+    // Privacy (review): a segment with a digit, @ or %, or of 25 characters or more, is left out:
+    // a webhook's secret, an order or tracking number typed into the address, an email.
+    assert.equal(named({ action: "/hooks/catch/123456/ab1cd2/" }), "hooks_catch");
+    assert.equal(named({ action: "/track/1Z999AA10123456784" }), "track");
+    assert.equal(named({ action: "/hooks/q7mxk2zpa9wvb3ncr8dlte5h" }), "hooks");
+    assert.equal(named({ action: "/subscribe/abcdefghijklmnopqrstuvwxyz" }), "subscribe");
+    assert.equal(named({ action: "/send/person%40example.com" }), "send");
+    assert.equal(named({ action: "/u/person@example.com", class: "news" }), "u");
+    assert.equal(named({ action: "/12345/abc@x/", class: "news" }), "news", "nothing left of the path: the class");
+    assert.equal(named({ action: "/subscribe", class: "news" }), "subscribe");
+    assert.equal(named({ class: "  wpcf7-form init " }), "wpcf7-form");
+    assert.equal(named({ action: "/", class: "lead" }), "lead", "a path that names nothing gives way to the class");
+    assert.equal(named({ action: "" , class: "lead" }), "lead", "an empty action is no path");
+    assert.equal(named({}), "form");
+    assert.equal(named({ id: "Contact", "aria-label": "x", action: "/y" }), "contact", "id first");
+    assert.equal(named({ name: "trial", action: "/y" }), "trial", "then name");
+    assert.equal(named({ "aria-label": "Sales", "data-skald": "contact" }), "sales", "aria-label before the mark");
+    assert.equal(named({ "data-skald": "signup", action: "/y" }), "signup", "the mark before the path");
+    assert.equal(named({ "aria-label": "A".repeat(90) }).length, 60);
+    const t = typed({ action: "javascript:void(0)" });
+    p.doc("submit", t.form);
+    assert.equal(p.last().id, "form", "a javascript: action is not a path");
+    for (const s of p.sent.slice(1)) assert.match(s.body.id, /^[a-z0-9][a-z0-9_.:-]{0,59}$/);
+  },
   "contact and early-access forms send their own submit"() {
     const p = page();
     const contact = el("form", { id: "contact", "data-skald": "contact" });
@@ -511,7 +649,7 @@ const tests = {
     const p = page({ source: SOURCE.replace("IDS=1", "IDS=0"),
       attrs: { "data-share-subdomains": "true" },
       embeds: [el("iframe", { src: "https://calendly.com/acme/demo" })] });
-    p.doc("submit", el("form", { id: "contact" }));
+    p.doc("submit", typed({ id: "contact" }).form);
     assert.deepEqual(p.names(), ["page_view", "form_submit"]);
     assert.ok(p.sent.every((s) => !("v" in s.body)));
     assert.equal(kept(p) + p.cookies.size, 0);
@@ -624,6 +762,10 @@ const tests = {
   },
 };
 
+// A submit event with the button that sent it (event.submitter), as a browser fires it.
+function fireSubmit(p, form, submitter) {
+  for (const fn of p.listeners.doc.submit || []) fn({ target: form, submitter });
+}
 function tick() { return new Promise((resolve) => setTimeout(resolve, 0)); }
 // What the script kept in local storage, leaving out the day's flag the harness put there.
 function kept(p) { return [...p.ctx.localStorage.m.keys()].filter((k) => k !== "skald.sh").length; }

@@ -41,6 +41,13 @@ ARTICLE = """<!doctype html><html><head>
 </head><body><time datetime="2026-11-19T23:42:44Z">a related post</time></body></html>"""
 
 
+def dates(html: str, path: str, now: datetime) -> dict:
+    """parse() without the title (SKALD-70): the dates alone."""
+    got = parse(html, path, now)
+    got.pop("title", None)
+    return got
+
+
 def page(html: str, status: int = 200, ctype: str = "text/html; charset=utf-8", **headers):
     hd = {"content-type": [ctype], **{k.replace("_", "-"): [v] for k, v in headers.items()}}
     return Answer(status, hd, html.encode("utf-8"))
@@ -72,7 +79,7 @@ class Normalise(unittest.TestCase):
 
 class Html(unittest.TestCase):
     def test_an_articles_jsonld_wins(self):
-        got = parse(ARTICLE, "/guide/", NOW)
+        got = dates(ARTICLE, "/guide/", NOW)
         self.assertEqual(got, {"published": ("2024-11-05T06:42:00Z", "jsonld"),
                                "modified": ("2026-11-26T05:42:14Z", "jsonld")})
 
@@ -82,13 +89,13 @@ class Html(unittest.TestCase):
           {"@type":"Article","url":"https://www.example.com/other/","datePublished":"2021-01-01"},
           {"@type":["Article"],"mainEntityOfPage":{"@id":"https://www.example.com/guide"},
            "datePublished":"2022-01-01","dateModified":["2023-01-01"]}]</script>"""
-        self.assertEqual(parse(html, "/guide/", NOW),
+        self.assertEqual(dates(html, "/guide/", NOW),
                          {"published": ("2022-01-01", "jsonld"), "modified": ("2023-01-01", "jsonld")})
 
     def test_meta_tags_when_there_is_no_jsonld(self):
         html = """<meta property="article:published_time" content="2025-03-01T10:00:00+01:00">
                   <meta property="og:updated_time" content="2026-11-20T08:00:00Z">"""
-        self.assertEqual(parse(html, "/a/", NOW),
+        self.assertEqual(dates(html, "/a/", NOW),
                          {"published": ("2025-03-01T09:00:00Z", "meta"),
                           "modified": ("2026-11-20T08:00:00Z", "meta")})
 
@@ -96,9 +103,9 @@ class Html(unittest.TestCase):
         html = """<time datetime="2026-11-01">related</time>
                   <time class="entry-date published" datetime="2025-06-01">1 Jun</time>
                   <span itemprop="dateModified" content="2026-11-02"></span>"""
-        self.assertEqual(parse(html, "/a/", NOW),
+        self.assertEqual(dates(html, "/a/", NOW),
                          {"published": ("2025-06-01", "time"), "modified": ("2026-11-02", "meta")})
-        self.assertEqual(parse("<time datetime='2026-11-01'>x</time>", "/a/", NOW),
+        self.assertEqual(dates("<time datetime='2026-11-01'>x</time>", "/a/", NOW),
                          {"published": None, "modified": None})
 
     def test_a_listings_own_node_beats_a_related_post_inside_it(self):
@@ -106,18 +113,18 @@ class Html(unittest.TestCase):
           "url":"https://www.example.com/blog/","datePublished":"2020-01-01","dateModified":"2026-11-20",
           "hasPart":[{"@type":"BlogPosting","url":"https://www.example.com/blog/post-a/",
           "datePublished":"2026-11-25","dateModified":"2026-11-25"}]}</script>"""
-        self.assertEqual(parse(html, "/blog/", NOW),
+        self.assertEqual(dates(html, "/blog/", NOW),
                          {"published": ("2020-01-01", "jsonld"), "modified": ("2026-11-20", "jsonld")})
         # the related post alone, nested and not the page: never read
         only = html.replace('"datePublished":"2020-01-01","dateModified":"2026-11-20",', "")
-        self.assertEqual(parse(only, "/blog/", NOW), {"published": None, "modified": None})
+        self.assertEqual(dates(only, "/blog/", NOW), {"published": None, "modified": None})
 
     def test_broken_or_future_values_fall_through(self):
         html = """<script type="application/ld+json">{not json</script>
                   <script type="application/ld+json">{"@type":"Article","datePublished":"soon",
                    "dateModified":"2027-01-01"}</script>
                   <meta property="article:modified_time" content="2026-11-10">"""
-        self.assertEqual(parse(html, "/a/", NOW),
+        self.assertEqual(dates(html, "/a/", NOW),
                          {"published": None, "modified": ("2026-11-10", "meta")})
 
 

@@ -12,6 +12,7 @@ import re
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlsplit
 
+from .hidden_names import CROSS_SITE, HIDDEN
 from .payment_names import CHECKOUT_KEY, PAYMENT_HOSTS, PAYMENT_REFERRER, RETURNED
 
 if TYPE_CHECKING:                       # the type only, never the code
@@ -156,6 +157,7 @@ def _paid_from(host: str, pay) -> bool:
 
 
 def source_of(line: Line, cited: bool, own: set, pay=()) -> str:
+    """The source of a page view (the callers pass page views only)."""
     if cited:
         return "AI assistant"
     host = _bare(line.referrer) if line.referrer else ""
@@ -186,7 +188,43 @@ def source_of(line: Line, cited: bool, own: set, pay=()) -> str:
     for key, kind, _ in _CLICKS:
         if tags.get(key):
             return kind
+    # No referrer, no tag: a click from another site whose address was
+    # hidden, when the line says the browser marked it so (SKALD-69).
+    if getattr(line, "fetch_site", None) == CROSS_SITE:
+        return HIDDEN
     return "Direct or unknown"
+
+
+def hidden_counted(quality_blob) -> bool:
+    """Was this stored day (or live snapshot) counted with the Hidden referral
+    rule (SKALD-69)? Its quality blob then says "hidden_referral": true. A day
+    stored before is recounted without the rule, as it was counted: a Caddy
+    log held Sec-Fetch-Site before Skald read it, and such a day is never
+    withheld for it."""
+    return isinstance(quality_blob, dict) and quality_blob.get("hidden_referral") is True
+
+
+def stored_hidden(db_path, site: str, day) -> bool:
+    """hidden_counted for a stored day (its day_extras "quality" row); True
+    when the day is not stored, or its row cannot be read."""
+    import json
+    import sqlite3
+    from pathlib import Path
+    try:
+        db = sqlite3.connect(f"file:{Path(db_path).resolve()}?mode=ro", uri=True)
+        try:
+            row = db.execute("SELECT data FROM day_extras WHERE site = ? AND day = ? AND "
+                             "kind = 'quality'", (site, day.isoformat())).fetchone()
+        finally:
+            db.close()
+    except (sqlite3.Error, OSError):
+        return True
+    if row is None:
+        return True
+    try:
+        return hidden_counted(json.loads(row[0]))
+    except ValueError:
+        return True
 
 
 def _utm_kind(value: str) -> str:

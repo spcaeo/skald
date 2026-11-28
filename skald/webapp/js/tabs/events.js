@@ -18,7 +18,8 @@ import { head } from "./common.js";
 import { info } from "./tiles.js";
 import { sessions, isViewer } from "../access.js";
 import { everSent, howToSend, neverSentAny } from "../notset.js";
-import { connectCard, sourceLink } from "../ui/connect.js";
+import { connectCard, sourceLink, hashOf } from "../ui/connect.js";
+import { formsOn } from "./leadfigs.js";
 
 const COLS = ["cta_click", "book_demo_open", "demo_booked", "signup_start", "signup_submit", "contact_submit", "waitlist_submit", "outbound_click", "scroll_75", "copy_text", "404_view"];
 const SHORT = { cta_click: "Clicks", book_demo_open: "Demo opened", demo_booked: "Demo booked", signup_start: "Sign-up started", signup_submit: "Sign-up sent", contact_submit: "Contact sent",
@@ -36,11 +37,11 @@ export const MEANING = {
   contact_submit: "contact forms sent",
   waitlist_submit: "early-access forms sent",
   outbound_click: "clicks on links to other sites",
-  scroll_75: "times a visitor read three quarters of a page",
+  scroll_75: "times a visitor scrolled to three quarters of a page (a page that fits on the screen never counts)",
   copy_text: "times a visitor copied text from a page",
   "404_view": "visits to the not-found page",
   form_start: "times someone started filling in a form",
-  form_submit: "forms sent",
+  form_submit: "times a form's send button was pressed (not forms received)",
   calendly_open: "times the Calendly booking was opened", calendly_time_selected: "times a time was chosen in Calendly", calendly_booked: "meetings booked in Calendly",
   cal_open: "times the Cal.com booking was opened", cal_booked: "meetings booked in Cal.com",
   hubspot_meeting_booked: "meetings booked in HubSpot",
@@ -55,6 +56,27 @@ export const PAIRS = [["signup_start", "signup_submit"], ["form_start", "form_su
 export const CORE = ["cta_click", "signup_start", "signup_submit", "book_demo_open", "demo_booked"];
 const ORDER = [...COLS, "form_start", "form_submit", "tel_click", "mailto_click", "calendly_open", "calendly_time_selected", "calendly_booked", "cal_open", "cal_booked",
   "hubspot_meeting_booked", "neetocal_open", "neetocal_time_selected", "neetocal_booked", "page_view"];
+
+// SKALD-67: the version from which the tag counts a form only when it has a field a person types
+// into (or a data-skald mark), and never a pop-up's close button. Days before it cannot be recounted.
+export const FORMS_SINCE = "2.60.0";
+
+/* Under the form step (SKALD-67): what Form sent counts; the forms Leads & sales received on the
+   same verified days from the site's server or form tools, never the tag's own rows (leadfigs.js
+   formsOn; the whole site only; only when a hook reports forms); what the tag counted before FORMS_SINCE. */
+export function formNotes(m, s, days) {
+  const out = [h("p", { class: "note ev-sent" }, "Form sent counts presses of a form's send button, not forms received: a send that the form's own code refuses, or that fails, still counts.")];
+  const got = days && days.length ? formsOn(m, days) : null;
+  if (got && got.ok && (s.path || s.source || (s.view && s.view !== "all"))) out.push(h("p", { class: "note ev-leads" }, "Forms received is for the whole site: clear the page, source and page-group filters to see it here."));
+  else if (got && got.ok) {
+    const left = [got.held.length ? `${got.held.map(short).join(", ")} did not pass Leads & sales' checks` : "", got.before.length ? `${got.before.map(short).join(", ")} not recorded there` : ""].filter(Boolean).join("; ");
+    const part = got.whole ? "" : ` (on ${n(got.ok)} of the ${n(got.of)} days counted above: ${left})`;
+    out.push(h("p", { class: "note ev-leads" }, h("b", null, `Forms received: ${n(got.forms)}`), `${part}. Forms your site's server or form tools reported to Leads & sales on the same days, not counted by the tag; demo bookings are not in it. `,
+      h("a", { href: hashOf({ tab: "sales/summary" }) }, "Leads & sales")));
+  }
+  out.push(h("p", { class: "note ev-before" }, `Before Skald ${FORMS_SINCE}, Form started and Form sent also counted a pop-up's close button, pickers and quizzes. Days counted before the update keep those and cannot be recounted.`));
+  return out;
+}
 
 // An event the site has never sent is "not set up" with how to send it, never 0 or 0% (notset.js).
 export { everSent, howToSend };
@@ -200,7 +222,8 @@ export default function events(m, s) {
   };
   const pairs = PAIRS.filter(([a, b]) => everSent(f, a) || everSent(f, b));
   if (pairs.length) out.push(h("section", { class: "s" }, h("div", { class: "card-h start" }, h("h2", null, "Through the forms"), info("Each count is of events, not of people: one person can start a form twice. A share is given from five starts on.", "Through the forms")),
-    h("div", { class: "ev-steps" }, pairs.map(([a, b]) => step(a, b)))));
+    h("div", { class: "ev-steps" }, pairs.map(([a, b]) => step(a, b))),
+    pairs.some(([a]) => a === "form_start") ? formNotes(m, s, got.live ? null : [...(got.ok || [])].sort()) : null));
   // Not set up yet: one line, the how behind one button (it was six big tiles of set-up words).
   const unset = CORE.filter((e) => !everSent(f, e) && !pairs.some((pr) => pr.includes(e)));
   if (unset.length) out.push(h("section", { class: "s ev-unset" }, h("p", null, h("b", null, "Not set up yet: "), `${unset.map((e) => eventLabel(f, e)).join(", ")}. This site has never sent ${unset.length === 1 ? "it" : "them"}, so there is no count, not a zero.`),

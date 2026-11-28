@@ -51,6 +51,7 @@
 
 ## What's new
 
+- **2.60.0: find a page by its full address or title; Hidden referral split out of Direct; forms counted honestly; fewer false security exposures, and a checked one can be marked Not a problem; Claude's fetches verified again; Gemini's live fetch and RiverBot named** ([changelog](CHANGELOG.md#2600-2026-11-28)).
 - **2.59.0: one Country / Source / Device filter for four Traffic tabs; Search figures up or down and why each opportunity; why the Retention curve moves; when to release; every event on Events; each page's own dates and Google figures; Yesterday from soon after midnight** ([changelog](CHANGELOG.md#2590-2026-11-26)).
 - **2.58.0: Traffic › Agent files shows who reads the files a site made for AI; NeetoCal bookings; security items no longer close at midnight; set-up steps name the site as it was added; "Visits count as people" reads the saved file paths** ([changelog](CHANGELOG.md#2580-2026-11-25)).
 - **2.57.0: Google Analytics on Overview › Today with more of its own figures and a drawer; AI training counts pages with files apart; Overview's AI card split by why the AI came; a compact Requests per minute chart** ([changelog](CHANGELOG.md#2570-2026-11-24)).
@@ -146,7 +147,7 @@ what it costs your server, and what an assistant read just before it sent you a 
 
 ### Trust the names
 A crawler's claim is checked against its owner's published addresses or DNS (Google, Bing, Apple,
-OpenAI, Perplexity, Anthropic, DuckDuckGo, Meta; DNS for others). A fake is filed apart as
+OpenAI, Perplexity, Anthropic, DuckDuckGo, River, Meta; DNS for others). A fake is filed apart as
 *"claims to be GPTBot"*. Every name, owner and check: [`bots.json`](https://skaldanalytics.com/bots.json).
 
 </td>

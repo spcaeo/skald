@@ -240,7 +240,9 @@ class TestIndependence(AuditCase):
                                              "AI_UTM", "OTHER_BOT", "OWN_AGENTS", "PROBE", "PROBE_QUERY",
                                              "SEARCH_ENGINE",
                                              # the probes that mark a whole visitor (rule 6b)
-                                             "SECRET_PROBE")}
+                                             "SECRET_PROBE",
+                                             # Google's fetch proxy's agent (rule 6d, SKALD-51)
+                                             "GOOGLE_PROXY_AGENT")}
         allowed |= {("store", "History"), ("store", "READER_KINDS")}
         # The audit's own visits recount, itself independent (test_visits_audit).
         allowed |= {(None, "audit_visits"), (None, "audit_extras")}
@@ -262,6 +264,8 @@ class TestIndependence(AuditCase):
             "referrer_of", "source_of", "status_of", "system_of")}
         # The "Returned from payment" name (#34): a name list, payment_names.py.
         allowed |= {("payment_names", "RETURNED")}
+        # The "Hidden referral" name (SKALD-69): a name list, hidden_names.py.
+        allowed |= {("hidden_names", "HIDDEN")}
         allowed |= {(None, "audit_more")}
         # Its own reader of Vercel and Netlify drain lines, which imports
         # nothing from the package (test_drains).
@@ -312,7 +316,9 @@ class TestIndependence(AuditCase):
         # a type, under TYPE_CHECKING; and the payment pages' name lists (#34)
         self.assertEqual(imported, {("audit", "Line")} | {
             ("payment_names", n) for n in ("CHECKOUT_KEY", "PAYMENT_HOSTS", "PAYMENT_REFERRER",
-                                           "RETURNED")})
+                                           "RETURNED")} | {
+            # and the Hidden referral names (SKALD-69)
+            ("hidden_names", n) for n in ("CROSS_SITE", "HIDDEN")})
 
     def test_its_labels_agree_with_the_package_on_known_agents(self):
         from skald import dimensions

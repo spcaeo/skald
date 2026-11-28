@@ -41,6 +41,8 @@ import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 
+from .security_marks import of_site
+
 PREFS = ("CREATE TABLE IF NOT EXISTS security_prefs (user_id INTEGER NOT NULL, site TEXT NOT NULL, "
          "alerts INTEGER NOT NULL, mode TEXT NOT NULL CHECK (mode IN ('now', 'daily')), "
          "updated_at TEXT NOT NULL, PRIMARY KEY (user_id, site))")
@@ -130,20 +132,25 @@ def recipients(db, site: str) -> list[dict]:
 
 # ------------------------------------------------------------------- items
 
-def items(config: dict, site: str, blobs: list, stack_read: dict | None) -> list[dict]:
+def items(config: dict, site: str, blobs: list, stack_read: dict | None,
+          marks: dict | None = None) -> list[dict]:
     """[{item, kind, title, todo}] open now: possible exposures of the blobs given (today
-    so far, yesterday as collected) and the stack's advisory matches that need something done."""
+    so far, yesterday as collected) and the stack's advisory matches that need something done.
+    `marks`: the site's "Not a problem" marks (security_marks.py); a marked answer is no item
+    while the mark holds."""
     from .alerts_security import advice
     from .security import current
+    from .security_marks import covering
     out, seen = [], set()
     for blob in blobs:
-        if not current(blob):           # counted before 2.21.1's rule: never mailed
+        if not current(blob):           # counted with an older exposure rule: never mailed
             continue
+        tol = ((blob or {}).get("rules") or {}).get("tolerance")
         for r in ((blob or {}).get("exposure") or {}).get("rows") or []:
             if r.get("verdict") != "possible":
                 continue
             it = item_id("exposure", site, r["host"], r["path"])
-            if it in seen:
+            if it in seen or covering((marks or {}).get(it), r["status"], r.get("size"), tol):
                 continue
             seen.add(it)
             out.append({"item": it, "kind": "exposure",
@@ -357,7 +364,7 @@ def test_send(db, config: dict, site: str, user: dict, org_id, now: datetime | N
 # ------------------------------------------------------------- the runs
 
 def _found(config: dict, live_dir, history, site: str, snap: dict | None, day,
-           need_today: bool = True) -> tuple[list, frozenset]:
+           need_today: bool = True, marks: dict | None = None) -> tuple[list, frozenset]:
     """(the items open now, the kinds whose open items must stay open). Exposures come from
     today so far (the live snapshot) and yesterday, `day`, as collected; advisories from the
     stack's last check. An item not seen is closed only when every source that could show it
@@ -384,7 +391,8 @@ def _found(config: dict, live_dir, history, site: str, snap: dict | None, day,
     got = stack.latest(live_dir, site) if live_dir is not None else None
     if got is None:
         hold.add("advisory")
-    return items(config, site, blobs, (got[1].get("read") if got else None)), frozenset(hold)
+    return (items(config, site, blobs, (got[1].get("read") if got else None), marks),
+            frozenset(hold))
 
 
 def _collected(history, site: str, day) -> dict | None:
@@ -424,7 +432,8 @@ def live(ctx, snap: dict | None, send=None) -> None:
         try:
             with ctx.history() as history:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
-                found, hold = _found(ctx.config, ctx.live_dir, history, ctx.site, snap, day)
+                found, hold = _found(ctx.config, ctx.live_dir, history, ctx.site, snap, day,
+                                     marks=of_site(db, ctx.site))
             track(db, ctx.site, found, ctx.now, hold)
         finally:
             db.close()
@@ -448,7 +457,7 @@ def daily(ctx, send=None) -> int:
                 day = ctx.now.astimezone(ctx.tz).date() - timedelta(days=1)
                 saved = _saved_today(ctx)
                 found, hold = _found(ctx.config, ctx.live_dir, history, ctx.site, saved, day,
-                                     need_today=saved is not None)
+                                     need_today=saved is not None, marks=of_site(db, ctx.site))
             track(db, ctx.site, found, ctx.now, hold)
             ctx.out(f"security items: {len(open_items(db, ctx.site))} open; they go in the "
                     "daily summary" + (f" (kept open, nothing to judge them by: "

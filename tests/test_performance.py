@@ -182,6 +182,8 @@ def old_story(history, site, path, config, tz, today):
     whole = page_time.figure(whole_rows) if whole_days else None
     entry = meta.get(path) or {}
     return {"ok": True, "path": path, "title": entry.get("title"), "locale": entry.get("locale"),
+            # where the title comes from (SKALD-70, added later): the website's list here
+            "title_from": "website" if entry.get("title") else None,
             # the sitemap's change dates (added later): none in this sandbox
             "published": published, "updated": updated, "date_source": source,
             "updated_source": "website" if updated else None, "lastmod": None,

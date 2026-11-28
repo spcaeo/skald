@@ -80,7 +80,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from . import ingest, ingest_log
+from . import hidden_names, ingest, ingest_log
 from .keep_everything import Keeper
 from .config import setting
 from .parse_drains import _url
@@ -94,10 +94,11 @@ VERCEL_PROXY = ("timestamp", "method", "host", "path", "userAgent", "referer",
                 "statusCode", "clientIp", "responseByteSize", "vercelId")
 NETLIFY = ("log_type", "timestamp", "client_ip", "method", "url", "status_code",
            "user_agent", "referrer", "country", "duration", "response_size", "request_id")
-# An edge record's fields: what an nginx line keeps, plus the cache status and
-# the request id. Anything else a sender adds is dropped.
+# An edge record's fields: what an nginx line keeps, plus the cache status,
+# the request id and the browser's Sec-Fetch-Site header (SKALD-69). Anything
+# else a sender adds is dropped.
 EDGE = ("ts", "ip", "method", "host", "path", "status", "bytes", "referer", "ua",
-        "cache", "id")
+        "cache", "id", hidden_names.EDGE_KEY)
 EDGE_PER_MINUTE, EDGE_BURST = 1200, 300
 # An edge post over that limit (SKALD-34): a Worker never sends it again, so its record is
 # lost. Its own words (ingest_status reason "edge_limited"), not the shipper's "slow down".

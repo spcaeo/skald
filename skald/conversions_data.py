@@ -145,7 +145,7 @@ def _add(table: dict, a: str, b: str) -> None:
 
 def likely_label(db, row, likely: tuple | None, tz) -> str:
     """The likely assistant behind a finished row's first touch (see above)."""
-    from .ai_likely import DIRECT, NOT_RECORDED, likely_for
+    from .ai_likely import NO_REFERRER, NOT_RECORDED, likely_for
     from .conversions import store
     # A first touch Skald filled (2.45, conversions/fill.py) is the journeys' own: read there.
     if row["first_source"] is not None and "first_source" not in str(
@@ -162,7 +162,7 @@ def likely_label(db, row, likely: tuple | None, tz) -> str:
         return UNKNOWN
     if source is None:
         return UNKNOWN
-    if source != DIRECT:
+    if source not in NO_REFERRER:
         return "(none)"
     try:
         when = store.parse(str(at)) if at else None

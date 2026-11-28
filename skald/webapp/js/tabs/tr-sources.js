@@ -168,7 +168,7 @@ function narrowed(m, s, r, t) {
 
 export default function sources(m, s) {
   const { r, t, cov } = figures(m, s);
-  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say. Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
+  const out = [...head("Sources", r, "Where visitors came from, by the referrer of the first page they read. Direct: no referrer and no campaign tag. Referrers are often stripped, so Direct includes everyone whose browser did not say. Hidden referral: no referrer either, but the browser said the click came from another site (only where the log records Sec-Fetch-Site). Source types, referring sites and campaigns are stored apart, so each segment adds up on its own and they are never added together.")];
   if (!t || !t.by) return [...out, nothing(m, r, "sources")];
   if (filtered(s)) return [...out, narrowed(m, s, r, t)];
   const { lb, prev, perDay, rows, c, social } = sourceRows(m, s, r, t, cov);

@@ -298,4 +298,51 @@ async function draw(fn, role, extra = {}) {
   assert.match(al, /Your security alerts/);
   assert.match(al, /needs sign-in with accounts/, "basic mode: no personal mail, said so");
 }
+{
+  // SKALD-59: exposure rule 3's harmless answers and the "Not a problem" marks.
+  const day = { rules: { tolerance: 16 }, exposure: { answered: 9, shell: 1, empty: 0, static: 4, own: 1, home: 1, possible: 2, unknown: 0, folded: 0,
+    hosts: { "example.com": { answered: 9, shell: 1, empty: 0, static: 4, own: 1, home: 1, possible: 2, unknown: 0, shell_sizes: [] } },
+    rows: [{ item: "xaaaaaaaaaaaa", host: "example.com", path: "/wp-links-opml.php", status: "200", size: 184, verdict: "possible", category: "wordpress" },
+      { item: "xbbbbbbbbbbbb", host: "example.com", path: "/backup.sql", status: "200", size: 9000, verdict: "possible", category: "dumps" }] } };
+  const t = D.sumOf([["2026-11-25", day]]);
+  assert.equal(D.harmlessOf(t.exposure), 7, "fallback, static, own and home");
+  assert.equal(t.exposure.hosts["example.com"].static, 4);
+  assert.equal(D.verdictOf(D.applyMarks(t, {})).n, 2);
+  const mark = { xaaaaaaaaaaaa: [{ status: "200", size: 190, marked_at: "2026-11-26T05:00:00Z", by: "admin@example.com" }] };
+  D.applyMarks(t, mark);
+  assert.equal(t.exposure.marked, 1);
+  assert.equal(D.verdictOf(t).words, "1 possible exposure: check it now", "the marked one is left out");
+  assert.match(X.why(t.exposure.rows[0]), /Marked not a problem by admin@example\.com/);
+  assert.equal(D.coveringOf(mark.xaaaaaaaaaaaa, { status: "200", size: 207, tol: 16 }), null, "17 bytes away: judged again");
+  assert.equal(D.coveringOf(mark.xaaaaaaaaaaaa, { status: "206", size: 190, tol: 16 }), null, "another status");
+  const two = [{ status: "200", size: 184 }, { status: "200", size: 626 }];
+  assert.ok(D.coveringOf(two, { status: "200", size: 630, tol: 16 }), "one path, two answers, each marked");
+  D.applyMarks(t, { ...mark, xbbbbbbbbbbbb: [{ status: "200", size: 9000 }] });
+  assert.equal(D.verdictOf(t).tone, "ok");
+  assert.match(D.verdictOf(t).words, /Nothing left to check: 2 marked not a problem/);
+  const row = t.exposure.rows[1];
+  assert.equal(X.markButton(row, { role: "viewer", marks: {} }), null, "a viewer gets no button");
+  assert.equal(X.markButton(row, null), null, "basic mode and the demo: none");
+  assert.equal(text(X.markButton(row, { role: "admin", marks: {} })), "Check it again");
+  assert.equal(text(X.markButton({ ...row, marked: null }, { role: "owner", marks: {} })), "Not a problem");
+  assert.equal(X.markButton({ ...row, verdict: "unknown", marked: null }, { role: "owner" }), null, "can't tell is never marked");
+  // The alert's link: today's changed answer, not the older one that was marked.
+  const r = (at, size) => ({ item: "xaaaaaaaaaaaa", host: "example.com", path: "/feed.php", status: "200", size, at, verdict: "possible", category: "php" });
+  const file = { days: [{ day: "2026-11-23", security: { rules: { tolerance: 16 }, exposure: { rows: [r("2026-11-23T05:00:00+00:00", 184)] } } }],
+    today: { security: { rules: { tolerance: 16 }, exposure: { rows: [r("2026-11-26T05:00:00+00:00", 9000)] } } } };
+  const marked = { xaaaaaaaaaaaa: [{ status: "200", size: 184, marked_at: "2026-11-24T05:00:00Z", by: "admin@example.com" }] };
+  const part = X.itemPart(file, { item: "xaaaaaaaaaaaa" }, marked, { role: "admin" });
+  assert.match(text(part), /9,000 bytes/);
+  assert.doesNotMatch(text(part), /Marked not a problem/);
+  assert.match(text(part), /Not a problem/, "the button to mark this answer too");
+  const old = X.itemPart({ days: file.days }, { item: "xaaaaaaaaaaaa" }, marked, { role: "viewer" });
+  assert.match(text(old), /Marked not a problem by admin@example\.com/);
+  // The button's S.emit(true) reaches main.js with force set: the same address is drawn again
+  // (it was taken for "only an overlay changed", so a mark showed only after a reload).
+  const got = [];
+  S.on((next, force) => got.push(!!force));
+  S.emit(true);
+  S.emit();
+  assert.deepEqual(got.slice(-2).filter(Boolean), [true], "a forced emit says so; a plain one with the same address is not drawn");
+}
 console.log("security: all passed");

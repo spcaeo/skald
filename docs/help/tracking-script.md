@@ -77,8 +77,8 @@ Once the tag is on a page, it reports these events with no extra work:
 | Event | When |
 | --- | --- |
 | Page view | the page loads; each time a single-page app changes the address (a link inside the page, the back and forward buttons); and when the browser shows the page again from its back-forward cache |
-| Form started | a field of a form is first used (once per form per page) |
-| Form sent | a form is submitted |
+| Form started | a form first gets focus, usually a click or tab into it (once per form per page) |
+| Form sent | a form's send button is pressed. This is not a form received: see below |
 | Sign-up started, Sign-up sent | the same, for a form marked `data-skald="signup"` |
 | Contact sent | a form marked `data-skald="contact"` is submitted |
 | Early access sent | a form marked `data-skald="waitlist"` is submitted |
@@ -86,14 +86,25 @@ Once the tag is on a page, it reports these events with no extra work:
 | Email click | a `mailto:` link is clicked (never the address) |
 | Link out | a link to another site is clicked (the other site's name only) |
 | Button click | an element marked `data-skald-cta="<name>"` is clicked |
-| Read ¾ | the reader scrolls to three quarters of the page (once per page) |
+| Read ¾ | the reader scrolls until the bottom of the screen is three quarters of the way down the page (once per page). A page short enough to fit on the screen never counts, and one quick scroll on a short page does |
 | Copied | text is copied from the page (once per page; never the text) |
 | Not found | a page marked `data-skald="404"` is shown, such as your "page not found" page |
 | Calendly opened, time chosen, booked | inside a Calendly embed on your page |
 | Cal.com opened, booked | inside a Cal.com embed |
 | HubSpot meeting booked | inside a HubSpot meetings embed |
 
-A form records only its own `id` or `name`, such as `contact`. It never reads what a person typed.
+A form counts only when it has a box a person types into: text, email, phone, number, web address, password, a date or time, or a text area. So these are left out by themselves:
+
+- a pop-up's close button built as a small form (`<form method="dialog">`), and any button with `formmethod="dialog"`;
+- pickers and quizzes made only of buttons, radio buttons or tick boxes;
+- a form of drop-down lists only, or of a file upload only;
+- a form whose boxes sit outside it (linked with `form="..."`) or inside a web component.
+
+To count any of these anyway, give the form any `data-skald` value, such as `data-skald="plan_picker"`. The mark also counts a pop-up form your own script sends.
+
+> Before Skald 2.60.0, Form started and Form sent also counted those close buttons, pickers and quizzes. Days counted before your Skald was updated keep them, and they cannot be recounted: the tag named almost every form just "form", so they cannot be told apart.
+
+A form is named by its `id`, else its `name`, else its `aria-label`, else its `data-skald` value, else the path on your own site it sends to (`action` or `data-endpoint`, such as `forms_contact`), else its first class name. Parts of that path with a digit, an `@`, a `%` or 25 characters or more are left out, so an order number, an email, an encoded value or a secret in the address never reaches Skald. It never reads what a person typed.
 
 ### Marking forms and buttons
 
@@ -103,7 +114,7 @@ A form records only its own `id` or `name`, such as `contact`. It never reads wh
 - To leave a form out, add `data-skald="off"`. Search forms (`role="search"`) are always left out.
 - To count your "page not found" page, add `data-skald="404"` to its `<body>`, or put `<div data-skald="404" hidden></div>` anywhere on it. This also works in a single-page app.
 
-> A form whose own code refuses the submit (for example, a missing field) still counts as sent. If that matters, your developer can send the event only after success: `skald('track', 'form_submit', {id: 'contact'})`.
+> Form sent counts presses of the send button, not forms received. A form whose own code refuses the submit (for example, a missing field) or whose sending fails still counts as sent. Traffic > Events shows **Forms received** beside it: the forms your site's server or form tool reported to Leads & sales on the same days, when one is connected. If that matters, your developer can send the event only after success: `skald('track', 'form_submit', {id: 'contact'})`.
 
 ### What it does not track by itself
 

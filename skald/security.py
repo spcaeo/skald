@@ -36,6 +36,11 @@ gap between two such requests stays within the window.
 
 "Is anything exposed?" Each probe answered 2xx is one of:
 
+  static    (exposure rule 3) a file a browser loads with a page (image, stylesheet,
+            script, font: security_names.STATIC_FILE) in wp-content/ or wp-includes/, with
+            no script name before it and not a secret file; whatever its size
+  own       (rule 3) the site calling itself: a POST to /wp-cron.php (root or one folder
+            down) with WordPress's own agent naming one of the site's hosts
   shell     its size is within `tolerance` bytes of the host's shell: the size
             (within the tolerance) that the most distinct probe paths of that
             host were answered 2xx with that day, if at least `shell_paths`
@@ -45,6 +50,9 @@ gap between two such requests stays within the window.
             log records is the size sent, after compression, so the same page
             can be 392 bytes through one door and 404 through another
   empty     a body of 0 bytes
+  home      (rule 3) a script name (HOME_PATH) within HOME_PERCENT (at least `tolerance`
+            bytes) of one of the host's HOME_SIZES most frequent sizes for a bare "/"
+            (2xx, no query string) that day
   possible  any other size: a possible exposure, to check now
   unknown   the line has no size: Skald cannot tell, and never calls it safe
 
@@ -62,7 +70,8 @@ import bisect
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from .classify import CRAWLER_SESSION, NOT_RENDERED, PROBE, PROBE_QUERY, TOO_FAST, Group
+from .classify import (CRAWLER_SESSION, NOT_RENDERED, PROBE, PROBE_QUERY, SECRET_PROBE, TOO_FAST,
+                       Group)
 from .parse import ASSET, RSC_PAYLOAD
 from . import security_names as N
 from .urlhost import host_of
@@ -220,8 +229,9 @@ class Collector:
         self.own: set = set()
         self.verifier = None                   # bot_verify.Verifier (summarise_views)
         self.pairs: dict[tuple, _Pair] = {}
-        self.answered: list[tuple] = []        # (host, path, when, status, size, cat, pair)
+        self.answered: list[tuple] = []        # (host, path, when, status, size, cat, pair, kind)
         self.sizes: dict[str, dict] = {}       # host -> {size: {paths}}
+        self.homes: dict[str, Counter] = {}    # host -> sizes its bare "/" got 2xx, counted
         self.probes = self.probes_other = self.probes_bare = self.query_only = 0
         self.inj: dict[tuple, list] = {}       # (pair, kind) -> [n, first, last, statuses]
         self.login = Runs(self.rules["login_posts"], self.rules["login_seconds"])
@@ -307,10 +317,41 @@ class Collector:
             self.query_only += 1
         elif cls == "2xx":
             host = (hit.host or "").lower()[:100]
+            kind = self._harmless(hit, cat)
             self.answered.append((host, hit.path[:200], _utc(hit.when), hit.status, hit.size,
-                                  cat, key))
-            if hit.size is not None and int(hit.size) > 0:
+                                  cat, key, kind))
+            # A static file or the site's own call never sets a host's fallback size: 192
+            # images of one site would otherwise make look-alike sizes "harmless".
+            if kind is None and hit.size is not None and int(hit.size) > 0:
                 self.sizes.setdefault(host, {}).setdefault(int(hit.size), set()).add(hit.path[:200])
+
+    def _harmless(self, hit, cat: str) -> str | None:
+        """"static", "own" or None: an answer harmless whatever its size (rule 3)."""
+        path = hit.path
+        if (N.STATIC_FILE.search(path) and N.STATIC_PLACE.search(path) and cat not in N.STATIC_NEVER
+                and not N.SCRIPT_NAME.search(path) and not SECRET_PROBE.search(path)):
+            return "static"
+        if hit.method == N.SELF_METHOD and N.SELF_PATH.search(hit.path):
+            m = N.SELF_AGENT.match(hit.user_agent or "")
+            own = self.own or ({hit.host.lower()} if hit.host else set())
+            if m and N.own_like(host_of(m.group(1)), own):
+                return "own"
+        return None
+
+    def _home(self, hit) -> None:
+        """The sizes each host answered a bare "/" with (rule 3's "home"), counted."""
+        if hit.url != "/" or status_class(hit.status) != "2xx" or not hit.size:
+            return
+        self.homes.setdefault((hit.host or "").lower()[:100], Counter())[int(hit.size)] += 1
+
+    def _home_sizes(self) -> dict:
+        """host -> its HOME_SIZES most frequent bare "/" sizes (ties: the smaller first)."""
+        return {host: [s for s, _ in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))
+                       [:N.HOME_SIZES]] for host, c in self.homes.items()}
+
+    @staticmethod
+    def _near_home(size: int, homes: list, tol: int) -> bool:
+        return any(abs(size - h) * 100 <= max(tol * 100, h * N.HOME_PERCENT) for h in homes)
 
     def _signs(self, hit) -> None:
         hour = None
@@ -332,6 +373,7 @@ class Collector:
     def add(self, hit, verdict) -> None:
         key, p = self._pair(hit)
         self._signs(hit)
+        self._home(hit)
         self._referrer(hit, p)
         group = verdict.group
         if group is Group.BOTS and not verdict.legacy and (
@@ -530,14 +572,20 @@ class Collector:
         hosts: dict[str, dict] = {}
         rows = []
         counts = Counter()
-        for host, path, when, status, size, cat, key in self.answered:
+        homes = self._home_sizes()
+        for host, path, when, status, size, cat, key, kind in self.answered:
             shell = shells.get(host)
-            if size is None:
+            if kind is not None:
+                verdict = kind
+            elif size is None:
                 verdict = "unknown"
             elif int(size) == 0:
                 verdict = "empty"
             elif near(host, int(size)) >= need:
                 verdict = "shell"
+            elif (N.HOME_PATH.search(path) and not SECRET_PROBE.search(path)
+                  and self._near_home(int(size), homes.get(host, ()), tol)):
+                verdict = "home"
             else:
                 verdict = "possible"
             counts[verdict] += 1
@@ -545,8 +593,7 @@ class Collector:
                                         "shell_size": shell[0] if shell else None,
                                         "shell_paths": shell[1] if shell else 0,
                                         "shell_sizes": fallbacks.get(host, []),
-                                        "answered": 0, "shell": 0, "empty": 0,
-                                        "possible": 0, "unknown": 0})
+                                        "answered": 0, **{v: 0 for v in N.VERDICTS}})
             h["answered"] += 1
             h[verdict] += 1
             if verdict in ("possible", "unknown"):
@@ -561,7 +608,7 @@ class Collector:
                                  str(r["status"]), -1 if r["size"] is None else r["size"],
                                  r["category"] or "", -1 if r["who"] is None else r["who"]))
         return {"answered": len(self.answered), "query_only": self.query_only,
-                **{v: int(counts.get(v, 0)) for v in ("shell", "empty", "possible", "unknown")},
+                **{v: int(counts.get(v, 0)) for v in N.VERDICTS},
                 "hosts": dict(sorted(hosts.items())), "rows": rows[:N.EXPOSURE_ROWS],
                 "folded": max(0, len(rows) - N.EXPOSURE_ROWS)}
 
@@ -609,7 +656,7 @@ def check(totals, blob, differs, problems) -> None:
     differs("security: probes answered 2xx", int(ex["answered"]) + int(ex.get("query_only") or 0),
             int((blob.get("status") or {}).get("2xx", 0)), "requests")
     differs("security: answered by verdict",
-            sum(int(ex[v]) for v in ("shell", "empty", "possible", "unknown")),
+            sum(int(ex.get(v) or 0) for v in N.VERDICTS),
             int(ex["answered"]), "requests")
     differs("security: answered by host",
             sum(int(h["answered"]) for h in (ex.get("hosts") or {}).values()),

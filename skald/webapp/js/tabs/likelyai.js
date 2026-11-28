@@ -1,5 +1,5 @@
 // "Likely sent by an AI assistant": an inferred figure, never a count. A
-// direct, untagged visit that landed on a page an assistant's user fetcher
+// untagged visit with no referrer (Direct or Hidden referral) that landed on a page an assistant's user fetcher
 // (ChatGPT-User, Perplexity-User, Claude-User...) fetched just before is
 // likely the click from that answer (ai_likely.py). Shown apart from the
 // real AI source everywhere, always as "likely" with an (i) saying how.
@@ -62,11 +62,11 @@ export function sourcesPanel(m, r) {
   const t = sumLikely(blobs);
   const text = method(f, t.windows);
   const box = h("div", { class: "sheet" }, head3("Likely from AI assistants (inferred)", text),
-    h("p", { class: "sub" }, "Direct visits that probably came from an AI answer. An estimate, kept apart from the counted AI source."));
+    h("p", { class: "sub" }, "Direct and Hidden referral visits that probably came from an AI answer. An estimate, kept apart from the counted AI source."));
   if (off(f)) { box.append(h("p", { class: "empty" }, "Turned off (attribution.ai_likely).")); return box; }
   if (!blobs.length) { box.append(h("p", { class: "empty" }, "Not recorded for this range: it is counted from this release on.")); return box; }
   box.append(blist(rankedOf(t.by), { label: aiLabel, color: "var(--g-answer_engines)", total: t.likely, empty: "No direct visit followed an assistant's fetch of its page in this range." }),
-    h("p", { class: "note" }, `${n(t.likely)} likely of ${n(t.direct)} direct, untagged visits${t.direct >= MIN_SHARE ? ` (${pct1(t.likely, t.direct)} of them)` : ""}${blobs.length < days ? `, over ${n(blobs.length)} of ${n(days)} recorded days` : ""}. ${text}`));
+    h("p", { class: "note" }, `${n(t.likely)} likely of ${n(t.direct)} untagged visits with no referrer (Direct or Hidden referral)${t.direct >= MIN_SHARE ? ` (${pct1(t.likely, t.direct)} of them)` : ""}${blobs.length < days ? `, over ${n(blobs.length)} of ${n(days)} recorded days` : ""}. ${text}`));
   return box;
 }
 
@@ -80,7 +80,7 @@ export function followedSection(m, r) {
   const byReads = !!t.reads;
   const rows = Object.keys(t.fetches).map((k) => ({ k, fetches: (byReads ? t.reads[k] : t.fetches[k]) || 0, followed: (byReads ? t.readsFollowed[k] : t.followed[k]) || 0 }));
   const unit = byReads ? "read" : "request";
-  const text = `${method(f, t.windows)} A ${unit} counts as followed when a direct, untagged visit landed on the same page within the window after it; a visit two assistants fetched for follows one of each.${byReads ? " A read is one assistant reading one page: its repeat requests within 30 seconds and the page's own files are not counted again." : " Requests, not reads: these days were counted before reads were."}`;
+  const text = `${method(f, t.windows)} A ${unit} counts as followed when an untagged visit with no referrer (Direct or Hidden referral) landed on the same page within the window after it; a visit two assistants fetched for follows one of each.${byReads ? " A read is one assistant reading one page: its repeat requests within 30 seconds and the page's own files are not counted again." : " Requests, not reads: these days were counted before reads were."}`;
   return h("section", { class: "s" }, h("h2", null, `${byReads ? "Reads" : "Requests"} followed by a visit (likely) `, info(text, "Followed by a visit")),
     h("p", { class: "sub" }, `Of each assistant's ${unit}s for someone's question, how many were likely followed by that person's click. Inferred, never certain.`),
     table([{ key: "k", label: "Assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "fetches", label: byReads ? "Reads for a question" : "Requests for a question", num: true },
@@ -111,7 +111,7 @@ export function conversionsLikely(days, acts, f) {
   const all = {};
   for (const d of got) for (const a of acts) addTo(all, d.likely_ai[a]);
   const keys = Object.keys(all).filter(ASSISTANT);
-  const text = `${method(f)} For a conversion: its first touch was Direct (no referrer, no utm_source or utm_medium, no ad click id), and an assistant fetched its landing page in the window before it.`;
+  const text = `${method(f)} For a conversion: its first touch was Direct or a Hidden referral (no referrer, no utm_source or utm_medium, no ad click id), and an assistant fetched its landing page in the window before it.`;
   return h("section", { class: "s" }, h("h2", null, "Likely from AI assistants (inferred) ", info(text, "Likely from AI assistants")),
     keys.length ? h("div", { class: "sheet" }, table([{ key: "k", label: "Likely assistant", fmt: aiLabel, csv: (x) => aiLabel(x.k) }, { key: "all", label: "Completed", num: true }],
       { caption: "Completed conversions likely sent by an AI assistant (inferred)", rows: keys.map((k) => ({ k, all: all[k] })), file: "conversions-likely-ai.csv", search: false, limit: 8 }))

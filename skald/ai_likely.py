@@ -8,8 +8,8 @@ or unknown". But when the person asked, the assistant's user fetcher
 the page from the server at that moment. So:
 
   A visit is "likely referred by" an assistant when it came with no
-  referrer and no campaign tag (source "Direct or unknown", no utm_ tag,
-  no ad click id), and that assistant's user fetcher fetched the page the
+  referrer and no campaign tag (source "Direct or unknown" or "Hidden
+  referral", hidden_names.py; no utm_ tag, no ad click id), and that assistant's user fetcher fetched the page the
   visit landed on in the same minute as the visit's first request or up to
   `attribution.ai_window_minutes` (default 15) minutes before it. Times are
   compared to the minute, in UTC. Two or more assistants in the window: the
@@ -56,7 +56,8 @@ the visits were not counted - "not recorded", never 0):
                   whose fetches that day were no evidence; leads and
                   conversions leave the same fetches out (fetch_index)
   visits          the day's visits (journeys)
-  direct          of which direct and untagged: what the figure can explain
+  direct          of which with no referrer and no tag (Direct or Hidden
+                  referral): what the figure can explain
   likely          of which likely referred by an assistant
   by_assistant    {assistant or "(more than one)": visits}, adds up to likely
   pages           {landing page: likely visits}, the TOP largest and
@@ -92,6 +93,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
 from .classify import AI_FETCHER_OWNERS, AI_LIKELY_MANY, Group, Tier
+from .hidden_names import HIDDEN
 from .path_names import PATH_CHARS
 
 WINDOW = 15
@@ -101,6 +103,9 @@ FETCH_DAYS = 180
 TOP = 20
 OTHER = "(all others)"
 DIRECT = "Direct or unknown"
+# The sources of a visit with no referrer and no tag (dimensions.NO_REFERRER):
+# a click from an answer whose referrer was hidden is a Hidden referral.
+NO_REFERRER = (DIRECT, HIDDEN)
 NOT_RECORDED = "(not recorded)"
 NONE = "(none)"
 METHOD = ("Inferred, not counted: a visit with no referrer and no campaign tag that landed "
@@ -177,8 +182,9 @@ class Fetches:
 
 
 def direct_untagged(j: dict) -> bool:
-    """A visit with no referrer and no campaign tag (no utm_ tag, no click id)."""
-    return j.get("source") == DIRECT and not j.get("utm") and not j.get("paid")
+    """A visit with no referrer and no campaign tag (no utm_ tag, no click id):
+    Direct, or a Hidden referral."""
+    return j.get("source") in NO_REFERRER and not j.get("utm") and not j.get("paid")
 
 
 def by_chance(by_page: dict, direct: Counter, window: int,

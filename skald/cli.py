@@ -581,11 +581,11 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
     and compare. A mismatch exits 1; with `withhold` the day - the site and
     every view, which came from the same pass - is marked withheld, so it
     is never drawn or mailed."""
-    from . import audit
+    from . import audit, audit_rules
     try:
         figures = audit.recount(ctx.config, day, ctx.tz,
                                 [Path(p) for p in logs] if logs else None, ctx.now,
-                                cdn=audit.stored_with_cdn(ctx.db_path, ctx.site, day))
+                                **audit_rules.stored_rules(ctx.db_path, ctx.site, day))
     except ValueError as why:
         ctx.err(f"audit {day}: {why}")
         return 2
@@ -640,7 +640,7 @@ def audit_day(ctx: Context, day: date, logs: list[str] | None = None,
 def audit_live(ctx: Context) -> int:
     """Recount today so far over the live snapshot's own window, and compare
     with the snapshot. Never withholds anything: live is never stored."""
-    from . import audit
+    from . import audit, audit_rules
     snap = live.load(live.path_for(ctx.live_dir, ctx.site))
     if snap is None or not snap.get("until"):
         ctx.err("audit --live: no snapshot with its window recorded; run `skald live` first")
@@ -658,8 +658,7 @@ def audit_live(ctx: Context) -> int:
         figures = audit.recount(ctx.config, day, ctx.tz,
                                 [Path(p) for p in ctx.args.log] if ctx.args.log else None,
                                 ctx.now, until=until, upto=upto,
-                                cdn=audit.counted_with_cdn(
-                                    (snap.get("extras") or {}).get("quality")))
+                                **audit_rules.rules_of(snap.get("extras")))
     except ValueError as why:
         ctx.err(f"audit --live: {why}")
         return 2

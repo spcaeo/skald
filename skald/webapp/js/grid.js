@@ -31,6 +31,7 @@
 // hide? (starts hidden, shown from Columns), csvAlways? (in the CSV even while hidden)};
 // type lines a column up as in table.js (alignOf): numbers right, tags and yes/no centred.
 
+import { SEP, searchTest } from "./search-words.js";
 import { createDataGrid } from "../vendor/spcaeo-ui/data-grid/vanilla/data-grid.js";
 import { readGridParams, writeGridParams } from "../vendor/spcaeo-ui/data-grid/core/url-state.js";
 import { PAGE_SIZE_OPTIONS as PAGE_SIZES } from "../vendor/spcaeo-ui/data-grid/core/query.js";
@@ -105,7 +106,8 @@ export function grid(opts) {
   const fieldOf = (f) => f.value || ((r) => r[f.key]);
   const searchText = (r) => {
     let t = texts.get(r);
-    if (t == null) { t = cols.map((c) => cellText(c, r)).join("\u0001").toLowerCase(); texts.set(r, t); }
+    // A column's `find` adds words the cell does not show (a page's title, SKALD-70).
+    if (t == null) { t = cols.flatMap((c) => (c.find ? [cellText(c, r), c.find(r)] : [cellText(c, r)])).join(SEP).toLowerCase(); texts.set(r, t); }
     return t;
   };
   const optionsOf = (f) => {
@@ -133,8 +135,9 @@ export function grid(opts) {
       else if (cond.operator === "is_set") out = out.filter(has);
       else if (cond.operator === "is_not_set") out = out.filter((r) => !has(r));
     }
-    const q = query.q.trim().toLowerCase();
-    if (q) out = out.filter((r) => searchText(r).includes(q));
+    // An address on this site is also looked for as its path (search-words.js, SKALD-70).
+    const finds = searchTest(query.q);
+    if (finds) out = out.filter((r) => finds(searchText(r)));
     // The column filters (tablestate.js): what a cell shows, or the number it holds.
     for (const f of cfs) {
       const c = cols.find((x) => x.key === f.key);

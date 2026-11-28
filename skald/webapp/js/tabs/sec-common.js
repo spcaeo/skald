@@ -7,6 +7,7 @@ import { h, n, short } from "../ui.js";
 import * as S from "../state.js";
 import { base, getJSON, rangeOf } from "../data.js";
 import { DEMO } from "../demo.js";
+import { sessions } from "../access.js";
 import { time as tzTime } from "../tz.js";
 import { call } from "./ipmanager.js";
 import { mayFind } from "./person.js";
@@ -34,7 +35,7 @@ export const adviceOf = (cat) => ADVICE[cat] || ["Open the path yourself and che
 
 let FILE = { key: "", at: 0, p: null };
 // Tests start again from nothing (tests/js/security.mjs).
-export function forget() { FILE = { key: "", at: 0, p: null }; ASKED.clear(); }
+export function forget() { FILE = { key: "", at: 0, p: null }; ASKED.clear(); MARKS = null; }
 export function loadFile(s) {
   const key = `${s.view || "all"}`;
   if (FILE.p && FILE.key === key && Date.now() - FILE.at < 60000) return FILE.p;
@@ -43,6 +44,19 @@ export function loadFile(s) {
 }
 
 const ASKED = new Map();
+
+/* The site's "Not a problem" marks and the reader's role (settings/security-prefs,
+   security_marks.py): signed-in installs only; null in the demo and in basic mode. */
+let MARKS = null;
+export function loadMarks() {
+  if (DEMO.on || !sessions()) return Promise.resolve(null);
+  if (MARKS && Date.now() - MARKS.at < 60000) return MARKS.p;
+  const p = call("settings/security-prefs").then((r) => (r?.ok ? { marks: r.marks || {}, role: r.role || "" } : null)).catch(() => null);
+  MARKS = { at: Date.now(), p };
+  return p;
+}
+/* After a mark or an undo: the answer's marks, kept for the next draw. */
+export function keepMarks(marks, role) { MARKS = { at: Date.now(), p: Promise.resolve({ marks: marks || {}, role }) }; }
 /* Who may see addresses: an owner or admin; in the demo, everyone (its addresses are the
    documentation ranges, written by tools/demo.py as an owner would see them). */
 export const mayAddresses = () => mayFind() || (DEMO.on && !!DEMO.api.people["people/security"]);
@@ -69,7 +83,7 @@ export function missingNote(p, t) {
 }
 
 /* A tab of the section: its head, then `draw(ctx)` once security.json is in. */
-export function secTab(m, s, { title, question, help, draw, period }) {
+export function secTab(m, s, { title, question, help, draw, period, marks = false }) {
   const r = rangeOf(m, s);
   const top = tabHead(title, question, r, { help, more: HELP, period });
   const body = h("div", { class: "sec-body" }, h("p", { class: "empty" }, "Loading Security…"));
@@ -77,12 +91,12 @@ export function secTab(m, s, { title, question, help, draw, period }) {
     body.replaceChildren(emptyState("Security covers the whole site, every host: choose All pages to see it.", ["Show all pages", () => S.set({ view: "" })]));
     return [...top, body];
   }
-  loadFile(s).then((f) => {
+  Promise.all([loadFile(s), marks ? loadMarks() : null]).then(([f, mk]) => {
     if (!f) return body.replaceChildren(emptyState("Security is not written beside this page yet. It is counted from the next run on."));
     if (f.state === "error") return body.replaceChildren(emptyState(`security.json could not be built on the last redraw: ${f.error || "no reason given"}.`, null, { bad: true }));
     const p = periodOf(f, r);
     const t = sumOf(p.blobs);
-    const parts = [draw({ f, r, p, t, m, s })].flat(Infinity).filter(Boolean);
+    const parts = [draw({ f, r, p, t, m, s, mk })].flat(Infinity).filter(Boolean);
     body.replaceChildren(...parts);
   });
   return [...top, body];

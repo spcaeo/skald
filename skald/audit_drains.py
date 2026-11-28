@@ -37,6 +37,11 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 _UTC = timezone.utc
+# The browser's Sec-Fetch-Site header (SKALD-69): an edge record's key for it
+# (deploy/cloudflare-worker/skald-edge.js) and the header's name in Caddy's
+# logged headers. Written here again, not imported.
+_EDGE_SITE = "fetch_site"
+_SITE_HEADER = "sec-fetch-site"
 _EPOCH = datetime(1970, 1, 1, tzinfo=_UTC)
 
 
@@ -228,7 +233,10 @@ def _edge(row: dict) -> dict | None:
             "method": _string(row.get("method")), "url": path, "status": status,
             "referrer": _string(row.get("referer")), "agent": _string(row.get("ua")),
             "country": "", "rid": _string(row.get("id"))[:128],
-            "size": _byte_count(row.get("bytes")), "seconds": None}
+            "size": _byte_count(row.get("bytes")), "seconds": None,
+            # Sec-Fetch-Site, when the Worker sends it (SKALD-69).
+            "fetch_site": _string(row.get(_EDGE_SITE)).strip().lower()
+            if _EDGE_SITE in row else None}
 
 
 def _header(headers, name: str) -> str:
@@ -277,6 +285,9 @@ def _caddy(row: dict) -> dict | None:
             # Caddy logs the request's headers: whether Next.js's prefetch
             # header came ("" when not), or None for a record without them.
             "prefetch": _header(headers, "next-router-prefetch").strip()
+            if isinstance(headers, dict) else None,
+            # And Sec-Fetch-Site, the same way (SKALD-69).
+            "fetch_site": _header(headers, _SITE_HEADER).strip().lower()
             if isinstance(headers, dict) else None}
 
 

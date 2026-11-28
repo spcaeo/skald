@@ -46,7 +46,7 @@ function next(iso) { const t = new Date(`${iso}T00:00:00Z`); t.setUTCDate(t.getU
 export function sumOf(blobs) {
   const t = { days: blobs.length, probes: 0, probes_other: 0, scanners: 0, addresses: 0, requests: 0, forged: 0, bare_ip: 0,
     hosting: null, cdn: null, cdnProbes: 0, categories: {}, status: {}, countries: {}, paths: {}, perDay: [],
-    exposure: { answered: 0, shell: 0, empty: 0, possible: 0, unknown: 0, folded: 0, rows: [], hosts: {} },
+    exposure: { answered: 0, ...zero(), folded: 0, marked: 0, rows: [], hosts: {} },
     injection: { requests: 0, kinds: {}, rows: [] }, login: { posts: 0, episodes: 0, rows: [] }, bursts: { requests: 0, episodes: 0, rows: [] },
     fake: { requests: 0, pairs: 0, kinds: {}, pages: {} }, who: [], whoDays: 0, whoFolded: 0 };
   for (const [day, b] of blobs) {
@@ -56,11 +56,12 @@ export function sumOf(blobs) {
     add(t.categories, b.categories); add(t.status, b.status); add(t.countries, b.countries); add(t.paths, b.paths);
     t.perDay.push({ day, probes: b.probes || 0, scanners: b.scanners || 0 });
     const e = b.exposure || {};
-    for (const k of ["answered", "shell", "empty", "possible", "unknown", "folded"]) t.exposure[k] += e[k] || 0;
-    for (const row of e.rows || []) t.exposure.rows.push({ ...row, day });
+    for (const k of ["answered", ...VERDICTS, "folded"]) t.exposure[k] += e[k] || 0;
+    const tol = Number(b.rules?.tolerance ?? 16);
+    for (const row of e.rows || []) t.exposure.rows.push({ ...row, day, tol });
     for (const [host, x] of Object.entries(e.hosts || {})) {
-      const h = t.exposure.hosts[host] || (t.exposure.hosts[host] = { host, bare_ip: !!x.bare_ip, answered: 0, shell: 0, empty: 0, possible: 0, unknown: 0, sizes: [] });
-      for (const k of ["answered", "shell", "empty", "possible", "unknown"]) h[k] += x[k] || 0;
+      const h = t.exposure.hosts[host] || (t.exposure.hosts[host] = { host, bare_ip: !!x.bare_ip, answered: 0, ...zero(), sizes: [] });
+      for (const k of ["answered", ...VERDICTS]) h[k] += x[k] || 0;
       for (const z of x.shell_sizes || (x.shell_size != null ? [x.shell_size] : [])) if (!h.sizes.includes(z)) h.sizes.push(z);
     }
     const a = b.attacks || {};
@@ -80,12 +81,44 @@ export function sumOf(blobs) {
   return t;
 }
 
-/* The headline verdict of "Is anything exposed?". */
+/* Exposure rule 3 (SKALD-59): harmless whatever the size are a static file ("static"), the
+   site calling itself ("own") and its home page's size ("home"), beside the fallback page
+   ("shell") and an empty body; security_names.VERDICTS. */
+export const HARMLESS = ["shell", "empty", "static", "own", "home"];
+export const VERDICTS = [...HARMLESS, "possible", "unknown"];
+function zero() { return Object.fromEntries(VERDICTS.map((k) => [k, 0])); }
+export const harmlessOf = (e) => HARMLESS.reduce((sum, k) => sum + (e[k] || 0), 0);
+
+/* A "Not a problem" mark (security_marks.py) covers the row: the same status, a size within
+   the day's tolerance (both not recorded counts as the same). */
+export function holds(mark, row) {
+  if (!mark || String(mark.status) !== String(row.status)) return false;
+  if (mark.size == null || row.size == null) return mark.size == null && row.size == null;
+  return Math.abs(Number(mark.size) - Number(row.size)) <= Number(row.tol ?? 16);
+}
+/* The mark among an item's marks (one per answer checked) that covers the row, or null. */
+export const coveringOf = (marks, row) => (Array.isArray(marks) ? marks : marks ? [marks] : []).find((m) => holds(m, row)) || null;
+
+/* Set each possible row's mark (row.marked) and count them (exposure.marked): the verdict
+   leaves them out. marks: {item: [{status, size, marked_at, by}]}. */
+export function applyMarks(t, marks) {
+  const e = t.exposure;
+  e.marked = 0;
+  for (const r of e.rows) {
+    r.marked = r.verdict === "possible" ? coveringOf(marks?.[r.item], r) : null;
+    if (r.marked) e.marked += 1;
+  }
+  return t;
+}
+
+/* The headline verdict of "Is anything exposed?": possible exposures not marked "Not a problem". */
 export function verdictOf(t) {
   const e = t.exposure;
   if (!t.days) return { tone: "none", words: "Not recorded for this period", n: 0 };
-  if (e.possible) return { tone: "bad", words: `${e.possible} possible exposure${e.possible === 1 ? "" : "s"}: check ${e.possible === 1 ? "it" : "these"} now`, n: e.possible };
+  const open = Math.max(0, (e.possible || 0) - (e.marked || 0));
+  if (open) return { tone: "bad", words: `${open} possible exposure${open === 1 ? "" : "s"}: check ${open === 1 ? "it" : "these"} now`, n: open };
   if (e.unknown) return { tone: "warn", words: `Can't tell for ${e.unknown} answer${e.unknown === 1 ? "" : "s"}: the log has no size`, n: e.unknown };
+  if (e.marked) return { tone: "ok", words: `Nothing left to check: ${e.marked} marked not a problem`, n: 0 };
   return { tone: "ok", words: e.answered ? "Nothing exposed in this period" : "Nothing exposed: no scanner probe was answered with a page", n: 0 };
 }
 

@@ -106,17 +106,25 @@ def _whole(history, site: str, day: date) -> dict | None:
     return json.loads(got[0]) if got else None
 
 
-def exposures(blobs: list[tuple[str, dict | None]]) -> list[dict]:
+def exposures(blobs: list[tuple[str, dict | None]], site: str = "",
+              marks: dict | None = None) -> list[dict]:
+    """One alert per possible exposure (host and path); an answer marked "Not a problem"
+    (security_marks.py) opens none while the mark holds."""
     from .security import current
+    from .security_marks import covering
+    from .security_notify import item_id
     out, seen = [], set()
     for when, blob in blobs:
-        if not current(blob):           # counted before 2.21.1's rule: recount it first
+        if not current(blob):           # counted with an older exposure rule: recount it first
             continue
+        tol = ((blob or {}).get("rules") or {}).get("tolerance")
         for r in ((blob or {}).get("exposure") or {}).get("rows") or []:
             if r.get("verdict") != "possible":
                 continue
             subject = f"{r['host']}{r['path']}"
-            if subject in seen:
+            if subject in seen or covering((marks or {}).get(item_id("exposure", site, r["host"],
+                                                                      r["path"])),
+                                           r["status"], r.get("size"), tol):
                 continue
             seen.add(subject)
             shell = r.get("shell_size")
@@ -180,7 +188,8 @@ def findings(state: dict, config: dict, snap: dict | None, history, site: str,
         if snap and snap.get("state") == "ok":
             blobs.append(("today", (snap.get("extras") or {}).get("security")))
         blobs.append((day.isoformat(), _whole(history, site, day)))
-        found += exposures(blobs)
+        from .security_marks import for_site
+        found += exposures(blobs, site, for_site(config, folder, site))
     if cfg["scan_wave"]:
         got = wave(cfg, history, site, day)
         state["security"] = {"wave": got, "settings": {k: cfg[k] for k in DEFAULTS}}

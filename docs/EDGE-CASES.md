@@ -58,7 +58,7 @@ never up.
 ### A3. Verified AI crawlers (published IP ranges)
 - **Seen:** meta-externalagent 4,897 (no reverse DNS), ChatGPT-User 4 from addresses in Spain and the US (no reverse DNS), OAI-SearchBot 2, Claude-User 6 (ours, A6), Bytespider 62.
 - **Wrong:** AI vendors mostly do not use reverse DNS. Without a range check the AI tab is a list of claims.
-- **Detect:** OpenAI publishes `gptbot.json`, `searchbot.json`, `chatgpt-user.json`; Perplexity publishes `perplexitybot.json` and `perplexity-user.json`; Meta's crawlers come from its own network (AS32934); Apple publishes Applebot ranges; Anthropic and others: name only. Fetch the lists daily, keep the last good copy, store the list's date with each day.
+- **Detect:** OpenAI publishes `gptbot.json`, `searchbot.json`, `chatgpt-user.json`; Perplexity publishes `perplexitybot.json` and `perplexity-user.json`; Meta's crawlers come from its own network (AS32934); Apple publishes Applebot ranges; Anthropic publishes `claude.com/crawling/bots.json` for its crawlers and, on its IP address page, the outbound addresses Claude-User fetches from (SKALD-52). Fetch the lists daily, keep the last good copy, store the list's date with each day.
 - **Count:** in range -> answer engine, "verified". Out of range -> bots, "claims to be X". No published list -> answer engine, "not verifiable", shown as such.
 - **Test:** fixture with one in-range and one out-of-range GPTBot; list fetch failure keeps yesterday's list and says so.
 - **Status:** Handled (`bot_verify.py`): OpenAI, Perplexity, Anthropic, Apple, Meta and DuckDuckGo lists among others; a list older than 7 days no longer says "spoofed".
@@ -361,8 +361,10 @@ never up.
 ### E4. Google AI Overviews and AI Mode
 - **Wrong:** clicks arrive as `google.com`, identical to search clicks.
 - **Count:** search. Show "not measurable" (Handled). Since 2.10.0 a click that carries
-  `udm=50` (AI Mode) on the referrer or the landing URL is still search, with the referrer
-  label `google.com (AI Mode)` (CLASSIFICATION.md); without it, nothing is inferred.
+  `udm=50` (AI Mode) on the referrer or the landing URL would still be search, with the referrer
+  label `google.com (AI Mode)` (CLASSIFICATION.md); without it, nothing is inferred. Google does
+  not send it today: an AI Mode click arrives as an ordinary google.com visit or with no referrer
+  and counts as Search engine or Direct (tested 27 Nov 2026), so AI Mode is not measurable either.
 
 ### E5. Two referrers in one header
 - **Seen:** `https://google.com, https://example.com/features/...` (2).

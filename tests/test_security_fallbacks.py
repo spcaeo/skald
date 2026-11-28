@@ -81,7 +81,7 @@ class Fallbacks(unittest.TestCase):
                          "Attack attempts lists it, with what was answered")
 
     def test_both_roads_agree_and_the_rule_is_stamped(self):
-        self.assertEqual(stored(self.box)["rules"]["exposure_rule"], 2)
+        self.assertEqual(stored(self.box)["rules"]["exposure_rule"], 3)
         code, _, err = self.box.run("--today", "2026-10-06", "audit")
         self.assertEqual(code, 0, err)
         b = stored(self.box)
@@ -101,7 +101,7 @@ class NoStaleAlerts(unittest.TestCase):
                "status": "200", "size": 626, "verdict": "possible", "category": "wordpress",
                "shell_size": 404}
         old = {"rules": {"tolerance": 16}, "exposure": {"rows": [row]}}
-        new = {"rules": {"exposure_rule": 2}, "exposure": {"rows": [row]}}
+        new = {"rules": {"exposure_rule": 3}, "exposure": {"rows": [row]}}
         self.assertEqual(alerts_security.exposures([("2026-10-17", old)]), [])
         self.assertEqual(len(alerts_security.exposures([("2026-10-17", new)])), 1)
         self.assertEqual(security_notify.items({}, "example.com", [old], None), [])

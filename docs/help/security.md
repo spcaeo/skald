@@ -29,7 +29,8 @@ The first tab answers the question that matters most: **did the server hand a sc
 
 At the top, one line says it:
 
-- **Nothing exposed in this period**: every probe answered with a page (a 2xx status) got the host's harmless fallback page, or an empty body.
+- **Nothing exposed in this period**: every probe answered with a page (a 2xx status) got a harmless answer (below).
+- **Nothing left to check: N marked not a problem**: every possible exposure was checked and marked by an owner or admin.
 - **N possible exposures: check these now**: these probes got a page whose size is unlike the host's fallback page. Open each path yourself and see what it returns.
 - **Can't tell for N answers**: the log line has no size, so Skald cannot tell a page from a file. It never calls these safe. Add the body size (`$body_bytes_sent` in nginx) to your log format.
 
@@ -43,6 +44,16 @@ Many sites answer every path they do not have with the same page:
 - a server's default page answers anything sent straight to the server's IP address.
 
 So a scanner asking for `/.env` often gets a **200** with that page, not the file. That is harmless. Skald learns each host's fallback page from the day's own answers: any size that at least three different probe paths of that host were answered with (within 16 bytes). A host can have more than one: the same page sent compressed to most scanners and uncompressed to one that did not ask for compression. A probe answered with such a size is **harmless**; one answered with a size no other probe path got is a **possible exposure**.
+
+Three more answers are harmless whatever their size, because they were most of the false alarms on WordPress sites:
+
+- **a file a browser loads with a page**: an image, a stylesheet, a script or a font, such as `/wp-content/uploads/2026/02/logo.svg` or a theme's `style.css`. A secret, config or backup file is never counted here, whatever its ending (`/env.js` is still judged);
+- **the site calling itself**: WordPress running its own scheduled tasks (a POST to `/wp-cron.php`, with WordPress's own agent naming your site);
+- **your home page under another name**: an answer the size of the host's home page that day (within 1%), such as `/index.php` on a server that answers any `.php` name with the home page. Only a script name counts, set against the plain home page, never a search page (`/?s=...`).
+
+Images, stylesheets, scripts and fonts count only in WordPress's public folders (`wp-content/`, `wp-includes/`). A file that only looks static is still judged: `/phpinfo.php/style.css` and `/uploads/shell.php.png` can run as a script, so they stay possible exposures.
+
+Skald cannot see whether a request came from someone signed in, so the site's own admin tools can still show up. Mark those **Not a problem** (below).
 
 A probe that is an ordinary page with an attack in its query string (for example `/?id=1 union select`) asked for no file: its answer is that page. It is listed under **Attack attempts**, with what was answered, never as an exposure.
 
@@ -61,6 +72,10 @@ Each host has its own fallback page, and so does the server's bare IP. The size 
 2. Stop the web server from serving such files. In nginx, for dotfiles: `location ~ /\. { deny all; }`; for deploy and backup files, deny their extensions the same way. The tab gives one line of advice for each kind.
 3. Rotate every secret the file held: passwords, API keys, tokens. Assume it was read.
 4. Check **Who is scanning us?** for the address that got it.
+
+### Not a problem
+
+If you opened it and it is meant to be public (a feed, a page of your own, a call your own tools make), an owner or admin can press **Not a problem** on its row, or on the alert's own link. It then opens no alert, no daily-summary line and no site alert, and the verdict at the top leaves it out. The row still shows, with who marked it and when. A mark covers the answer you checked: if the path gets another status or size, the file changed, and Skald judges it again. A path sent compressed and not has two answers: mark each one. **Check it again** takes back every mark of that path. Every mark and undo is written to the organisation's audit log. The figures never change: a mark is your judgement, not a count.
 
 ## Your stack
 
@@ -161,7 +176,7 @@ With shortened addresses the list holds networks only; with addresses not kept t
 
 Three site alerts, sent the same way as the site's other alerts (the dashboard, the site's alert mail to its confirmed recipients, and your webhooks, Slack included):
 
-- **Possible exposure**: opens at once (the live count runs every few minutes) when a probe is answered with a page unlike the host's fallback page, one alert per host and path.
+- **Possible exposure**: opens at once (the live count runs every few minutes) when a probe is answered with a page unlike the host's fallback page, one alert per host and path; never for an answer marked **Not a problem** while it stays the same.
 - **Advisory matches your stack**: after the daily check, one alert per advisory, host and product that needs something done.
 - **New scan wave**: the last whole day's probes are at least three times the usual day (the median of the 14 days before, at least 7 of them counted) and at least 200. Off until you switch it on.
 

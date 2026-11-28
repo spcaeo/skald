@@ -28,6 +28,10 @@ figures it shows, to compare them.
                first ten characters): the day, the latest value that day (a
                date counts as its midnight), the sources sorted
   check        of its page_checks rows, the latest checked_at
+  title        (SKALD-70) a title row is one line with spaces folded, 1 to
+               TITLE_CHARS characters, read from html, meta or jsonld; the
+               page's title is the one first seen last (then the text); the
+               website's page list's title wins ("website")
   shown dates  the website's page list (report.pages_meta, read here) wins: its
                `published` makes date_source "website"; else a page with its own
                published value shows that value's local day, "page". Its
@@ -47,6 +51,9 @@ _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _UTC = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 _NAIVE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
 READ = ("dated", "not_given")
+TITLE_FROM = ("html", "meta", "jsonld")       # SKALD-70: where a title is read
+DATE_FROM = ("jsonld", "meta", "time", "sitemap")
+TITLE_CHARS = 300
 
 
 def _rows(db, site: str):
@@ -109,7 +116,16 @@ def check_rows(dates: list, checks: list, now: datetime) -> list[str]:
         if seen_at is None or seen_at[0] != "utc" or seen_at[1] > now:
             problems.append(f"{where}: first seen {seen!r} is not a UTC time before now")
             continue
-        if got is None or got[1].year < 1990:
+        if kind != "title" and source in TITLE_FROM and source not in DATE_FROM:
+            problems.append(f"{where}: a date is read from jsonld, meta, time or the sitemap")
+        if kind == "title":
+            if source not in TITLE_FROM:
+                problems.append(f"{where}: a title is read from html, meta or jsonld only")
+            elif not isinstance(value, str) or value != " ".join(value.split()) or not value \
+                    or len(value) > TITLE_CHARS:
+                problems.append(f"{where}: not a title as Skald keeps one (one line, folded "
+                                f"spaces, 1 to {TITLE_CHARS} characters)")
+        elif got is None or got[1].year < 1990:
             problems.append(f"{where}: not a date or time Skald keeps")
         elif got[0] == "utc" and got[1] > seen_at[1] + timedelta(minutes=5):
             problems.append(f"{where}: after the time it was first seen")
@@ -137,12 +153,16 @@ def expected(dates: list, checks: list, tz) -> dict:
     out: dict[str, dict] = {}
 
     def entry(path):
-        return out.setdefault(_page(path), {"published": None, "modified": None, "days": {},
-                                            "check": None})
+        return out.setdefault(_page(path), {"published": None, "modified": None,
+                                            "title": None, "days": {}, "check": None})
 
     for path, kind, value, source, seen in dates:
         e = entry(path)
-        if source != "sitemap" and kind in KINDS:
+        if kind == "title" and source in TITLE_FROM:
+            best = e["title"]
+            if best is None or (seen, value) > (best[2], best[0]):
+                e["title"] = (value, source, seen)
+        elif source != "sitemap" and kind in KINDS:
             best = e[kind]
             if best is None or (seen, _sortable(value)) > (best[2], _sortable(best[0])):
                 e[kind] = (value, source, seen)
@@ -159,8 +179,9 @@ def expected(dates: list, checks: list, tz) -> dict:
             e["check"] = {"at": at, "outcome": outcome, "status": status, "error": error}
     final = {}
     for page, e in out.items():
-        pub, mod = e["published"], e["modified"]
+        pub, mod, title = e["published"], e["modified"], e["title"]
         final[page] = {
+            "title": title[0] if title else None, "title_from": title[1] if title else None,
             "published_at": pub[0] if pub else None, "published_from": pub[1] if pub else None,
             "modified_at": mod[0] if mod else None,
             "modified_day": _day(mod[0], tz) if mod else None,
@@ -206,6 +227,10 @@ def recheck(db, site: str, tz, shown: dict, now: datetime | None = None,
     listed = _site_list(meta_file)
     for page, b in want.items():
         a, entry = shown.get(page) or {}, listed.get(page) or {}
+        title = (entry["title"], "website") if entry.get("title") else (b["title"], b["title_from"])
+        if title[0] and (a.get("title"), a.get("title_from")) != title:
+            problems.append(f"page dates {page}: title shown "
+                            f"{(a.get('title'), a.get('title_from'))!r}, the rows give {title!r}")
         if b["published_at"] or b["modified_at"]:
             if entry.get("published"):
                 pub = (entry["published"], "website")

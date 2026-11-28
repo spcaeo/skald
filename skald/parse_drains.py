@@ -32,6 +32,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from .parse import Hit, _country
+from .hidden_names import EDGE_KEY
 from .parse_cdn import _ISO, _bytes, _duration, _json_object, _text, _when
 
 
@@ -210,6 +211,8 @@ def edge(line: str) -> Hit | None:
     record posted twice. `cache` (cf-cache-status) is not read here: the
     endpoint uses it to keep a request the origin also logged out
     (`logs.edge_only_cached`). An edge record carries no country.
+    `fetch_site` is the browser's Sec-Fetch-Site header, when the Worker
+    sends it (SKALD-69).
     """
     row = _json_object(line)
     if row is None or "ts" not in row or isinstance(row.get("proxy"), dict) \
@@ -237,4 +240,7 @@ def edge(line: str) -> Hit | None:
         size=_bytes(row.get("bytes")),
         fmt="edge_json",
         rid=_text(row.get("id"))[:128],
+        # The Worker's Sec-Fetch-Site ("" when the browser sent none); None
+        # for a record from a Worker that does not send it (SKALD-69).
+        fetch_site=_text(row.get(EDGE_KEY)).strip().lower() if EDGE_KEY in row else None,
     )

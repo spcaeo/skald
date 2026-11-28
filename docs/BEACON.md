@@ -227,12 +227,12 @@ post with `X-Skald-Probe: 1` (the set-up Test's page check) answers `200` with
 | `contact_submit` | the contact form is sent successfully | `contact` |
 | `waitlist_submit` | the early-access form is sent successfully | `early_access` |
 | `outbound_click` | a link to another site is clicked | the destination host |
-| `scroll_75` | the reader reaches 75% of the page, once per page | - |
+| `scroll_75` | on a scroll event, the bottom of the screen reaches 75% of the page's height, once per page view (a page that fits on the screen never sends it) | - |
 | `copy_text` | text is copied, once per page (never the text) | - |
 | `404_view` | the not-found page is shown | - |
 | `page_view` | a page loads, a client-side navigation (`pushState`, `replaceState`, back and forward), or a page restored from the back-forward cache (`pageshow` with `persisted`); counted in beacon-only mode or with visitor IDs on. Otherwise (since 2.10.1) kept only as proof the page was drawn: path and time in `opens-<day>.jsonl`, read by the render test, never counted as an event | - |
-| `form_start` | a field of a form is first used, once per form per page | the form's `id` or `name` |
-| `form_submit` | a form is submitted | the form's `id` or `name` |
+| `form_start` | an element of a form first gets focus, once per form per page (which forms count: below) | the form's name (below) |
+| `form_submit` | a form's submit event: the send button was pressed, not a form received | the form's name (below) |
 | `calendly_open` | a Calendly embed shows its page | - |
 | `calendly_time_selected` | a time is chosen in a Calendly embed | - |
 | `calendly_booked` | a Calendly embed confirms a booking | - |
@@ -249,7 +249,36 @@ beacon), and the Events tab (Leads & sales > Events) says so. The tag's own rule
 `contact_submit` / `waitlist_submit` when a form with `data-skald="contact"` /
 `"waitlist"` is submitted (its start is `form_start`); `scroll_75` and
 `copy_text` once per page view; `404_view` once per page view when the page
-holds an element with `data-skald="404"`. tests/test_snippet.py fails when an
+holds an element with `data-skald="404"`.
+
+**Which forms count (SKALD-67, from 2.60.0).** A `<form>` counts when it
+carries any `data-skald` value but `off`, or else when it holds a field a
+person types into: `textarea`, or `input` with no type, an empty type, or type
+text, email, tel, number, url, password, date, time, month, week or
+datetime-local. Never counted: `data-skald="off"`, `role="search"`, an
+unmarked `method="dialog"` form (a pop-up's close button is often
+`<form method="dialog"><button>Close</button></form>`, and pressing it fires a
+real submit), a press of a button with `formmethod="dialog"`, and unmarked
+forms with no such field: pickers and quizzes of buttons, radios or tick
+boxes, a form of `<select>` only or of a file upload only, a form whose fields
+sit outside it (`form="id"`) or inside a web component's shadow root. A site
+counts any of those by marking the form with `data-skald="<name>"`.
+
+Until 2.59.0 the tag counted every form. On sites with such pop-ups or pickers,
+Form started and Form sent of earlier days include them, and so do the
+"contact completed" rows the tag adds to conversions when visitor IDs are on.
+They cannot be recounted: each event carried the form's name only, and that
+was `form` for almost every form.
+
+The form's name goes through the same 60-character token as any `id`: its
+`id`, else `name`, else `aria-label`, else its `data-skald` value, else the
+path of `action` or `data-endpoint` when that is on the page's own site (an
+address on another site never names a form), keeping only the parts with no
+digit, `@` or `%` and under 25 characters, so a webhook's secret, an order
+number or an email in the address never travel; else its first class; else
+`form`. Never a field's value.
+
+tests/test_snippet.py fails when an
 event is neither sent by the tag nor in `CODE_ONLY`. A site with its own
 code can send any of them too.
 

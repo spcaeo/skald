@@ -12,6 +12,7 @@
 //   lb     leadsBy() for its breakdown, or null: its breakdown has no lead split
 // Compare mode adds its A · B · ± columns to these lists, here, in one place.
 
+import { titled, titleFind } from "../page-dates.js";
 import { h, n, pct1, share } from "../ui.js";
 import { ranked } from "../data.js";
 import { UNKNOWN, labelCell, rateOf } from "./leadfigs.js";
@@ -45,10 +46,14 @@ const dash = (title) => h("span", { class: "few", title }, "-");
 
 // A row's own address, when it has one: a page (path, landing) or a referring site.
 const hrefOf = (x) => (x.dim === "path" || x.dim === "landing" ? x.k : x.dim === "referrer" && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(x.k || "") ? `https://${x.k}` : "");
-export function labelCol(name) {
+export function labelCol(name, { titles = false } = {}) {
   // url: copy and open in a new tab on a page's or a referring site's cell (urlactions.js).
+  // titles (SKALD-70): a page's title under its path, when known (page-dates.js), which the search finds too.
+  const cellOf = (v, x) => labelCell(x.dim, x.k, v ?? x.k);
   return { key: "label", label: name, url: true, href: hrefOf, sort: by((x) => x.label),
-    fmt: (v, x) => labelCell(x.dim, x.k, v ?? x.k), csv: (x) => (x.k === UNKNOWN ? "Not recorded" : x.label ?? x.k) };
+    fmt: titles ? (v, x) => (x.k === UNKNOWN ? cellOf(v, x) : titled(x.k, cellOf(v, x))) : cellOf,
+    ...(titles ? { find: (x) => (x.k === UNKNOWN ? "" : titleFind(x.k)) } : {}),
+    csv: (x) => (x.k === UNKNOWN ? "Not recorded" : x.label ?? x.k) };
 }
 
 export function countCols(value = "Visitors") {

@@ -301,7 +301,8 @@ class Tally:
         origin = None
         if hit.is_page and verdict.group is Group.PEOPLE:
             origin = dim.page_origin(hit.referrer, hit.url, verdict.tier is Tier.CITED,
-                                     self.own_hosts or ({hit.host.lower()} if hit.host else set()))
+                                     self.own_hosts or ({hit.host.lower()} if hit.host else set()),
+                                     hit.navigation_site)
         if sessions.saw(hit, origin):
             stats.visits += 1
             if hit.country:
@@ -375,7 +376,7 @@ class Tally:
             "browser": browser,
             "os": system,
             "device": device,
-            "source": dim.source_type(hit.referrer, hit.url, cited, own),
+            "source": dim.source_type(hit.referrer, hit.url, cited, own, hit.navigation_site),
             "referrer": dim.referrer_label(hit.referrer, own, hit.url),
             "campaign": dim.campaign(hit.url),
             "landing": hit.path[:PATH_CHARS],
@@ -471,6 +472,10 @@ def summarise_views(
     verifier = whole.extras.security.verifier
     if verifier is not None and getattr(verifier, "cdn_known", lambda: None)():
         whole.quality.cdn = verifier.cdn                # lines from a CDN edge (SKALD-17)
+    if verifier is not None and hasattr(verifier, "agent_lists"):
+        # The agent-only lists counted with (SKALD-52): the audit gates older days on it.
+        for t in [whole] + [t for _, t in tallies.values()]:
+            t.extras.bots.agent_lists = verifier.agent_lists()
     proxied = getattr(classifier, "proxied", None)
     for hit in hits:
         whole.quality.add(hit)

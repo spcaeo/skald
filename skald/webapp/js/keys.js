@@ -27,8 +27,16 @@ const keyOf = (tab) => Object.keys(GO).find((x) => GO[x] === tab);
 // What this release added, shown once in the rail until opened. Newest first;
 // a third value names the Help guide (docs/help) the line links to.
 const NEW = {
-  id: "2026-11-26-2.59.0",
+  id: "2026-11-28-2.60.0",
   items: [
+    ["Find a page by address or title", "the table search finds a page by its full address as copied from the browser, and Pages by its title too, shown under the path when Page dates is on.", "getting-started"],
+    ["Hidden referral", "a click from a site that hid its address is split out of Direct when the log records the browser's Sec-Fetch-Site header.", "where-visitors-come-from"],
+    ["Forms counted honestly", "Form started and Form sent count real forms only, not a pop-up's close button, pickers or quizzes; Events says Form sent counts presses, and shows forms received from your hooks beside it.", "tracking-script"],
+    ["Fewer false exposures", "images, stylesheets, scripts, WordPress's own cron and a home page under another name are no possible exposure; an owner or admin can mark a checked one Not a problem.", "security"],
+    ["Claude's fetches verified", "Claude-User fetches from Anthropic's published outbound addresses count as Claude again, not as a fake.", "ai-and-bots"],
+    ["Gemini's live fetch named", "a bare \"Google\" agent from Google's fetch proxy is a named bot, Google fetch proxy (Gemini, Sheets, Apps Script), checked by reverse DNS.", "ai-and-bots"],
+    ["RiverBot named", "River's crawler counts with the AI crawlers that collect for training, checked against River's published list.", "ai-and-bots"],
+    ["Google AI Mode, said plainly", "Help says what Skald and Google Analytics can and cannot tell apart about AI Mode clicks.", "faq"],
     ["One filter for four Traffic tabs", "Visitors, Sources, Pages and Places & devices share one Country, Source and Device bar: pick the USA and all four show only visits from the USA.", "getting-started"],
     ["Search: up or down, and why", "each Search figure shows its change against the days before; each opportunity says why it is listed; New and lost say what they mean.", "search"],
     ["Why the Retention curve moves", "a line under the curve reads each step, and tells a real change apart from fewer weeks of visitors being counted.", "retention"],
@@ -322,7 +330,7 @@ const NEW = {
     ["Returning readers", "a returning visitor whose browser has your site's files cached now counts as a reader when your pages have the script tag."],
     ["Crawler cost", "what each crawler costs your server: requests, data sent, response time, errors and re-crawls. Open one for its detail by day.", "ai-and-bots"],
     ["Client sites", "page assets and the visitor IDs switch per site in Settings > Sites; settings and site commands from the shell."],
-    ["Google AI Mode", "a visit from Google's AI Mode reads \"google.com (AI Mode)\" under Search engine.", "faq"],
+    ["Google AI Mode", "AI Mode clicks arrive as plain google.com or with no referrer, so they cannot be told apart. If Google ever sends udm=50, a visit reads \"google.com (AI Mode)\" under Search engine.", "faq"],
     ["What they fetch", "AI fetches by what they ask for: pages, llms.txt, Markdown, robots.txt, sitemaps.", "faq"],
     ["What the AI read", "the pages an assistant fetched just before it sent a visitor, in the visit and per assistant.", "faq"],
     // 2.9.0
